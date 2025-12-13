@@ -1,0 +1,2622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0a0a0a">
+    <meta name="description" content="Vamos Festa - Latin Fiesta Night - Event Registration & Management System">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Vamos Festa">
+    <title>Vamos Festa - Event Management</title>
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Favicons -->
+    <link rel="icon" href="/icons/favicon.ico" sizes="48x48">
+    <link rel="icon" href="/icons/favicon-16x16.png" sizes="16x16" type="image/png">
+    <link rel="icon" href="/icons/favicon-32x32.png" sizes="32x32" type="image/png">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    
+    <style>
+        :root {
+            --primary: #FF6B35;        /* Vibrant Orange */
+            --secondary: #00B4D8;      /* Turquoise */
+            --accent: #FFD60A;         /* Yellow */
+            --dark: #1a1a2e;           /* Deep Navy */
+            --dark-secondary: #16213e; /* Darker Navy */
+            --light: #fff;
+            --fiesta-gradient: linear-gradient(135deg, #FF6B35, #FFD60A, #00B4D8);
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #00B4D8;
+        }
+        
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--dark);
+            color: var(--light);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .vamosfesta-bg {
+            background-color: var(--dark);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(212, 168, 83, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(201, 48, 44, 0.1) 0%, transparent 40%);
+        }
+        
+        .vamosfesta-container {
+            background-color: rgba(26, 26, 26, 0.95);
+            border-radius: 1rem;
+            border: 2px solid rgba(212, 168, 83, 0.5);
+            box-shadow: 0 0 25px rgba(212, 168, 83, 0.2);
+        }
+        
+        .vamosfesta-header {
+            background: var(--fiesta-gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-weight: bold;
+        }
+        
+        .vamosfesta-button {
+            background: var(--fiesta-gradient);
+            color: var(--dark);
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.6rem 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-height: 44px; /* Touch-friendly */
+        }
+        
+        .vamosfesta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(212, 168, 83, 0.4);
+        }
+        
+        .vamosfesta-button:active {
+            transform: translateY(0);
+        }
+        
+        .vamosfesta-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .vamosfesta-button.secondary {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+        }
+        
+        .vamosfesta-button.danger {
+            background: var(--danger);
+            color: white;
+        }
+        
+        .vamosfesta-button.success {
+            background: var(--success);
+            color: white;
+        }
+        
+        .vamosfesta-button.whatsapp {
+            background: #25D366;
+            color: white;
+        }
+        
+        .vamosfesta-input {
+            background-color: rgba(255, 255, 255, 0.95);
+            border: 2px solid var(--primary);
+            border-radius: 0.5rem;
+            padding: 0.6rem 1rem;
+            color: var(--dark);
+            width: 100%;
+            transition: all 0.3s ease;
+            min-height: 44px; /* Touch-friendly */
+            font-size: 16px; /* Prevents zoom on iOS */
+        }
+        
+        .vamosfesta-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(212, 168, 83, 0.3);
+            outline: none;
+        }
+        
+        .logo-text {
+            font-size: 2rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            background: var(--fiesta-gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        
+        .tagline {
+            font-size: 0.85rem;
+            color: var(--primary);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        
+        .status-pending { background: var(--warning); color: var(--dark); }
+        .status-verified { background: var(--info); color: white; }
+        .status-generated { background: #8b5cf6; color: white; }
+        .status-sent { background: var(--success); color: white; }
+        .status-checked { background: #10b981; color: white; }
+        .status-rejected { background: var(--danger); color: white; }
+        
+        .card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(212, 168, 83, 0.3);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+        }
+        
+        .stat-card {
+            text-align: center;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+        
+        .stat-card h4 { font-size: 0.75rem; opacity: 0.8; margin-bottom: 0.5rem; }
+        .stat-card p { font-size: 1.5rem; font-weight: bold; }
+        
+        /* Guest Card - Mobile Optimized */
+        .guest-card {
+            transition: all 0.2s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .guest-card:active {
+            transform: scale(0.98);
+            background: rgba(212, 168, 83, 0.1);
+        }
+        
+        /* Navigation - Mobile Scrollable */
+        .nav-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        
+        .nav-container::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .nav-tabs {
+            display: flex;
+            gap: 0.5rem;
+            min-width: max-content;
+            padding-bottom: 0.5rem;
+        }
+        
+        .nav-tab {
+            padding: 0.6rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+            white-space: nowrap;
+            font-size: 0.85rem;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .nav-tab:hover { background: rgba(212, 168, 83, 0.1); }
+        .nav-tab.active { 
+            background: rgba(212, 168, 83, 0.2); 
+            border-color: var(--primary);
+            color: var(--accent);
+        }
+        
+        /* Table - Mobile Responsive */
+        .table-container { 
+            overflow-x: auto; 
+            -webkit-overflow-scrolling: touch;
+            margin: 0 -1rem;
+            padding: 0 1rem;
+        }
+        
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            min-width: 600px;
+        }
+        
+        th { 
+            text-align: left; 
+            padding: 0.75rem 0.5rem; 
+            border-bottom: 2px solid var(--primary);
+            color: var(--primary);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        
+        td { 
+            padding: 0.75rem 0.5rem; 
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-size: 0.85rem;
+        }
+        
+        tr:hover td { background: rgba(212, 168, 83, 0.05); }
+        
+        /* Modal - Mobile Fullscreen */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        
+        .modal.active { display: flex; }
+        
+        .modal-content {
+            background: var(--dark-secondary);
+            border: 2px solid var(--primary);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .role-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        
+        .role-super_admin { background: #8b5cf6; color: white; }
+        .role-admin { background: var(--info); color: white; }
+        .role-seller { background: var(--success); color: white; }
+        .role-entry_marshall { background: #f97316; color: white; }
+        
+        /* Hide elements based on role */
+        .super-admin-only, .admin-only, .seller-only, .entry-marshall-only, .overseer-only { display: none; }
+        
+        body.role-super_admin .super-admin-only { display: block; }
+        body.role-super_admin .admin-view { display: block; }
+        body.role-admin .admin-only { display: block; }
+        body.role-admin .admin-view { display: block; }
+        body.role-admin.overseer .overseer-only { display: block; }
+        body.role-seller .seller-only { display: block; }
+        body.role-entry_marshall .entry-marshall-only { display: block; }
+        
+        /* Mobile Slide Menu for Admin/Super Admin */
+        .mobile-menu-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 998;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .mobile-menu-overlay.active {
+            display: block;
+            opacity: 1;
+        }
+        
+        .mobile-slide-menu {
+            position: fixed;
+            top: 0;
+            left: -300px;
+            width: 280px;
+            height: 100%;
+            background: var(--dark-secondary);
+            border-right: 2px solid var(--primary);
+            z-index: 999;
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            box-shadow: 5px 0 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        .mobile-slide-menu.active {
+            left: 0;
+        }
+        
+        .mobile-menu-header {
+            background: var(--gradient-gold);
+            padding: 1.5rem;
+            text-align: center;
+            position: relative;
+        }
+        
+        .mobile-menu-header h3 {
+            color: var(--dark);
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .mobile-menu-header p {
+            color: var(--dark);
+            font-size: 0.75rem;
+            opacity: 0.8;
+        }
+        
+        .mobile-menu-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            color: var(--dark);
+            font-size: 1.25rem;
+            cursor: pointer;
+            padding: 0.25rem;
+        }
+        
+        .mobile-menu-items {
+            padding: 0.5rem 0;
+        }
+        
+        .mobile-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 1.5rem;
+            color: var(--cream);
+            text-decoration: none;
+            border-left: 4px solid transparent;
+            transition: all 0.3s;
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+        
+        .mobile-menu-item:hover,
+        .mobile-menu-item.active {
+            background: rgba(212, 168, 83, 0.15);
+            border-left-color: var(--gold);
+            color: var(--gold);
+        }
+        
+        .mobile-menu-item i {
+            width: 24px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+        
+        .mobile-menu-item .menu-badge {
+            margin-left: auto;
+            background: var(--danger);
+            color: white;
+            font-size: 0.65rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 9999px;
+            min-width: 20px;
+            text-align: center;
+        }
+        
+        .mobile-menu-divider {
+            height: 1px;
+            background: rgba(212, 168, 83, 0.2);
+            margin: 0.5rem 1.5rem;
+        }
+        
+        .hamburger-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--gold);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            min-height: 44px;
+            min-width: 44px;
+        }
+        
+        /* Payment Info Share Button */
+        .share-payment-btn {
+            width: 100%;
+            margin-top: 0.75rem;
+        }
+        
+        /* Mobile Specific Styles */
+        @media (max-width: 768px) {
+            .logo-text { font-size: 1.25rem; letter-spacing: 1px; }
+            .tagline { font-size: 0.65rem; letter-spacing: 1px; }
+            
+            .vamosfesta-container { 
+                padding: 1rem !important;
+                border-radius: 0.75rem;
+            }
+            
+            .card { padding: 1rem; }
+            
+            .stat-card { padding: 0.75rem; }
+            .stat-card h4 { font-size: 0.65rem; }
+            .stat-card p { font-size: 1.25rem; }
+            
+            .nav-tab { 
+                padding: 0.5rem 0.75rem; 
+                font-size: 0.8rem;
+            }
+            
+            .nav-tab i { margin-right: 0.25rem; }
+            
+            /* Hide text on very small screens, show icon */
+            .nav-tab .tab-text {
+                display: none;
+            }
+            
+            th, td { 
+                padding: 0.5rem 0.4rem; 
+                font-size: 0.75rem; 
+            }
+            
+            .modal-content {
+                padding: 1rem;
+                border-radius: 0.75rem;
+                max-height: 95vh;
+            }
+            
+            /* Stack header on mobile */
+            header .container {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+            
+            /* Full width buttons on mobile */
+            .mobile-full-width {
+                width: 100%;
+            }
+            
+            /* Grid adjustments */
+            .grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+            .md\\:grid-cols-4 { grid-template-columns: repeat(2, 1fr); }
+            
+            /* Action buttons smaller on mobile */
+            .action-btn {
+                padding: 0.4rem 0.5rem !important;
+                font-size: 0.7rem !important;
+            }
+            
+            /* Mobile menu for Super Admin and Admin */
+            body.role-super_admin .nav-container,
+            body.role-admin .nav-container {
+                display: none !important;
+            }
+            
+            body.role-super_admin .hamburger-btn,
+            body.role-admin .hamburger-btn {
+                display: flex !important;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            /* Seller and Entry Marshall keep horizontal scroll nav */
+            body.role-seller .hamburger-btn,
+            body.role-entry_marshall .hamburger-btn {
+                display: none !important;
+            }
+        }
+        
+        @media (min-width: 769px) {
+            .nav-tab .tab-text {
+                display: inline;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .logo-text { font-size: 1.1rem; }
+            
+            .stat-card p { font-size: 1.1rem; }
+            
+            /* Smaller grid for stats */
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 0.5rem !important;
+            }
+        }
+        
+        /* PWA Offline Indicator Animation */
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.8;
+                transform: scale(1.05);
+            }
+        }
+    </style>
+</head>
+<body class="vamosfesta-bg">
+
+
+    <!-- ==================== LOGIN SCREEN ==================== -->
+<div id="loginScreen" class="min-h-screen flex flex-col items-center justify-between p-6" style="
+    background: linear-gradient(135deg, 
+        #FF3B30 0%, 
+        #FF3B30 15%,
+        #00CED1 15%,
+        #00CED1 50%,
+        #FFD700 50%,
+        #FFD700 85%,
+        #FF3B30 85%);
+    position: relative;
+    overflow: hidden;
+">
+    <!-- Decorative Elements (optional - adds depth) -->
+    <div style="
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: repeating-linear-gradient(
+            45deg,
+            transparent,
+            transparent 10px,
+            rgba(0,0,0,0.03) 10px,
+            rgba(0,0,0,0.03) 20px
+        );
+        pointer-events: none;
+    "></div>
+    
+    <!-- Logo Section (Top 70% of screen) -->
+    <div class="flex-1 flex flex-col items-center justify-center relative z-10 w-full max-w-md">
+        <!-- Logo Image -->
+        <div class="mb-8 relative">
+            <img src="/vamos-festa-logo.png" 
+                 alt="Vamos Festa Logo" 
+                 class="w-64 h-64 object-contain drop-shadow-2xl"
+                 style="filter: drop-shadow(0 10px 30px rgba(0,0,0,0.4));">
+        </div>
+        
+        <!-- AREA 8 MTM Text -->
+        <h1 style="
+            font-size: 3rem;
+            font-weight: 900;
+            color: rgba(0, 0, 0, 0.15);
+            text-transform: uppercase;
+            letter-spacing: 0.5rem;
+            text-shadow: 
+                2px 2px 0 rgba(255,255,255,0.3),
+                -2px -2px 0 rgba(0,0,0,0.3);
+            position: absolute;
+            bottom: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            pointer-events: none;
+        ">AREA 8 MTM</h1>
+    </div>
+    
+    <!-- Login Form (Bottom 30% of screen) -->
+    <div class="w-full max-w-sm relative z-10 pb-8">
+        <form id="loginForm" class="space-y-4">
+            <!-- Login Input -->
+            <div class="relative">
+                <input 
+                    type="text" 
+                    id="loginUsername" 
+                    placeholder="Login"
+                    required 
+                    autocomplete="username"
+                    style="
+                        width: 100%;
+                        padding: 1rem 1.5rem;
+                        background: rgba(255, 107, 53, 0.85);
+                        border: 2px solid rgba(255, 255, 255, 0.5);
+                        border-radius: 12px;
+                        color: white;
+                        font-size: 1.1rem;
+                        font-weight: 500;
+                        backdrop-filter: blur(10px);
+                        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+                        transition: all 0.3s ease;
+                    "
+                    onfocus="this.style.background='rgba(255, 107, 53, 0.95)'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 12px 40px rgba(0,0,0,0.4)'"
+                    onblur="this.style.background='rgba(255, 107, 53, 0.85)'; this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 32px rgba(0,0,0,0.3)'"
+                >
+                <style>
+                    #loginUsername::placeholder,
+                    #loginPassword::placeholder {
+                        color: rgba(255, 255, 255, 0.8);
+                        font-weight: 400;
+                    }
+                </style>
+            </div>
+            
+            <!-- Password Input -->
+            <div class="relative">
+                <input 
+                    type="password" 
+                    id="loginPassword" 
+                    placeholder="Password"
+                    required 
+                    autocomplete="current-password"
+                    style="
+                        width: 100%;
+                        padding: 1rem 1.5rem;
+                        background: rgba(255, 107, 53, 0.85);
+                        border: 2px solid rgba(255, 255, 255, 0.5);
+                        border-radius: 12px;
+                        color: white;
+                        font-size: 1.1rem;
+                        font-weight: 500;
+                        backdrop-filter: blur(10px);
+                        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+                        transition: all 0.3s ease;
+                    "
+                    onfocus="this.style.background='rgba(255, 107, 53, 0.95)'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 12px 40px rgba(0,0,0,0.4)'"
+                    onblur="this.style.background='rgba(255, 107, 53, 0.85)'; this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 32px rgba(0,0,0,0.3)'"
+                >
+            </div>
+            
+            <!-- Submit Button (Hidden - submits on Enter) -->
+            <button type="submit" style="
+                width: 100%;
+                padding: 1rem;
+                background: linear-gradient(135deg, #FFD700, #FFA500);
+                border: none;
+                border-radius: 12px;
+                color: #1a1a2e;
+                font-size: 1.2rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 2px;
+                cursor: pointer;
+                box-shadow: 0 8px 32px rgba(255, 215, 0, 0.4);
+                transition: all 0.3s ease;
+            "
+            onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 12px 40px rgba(255,215,0,0.6)'"
+            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 32px rgba(255,215,0,0.4)'">
+                <i class="fas fa-sign-in-alt mr-2"></i> LOGIN
+            </button>
+            
+            <!-- Error Message -->
+            <div id="loginError" style="
+                display: none;
+                padding: 0.75rem;
+                background: rgba(239, 68, 68, 0.9);
+                border-radius: 8px;
+                color: white;
+                text-align: center;
+                font-weight: 600;
+                font-size: 0.9rem;
+                box-shadow: 0 4px 16px rgba(239, 68, 68, 0.4);
+            "></div>
+        </form>
+        
+        <!-- Branding Text (Optional) -->
+        <p style="
+            text-align: center;
+            margin-top: 1.5rem;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        ">
+            • Event Management System •
+        </p>
+    </div>
+</div>
+
+    <!-- ==================== MAIN APPLICATION ==================== -->
+    <div id="mainApp" class="hidden min-h-screen">
+        
+        <!-- Mobile Slide Menu Overlay -->
+        <div id="mobileMenuOverlay" class="mobile-menu-overlay" onclick="toggleMobileMenu()"></div>
+        
+        <!-- Mobile Slide Menu -->
+        <div id="mobileSlideMenu" class="mobile-slide-menu">
+            <div class="mobile-menu-header">
+                <span class="mobile-menu-close" onclick="toggleMobileMenu()">
+                    <i class="fas fa-times"></i>
+                </span>
+                <h3>🎉 VAMOS FESTA</h3>
+                <p id="mobileMenuRole">Menu</p>
+            </div>
+            <div class="mobile-menu-items">
+                <!-- Super Admin Menu Items -->
+                <div class="super-admin-only">
+                    <div class="mobile-menu-item" data-tab="verification-queue">
+                        <i class="fas fa-clock"></i>
+                        <span>Verification Queue</span>
+                        <span id="mobilePendingBadge" class="menu-badge">0</span>
+                    </div>
+                    <div class="mobile-menu-item" data-tab="all-registrations">
+                        <i class="fas fa-users"></i>
+                        <span>All Guests</span>
+                    </div>
+                    <div class="mobile-menu-item" data-tab="seller-management">
+                        <i class="fas fa-users-cog"></i>
+                        <span>Manage Users</span>
+                    </div>
+                    <div class="mobile-menu-item" data-tab="admin-management">
+                        <i class="fas fa-user-shield"></i>
+                        <span>Manage Admins</span>
+                    </div>
+                    <div class="mobile-menu-divider"></div>
+                    <div class="mobile-menu-item" data-tab="gate-management">
+                        <i class="fas fa-door-open"></i>
+                        <span>Gate Management</span>
+                    </div>
+                    <div class="mobile-menu-item" data-tab="settings">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </div>
+                    <div class="mobile-menu-item" data-tab="statistics">
+                        <i class="fas fa-chart-pie"></i>
+                        <span>Statistics</span>
+                    </div>
+                </div>
+                
+                <!-- Admin Menu Items -->
+                <div class="admin-only">
+                    <div class="mobile-menu-item" data-tab="view-registrations">
+                        <i class="fas fa-eye"></i>
+                        <span>View Registrations</span>
+                    </div>
+                    <div class="mobile-menu-item" data-tab="view-sellers">
+                        <i class="fas fa-chart-bar"></i>
+                        <span>Seller Stats</span>
+                    </div>
+                    <div class="mobile-menu-divider"></div>
+                    <div class="mobile-menu-item" data-tab="gate-management">
+                        <i class="fas fa-door-open"></i>
+                        <span>Gate Management</span>
+                    </div>
+                    <div class="mobile-menu-item overseer-only" data-tab="overseer-management">
+                        <i class="fas fa-tasks"></i>
+                        <span>Marshall Management</span>
+                    </div>
+                    <div class="mobile-menu-item" data-tab="statistics">
+                        <i class="fas fa-chart-pie"></i>
+                        <span>Statistics</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Header -->
+        <header class="bg-black/50 border-b border-yellow-600/30 px-4 py-3">
+            <div class="container mx-auto flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <!-- Hamburger Menu Button (Mobile Admin/Super Admin) -->
+                    <button class="hamburger-btn" onclick="toggleMobileMenu()">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <img src="/assets/vamos-festa-logo.png" alt="Vamos Festa Logo" class="w-8 h-8 md:w-10 md:h-10 object-contain">
+                    <div>
+                        <h1 class="logo-text text-lg md:text-xl">VAMOS FESTA</h1>
+                        <p class="tagline text-xs hidden md:block">¡Viva la Fiesta!</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="currentUserDisplay" class="text-xs md:text-sm">
+                        <span id="userName" class="font-semibold hidden md:inline"></span>
+                        <span id="userRoleBadge" class="role-badge ml-1"></span>
+                    </span>
+                    <button id="logoutBtn" class="vamosfesta-button danger text-xs py-2 px-2 md:px-3">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="bg-black/30 px-4 py-2 border-b border-yellow-600/20">
+            <div class="container mx-auto nav-container">
+                <div class="nav-tabs">
+                    <!-- Seller Tabs -->
+                    <button class="nav-tab seller-only" data-tab="register">
+                        <i class="fas fa-ticket-alt mr-2"></i><span class="tab-text">Register Guest</span>
+                    </button>
+                    <button class="nav-tab seller-only" data-tab="my-sales">
+                        <i class="fas fa-list mr-2"></i><span class="tab-text">My Sales</span>
+                    </button>
+                    
+                    <!-- Super Admin Tabs -->
+                    <button class="nav-tab super-admin-only" data-tab="verification-queue">
+                        <i class="fas fa-clock mr-2"></i><span class="tab-text">Verification</span>
+                        <span id="pendingBadge" class="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">0</span>
+                    </button>
+                    <button class="nav-tab super-admin-only" data-tab="all-registrations">
+                        <i class="fas fa-users mr-2"></i><span class="tab-text">All Guests</span>
+                    </button>
+                    <button class="nav-tab super-admin-only" data-tab="seller-management">
+                        <i class="fas fa-users-cog mr-2"></i><span class="tab-text">Users</span>
+                    </button>
+                    <button class="nav-tab super-admin-only" data-tab="admin-management">
+                        <i class="fas fa-user-shield mr-2"></i><span class="tab-text">Admins</span>
+                    </button>
+                    <button class="nav-tab super-admin-only" data-tab="gate-management">
+                        <i class="fas fa-door-open mr-2"></i><span class="tab-text">Gates</span>
+                    </button>
+                    <button class="nav-tab super-admin-only" data-tab="settings">
+                        <i class="fas fa-cog mr-2"></i><span class="tab-text">Settings</span>
+                    </button>
+                    
+                    <!-- Admin (Read-Only) Tabs -->
+                    <button class="nav-tab admin-only" data-tab="view-registrations">
+                        <i class="fas fa-eye mr-2"></i><span class="tab-text">Registrations</span>
+                    </button>
+                    <button class="nav-tab admin-only" data-tab="view-sellers">
+                        <i class="fas fa-chart-bar mr-2"></i><span class="tab-text">Seller Stats</span>
+                    </button>
+                    <button class="nav-tab admin-only" data-tab="gate-management">
+                        <i class="fas fa-door-open mr-2"></i><span class="tab-text">Gates</span>
+                    </button>
+                    <button class="nav-tab admin-only overseer-only" data-tab="overseer-management">
+                        <i class="fas fa-tasks mr-2"></i><span class="tab-text">Marshall Mgmt</span>
+                    </button>
+                    
+                    <!-- Stats Tab (Admin & Super Admin) -->
+                    <button class="nav-tab admin-view" data-tab="statistics">
+                        <i class="fas fa-chart-pie mr-2"></i><span class="tab-text">Statistics</span>
+                    </button>
+                    
+                    <!-- Entry Marshall Tab -->
+                    <button class="nav-tab entry-marshall-only" data-tab="entry-scan">
+                        <i class="fas fa-qrcode mr-2"></i><span class="tab-text">Scan Entry</span>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="container mx-auto p-4">
+            
+            <!-- ========== SELLER: Register Guest ========== -->
+            <section id="tab-register" class="tab-content hidden">
+                <div class="max-w-lg mx-auto">
+                    <div class="vamosfesta-container p-6">
+                        <h2 class="text-xl font-bold vamosfesta-header mb-6 text-center">
+                            <i class="fas fa-ticket-alt mr-2"></i>Register New Guest
+                        </h2>
+                        
+                        <!-- Payment Info Display -->
+                        <div id="paymentInfoBox" class="card mb-6">
+                            <div class="flex justify-between items-center mb-3">
+                                <h4 class="text-sm font-semibold text-yellow-400">
+                                    <i class="fas fa-credit-card mr-1"></i> Payment Info for Guest
+                                </h4>
+                                <button onclick="sharePaymentInfo()" class="vamosfesta-button whatsapp text-xs py-1 px-3">
+                                    <i class="fab fa-whatsapp mr-1"></i> Share
+                                </button>
+                            </div>
+                            
+                            <div id="paymentQRDisplay" class="text-center hidden mb-3">
+                                <img id="sellerQRImage" src="" alt="Payment QR" class="max-w-32 mx-auto rounded-lg border-2 border-yellow-600">
+                                <p class="text-xs text-gray-500 mt-1">Scan to Pay</p>
+                            </div>
+                            
+                            <div id="paymentUPIDisplay" class="text-center mb-2">
+                                <p class="text-xs text-gray-500 mb-1">UPI ID</p>
+                                <p id="displayUpiId" class="text-base font-mono text-yellow-400 select-all">Loading...</p>
+                            </div>
+                            
+                            <div id="paymentBankDisplay" class="text-center hidden border-t border-gray-700 pt-2 mt-2">
+                                <p class="text-xs text-gray-500 mb-1">Bank Details</p>
+                                <p id="displayBankDetails" class="text-xs text-gray-300 whitespace-pre-line select-all"></p>
+                            </div>
+                            
+                            <!-- Download QR button (if QR exists) -->
+                            <div id="downloadQRBtnContainer" class="hidden mt-3">
+                                <button onclick="downloadPaymentQR()" class="vamosfesta-button secondary w-full text-sm">
+                                    <i class="fas fa-download mr-1"></i> Download QR Code
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <form id="registrationForm" class="space-y-4">
+                            <div>
+                                <label class="block text-sm mb-1 text-gray-300">Guest Name *</label>
+                                <input type="text" id="guestName" class="vamosfesta-input" required placeholder="Full name of the guest">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm mb-1 text-gray-300">Mobile Number *</label>
+                                <input type="tel" id="guestMobile" class="vamosfesta-input" required 
+                                       pattern="[0-9]{10}" placeholder="10-digit mobile number"
+                                       title="Please enter a valid 10-digit mobile number">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm mb-1 text-gray-300">Entry Type *</label>
+                                <select id="entryType" class="vamosfesta-input" required>
+                                    <option value="">Select entry type</option>
+                                    <option value="stag">Stag - ₹<span class="stag-price">2750</span></option>
+                                    <option value="couple">Couple - ₹<span class="couple-price">4750</span></option>
+                                </select>
+                            </div>
+                            
+                            <div id="priceDisplay" class="text-center py-3 bg-yellow-900/30 rounded-lg hidden">
+                                <p class="text-sm text-gray-400">Amount to Collect</p>
+                                <p class="text-3xl font-bold text-yellow-400">₹<span id="ticketPrice">0</span></p>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm mb-1 text-gray-300">Payment Mode *</label>
+                                <select id="paymentMode" class="vamosfesta-input" required>
+                                    <option value="">Select payment mode</option>
+                                    <option value="cash">💵 Cash</option>
+                                    <option value="upi">📱 UPI</option>
+                                    <option value="bank_transfer">🏦 Bank Transfer</option>
+                                </select>
+                            </div>
+                            
+                            <div id="paymentRefSection" class="hidden">
+                                <label class="block text-sm mb-1 text-gray-300">
+                                    <span id="refLabel">Transaction Reference</span> *
+                                </label>
+                                <input type="text" id="paymentReference" class="vamosfesta-input" 
+                                       placeholder="UTR Number / Transaction ID">
+                                <p class="text-xs text-gray-500 mt-1">Enter the UTR number or transaction reference</p>
+                            </div>
+                            
+                            <button type="submit" class="vamosfesta-button w-full py-3 mt-6">
+                                <i class="fas fa-paper-plane mr-2"></i>Submit Registration
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========== SELLER: My Sales ========== -->
+            <section id="tab-my-sales" class="tab-content hidden">
+                <div class="vamosfesta-container p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold vamosfesta-header">
+                            <i class="fas fa-list mr-2"></i>My Registrations
+                        </h2>
+                        <button onclick="loadMySales()" class="vamosfesta-button secondary text-sm">
+                            <i class="fas fa-sync-alt mr-1"></i>Refresh
+                        </button>
+                    </div>
+                    
+                    <!-- My Stats Summary -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6 stats-grid">
+                        <div class="stat-card bg-yellow-900/30 border border-yellow-600/30">
+                            <h4>Total</h4>
+                            <p id="myTotalCount" class="text-yellow-400">0</p>
+                        </div>
+                        <div class="stat-card bg-orange-900/30 border border-orange-600/30">
+                            <h4>Pending</h4>
+                            <p id="myPendingCount" class="text-orange-400">0</p>
+                        </div>
+                        <div class="stat-card bg-green-900/30 border border-green-600/30">
+                            <h4>Verified</h4>
+                            <p id="myVerifiedCount" class="text-green-400">0</p>
+                        </div>
+                        <div class="stat-card bg-blue-900/30 border border-blue-600/30">
+                            <h4>Amount</h4>
+                            <p id="myTotalAmount" class="text-blue-400">₹0</p>
+                        </div>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Guest Name</th>
+                                    <th>Mobile</th>
+                                    <th>Type</th>
+                                    <th>Amount</th>
+                                    <th>Payment</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mySalesTableBody">
+                                <tr><td colspan="7" class="text-center py-8 text-gray-500">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========== SUPER ADMIN: Verification Queue ========== -->
+            <section id="tab-verification-queue" class="tab-content hidden">
+                <div class="vamosfesta-container p-4 md:p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg md:text-xl font-bold vamosfesta-header">
+                            <i class="fas fa-clock mr-2"></i>Pending Verification
+                        </h2>
+                        <button onclick="loadVerificationQueue()" class="vamosfesta-button text-sm py-2 px-3">
+                            <i class="fas fa-sync-alt"></i><span class="hidden md:inline ml-1">Refresh</span>
+                        </button>
+                    </div>
+                    
+                    <!-- Filter Buttons -->
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        <button class="queue-filter active vamosfesta-button text-sm py-2 px-3" data-filter="all">All</button>
+                        <button class="queue-filter vamosfesta-button secondary text-sm py-2 px-3" data-filter="cash">💵 Cash</button>
+                        <button class="queue-filter vamosfesta-button secondary text-sm py-2 px-3" data-filter="upi">📱 UPI</button>
+                        <button class="queue-filter vamosfesta-button secondary text-sm py-2 px-3" data-filter="bank_transfer">🏦 Bank</button>
+                    </div>
+                    
+                    <!-- Mobile Card List -->
+                    <div id="verificationQueueList" class="space-y-3">
+                        <p class="text-center text-gray-500 py-8">Loading...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========== SUPER ADMIN: All Registrations ========== -->
+            <section id="tab-all-registrations" class="tab-content hidden">
+                <div class="vamosfesta-container p-4 md:p-6">
+                    <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
+                        <h2 class="text-lg md:text-xl font-bold vamosfesta-header">
+                            <i class="fas fa-users mr-2"></i>All Guests
+                        </h2>
+                        <div class="flex gap-2">
+                            <button onclick="downloadRegistrationsCSV()" class="vamosfesta-button text-sm py-2 px-3">
+                                <i class="fas fa-download"></i><span class="hidden md:inline ml-1">CSV</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Search -->
+                    <div class="mb-4">
+                        <input type="search" id="searchRegistrations" class="vamosfesta-input w-full" placeholder="🔍 Search by name or mobile...">
+                    </div>
+                    
+                    <!-- Status Filter -->
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        <button class="reg-filter active vamosfesta-button text-sm py-2 px-3" data-status="all">All</button>
+                        <button class="reg-filter vamosfesta-button secondary text-sm py-2 px-3" data-status="pending_verification">Pending</button>
+                        <button class="reg-filter vamosfesta-button secondary text-sm py-2 px-3" data-status="verified">Verified</button>
+                        <button class="reg-filter vamosfesta-button secondary text-sm py-2 px-3" data-status="pass_sent">Pass Sent</button>
+                        <button class="reg-filter vamosfesta-button secondary text-sm py-2 px-3" data-status="checked_in">Checked In</button>
+                    </div>
+                    
+                    <!-- Guest Count -->
+                    <p id="guestCountDisplay" class="text-sm text-gray-400 mb-3">Showing 0 guests</p>
+                    
+                    <!-- Mobile Card List -->
+                    <div id="allRegistrationsList" class="space-y-3">
+                        <p class="text-center text-gray-500 py-8">Loading...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========== SUPER ADMIN: User Management ========== -->
+            <section id="tab-seller-management" class="tab-content hidden">
+                <div class="vamosfesta-container p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold vamosfesta-header">
+                            <i class="fas fa-users-cog mr-2"></i>User Management
+                        </h2>
+                        <button onclick="showAddUserModal()" class="vamosfesta-button">
+                            <i class="fas fa-plus mr-2"></i>Add User
+                        </button>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Full Name</th>
+                                    <th>Mobile</th>
+                                    <th>Club</th>
+                                    <th>Role</th>
+                                    <th>Registrations</th>
+                                    <th>Verified Amt</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sellersTableBody">
+                                <tr><td colspan="9" class="text-center py-8 text-gray-500">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========== SUPER ADMIN: Admin & Overseer Management ========== -->
+            <section id="tab-admin-management" class="tab-content hidden">
+                <div class="vamosfesta-container p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold vamosfesta-header">
+                            <i class="fas fa-user-shield mr-2"></i>Admin & Overseer Management
+                        </h2>
+                        <button onclick="showAddAdminModal()" class="vamosfesta-button">
+                            <i class="fas fa-plus mr-2"></i>Add Admin
+                        </button>
+                    </div>
+                    
+                    <!-- Admins List -->
+                    <div class="card mb-6">
+                        <h3 class="font-semibold mb-4 text-yellow-400">
+                            <i class="fas fa-user-tie mr-2"></i>Admin Users
+                        </h3>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Username</th>
+                                        <th>Full Name</th>
+                                        <th>Mobile</th>
+                                        <th>Overseer Status</th>
+                                        <th>Assigned Gates</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="adminsTableBody">
+                                    <tr><td colspan="6" class="text-center py-8 text-gray-500">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Gate Overseer Assignments -->
+                    <div class="card">
+                        <h3 class="font-semibold mb-4 text-yellow-400">
+                            <i class="fas fa-door-open mr-2"></i>Gate Overseer Assignments
+                        </h3>
+                        <div id="gateOverseersList" class="space-y-3">
+                            <p class="text-center text-gray-500 py-4">No gate assignments yet</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========== OVERSEER: Marshall Management ========== -->
+            <section id="tab-overseer-management" class="tab-content hidden">
+                <div class="vamosfesta-container p-6">
+                    <h2 class="text-xl font-bold vamosfesta-header mb-6">
+                        <i class="fas fa-tasks mr-2"></i>Marshall Management
+                    </h2>
+                    
+                    <!-- My Gates -->
+                    <div class="card mb-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-semibold text-yellow-400">
+                                <i class="fas fa-door-open mr-2"></i>My Assigned Gates
+                            </h3>
+                            <button onclick="loadOverseerGates()" class="vamosfesta-button text-sm">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                        </div>
+                        <div id="overseerGatesList" class="grid md:grid-cols-2 gap-4">
+                            <p class="text-center text-gray-500 py-4 col-span-full">Loading...</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Entry Marshalls -->
+                    <div class="card mb-6">
+                        <h3 class="font-semibold mb-4 text-yellow-400">
+                            <i class="fas fa-user-shield mr-2"></i>Entry Marshalls
+                        </h3>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Marshall</th>
+                                        <th>Mobile</th>
+                                        <th>Assigned Gate</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="marshallRosterBody">
+                                    <tr><td colspan="5" class="text-center py-8 text-gray-500">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Clock-in Tokens -->
+                    <div class="card mb-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-semibold text-yellow-400">
+                                <i class="fas fa-qrcode mr-2"></i>Marshall Clock-in Tokens
+                            </h3>
+                            <button onclick="showGenerateTokenModal()" class="vamosfesta-button">
+                                <i class="fas fa-plus mr-2"></i>Generate Token
+                            </button>
+                        </div>
+                        <div id="clockinTokensList" class="space-y-2">
+                            <p class="text-center text-gray-500 py-4">No active tokens</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Pending Clockout Requests -->
+                    <div class="card">
+                        <h3 class="font-semibold mb-4 text-yellow-400">
+                            <i class="fas fa-clock mr-2"></i>Clockout Approval Requests
+                        </h3>
+                        <div id="clockoutRequestsList" class="space-y-3">
+                            <p class="text-center text-gray-500 py-4">No pending requests</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========== SUPER ADMIN: Settings ========== -->
+            <section id="tab-settings" class="tab-content hidden">
+                <div class="max-w-2xl mx-auto">
+                    <div class="vamosfesta-container p-6">
+                        <h2 class="text-xl font-bold vamosfesta-header mb-6">
+                            <i class="fas fa-cog mr-2"></i>Event Settings
+                        </h2>
+                        
+                        <form id="settingsForm" class="space-y-6">
+                            <!-- Event Info -->
+                            <div class="card">
+                                <h3 class="font-semibold mb-4 text-yellow-400">Event Information</h3>
+                                <div class="grid md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm mb-1">Event Name</label>
+                                        <input type="text" id="settingEventName" class="vamosfesta-input" data-key="event_name">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm mb-1">Tagline</label>
+                                        <input type="text" id="settingTagline" class="vamosfesta-input" data-key="event_tagline">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm mb-1">Event Date</label>
+                                        <input type="text" id="settingDate" class="vamosfesta-input" data-key="event_date">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm mb-1">Venue</label>
+                                        <input type="text" id="settingVenue" class="vamosfesta-input" data-key="event_venue">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Ticket Prices -->
+                            <div class="card">
+                                <h3 class="font-semibold mb-4 text-yellow-400">Ticket Prices</h3>
+                                <div class="grid md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm mb-1">Stag Price (₹)</label>
+                                        <input type="number" id="settingStagPrice" class="vamosfesta-input" data-key="stag_price">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm mb-1">Couple Price (₹)</label>
+                                        <input type="number" id="settingCouplePrice" class="vamosfesta-input" data-key="couple_price">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Payment Info -->
+                            <div class="card">
+                                <h3 class="font-semibold mb-4 text-yellow-400">Payment Information</h3>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm mb-1">UPI ID (for payments)</label>
+                                        <input type="text" id="settingUpiId" class="vamosfesta-input" data-key="upi_id" placeholder="example@upi">
+                                    </div>
+                                    
+                                    <!-- Payment QR Code Upload -->
+                                    <div>
+                                        <label class="block text-sm mb-1">Payment QR Code</label>
+                                        <div class="flex flex-col gap-3">
+                                            <div id="qrCodePreview" class="hidden">
+                                                <img id="qrCodeImage" src="" alt="Payment QR" class="max-w-48 mx-auto rounded-lg border-2 border-yellow-600">
+                                                <button type="button" onclick="removePaymentQR()" class="text-red-400 text-sm mt-2 hover:text-red-300">
+                                                    <i class="fas fa-trash mr-1"></i>Remove QR Code
+                                                </button>
+                                            </div>
+                                            <div id="qrCodeUploadArea" class="border-2 border-dashed border-yellow-600/50 rounded-lg p-4 text-center hover:border-yellow-500 transition cursor-pointer" onclick="document.getElementById('qrCodeInput').click()">
+                                                <i class="fas fa-qrcode text-3xl text-yellow-600 mb-2"></i>
+                                                <p class="text-sm text-gray-400">Click to upload Payment QR Code</p>
+                                                <p class="text-xs text-gray-500 mt-1">PNG, JPG up to 2MB</p>
+                                            </div>
+                                            <input type="file" id="qrCodeInput" accept="image/*" class="hidden" onchange="handleQRCodeUpload(event)">
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm mb-1">Bank Details (for transfers)</label>
+                                        <textarea id="settingBankDetails" class="vamosfesta-input" data-key="bank_details" rows="3" 
+                                                  placeholder="Bank Name, Account Number, IFSC"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <button type="submit" class="vamosfesta-button w-full py-3">
+                                <i class="fas fa-save mr-2"></i>Save Settings
+                            </button>
+                        </form>
+                        
+                        <!-- Gate Management -->
+                        <div class="card mt-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="font-semibold text-yellow-400">
+                                    <i class="fas fa-door-open mr-2"></i>Entry Gates
+                                </h3>
+                                <button onclick="openGateModal()" class="vamosfesta-button text-sm">
+                                    <i class="fas fa-plus mr-1"></i>Add Gate
+                                </button>
+                            </div>
+                            <div id="gatesListSettings" class="space-y-2">
+                                <p class="text-gray-500 text-sm text-center py-4">Loading gates...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========== ADMIN: View Registrations (Read-Only) ========== -->
+            <section id="tab-view-registrations" class="tab-content hidden">
+                <div class="vamosfesta-container p-6">
+                    <div class="flex flex-wrap justify-between items-center gap-4 mb-6">
+                        <h2 class="text-xl font-bold vamosfesta-header">
+                            <i class="fas fa-eye mr-2"></i>All Registrations (View Only)
+                        </h2>
+                        <div class="flex gap-2">
+                            <input type="search" id="adminSearchReg" class="vamosfesta-input w-48" placeholder="Search...">
+                            <button onclick="downloadRegistrationsCSV()" class="vamosfesta-button text-sm">
+                                <i class="fas fa-download mr-1"></i>Export
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Guest</th>
+                                    <th>Mobile</th>
+                                    <th>Type</th>
+                                    <th>Amount</th>
+                                    <th>Payment</th>
+                                    <th>Seller</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminRegTableBody">
+                                <tr><td colspan="8" class="text-center py-8 text-gray-500">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========== ADMIN: View Sellers (Read-Only) ========== -->
+            <section id="tab-view-sellers" class="tab-content hidden">
+                <div class="vamosfesta-container p-6">
+                    <h2 class="text-xl font-bold vamosfesta-header mb-6">
+                        <i class="fas fa-chart-bar mr-2"></i>Sales by Seller
+                    </h2>
+                    
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Seller</th>
+                                    <th>Club</th>
+                                    <th>Total Reg.</th>
+                                    <th>Pending</th>
+                                    <th>Verified</th>
+                                    <th>Stag</th>
+                                    <th>Couple</th>
+                                    <th>Cash</th>
+                                    <th>UPI</th>
+                                    <th>Bank</th>
+                                    <th>Total Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminSellerStatsBody">
+                                <tr><td colspan="11" class="text-center py-8 text-gray-500">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========== GATE MANAGEMENT (Admin & Super Admin) ========== -->
+            <section id="tab-gate-management" class="tab-content hidden">
+                <div class="vamosfesta-container p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold vamosfesta-header">
+                            <i class="fas fa-door-open mr-2"></i>Gate Management
+                        </h2>
+                        <button onclick="refreshGateManagement()" class="vamosfesta-button text-sm">
+                            <i class="fas fa-sync-alt mr-1"></i>Refresh
+                        </button>
+                    </div>
+                    
+                    <!-- Live Venue Status -->
+                    <div class="card mb-6">
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="inline-block w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
+                            <h3 class="font-semibold text-yellow-400">Live Venue Status</h3>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                            <div class="stat-card bg-green-900/30 border border-green-600/30">
+                                <h4>Inside Venue</h4>
+                                <p id="gateVenueInside" class="text-green-400">0</p>
+                            </div>
+                            <div class="stat-card bg-red-900/30 border border-red-600/30">
+                                <h4>Exited</h4>
+                                <p id="gateVenueExited" class="text-red-400">0</p>
+                            </div>
+                            <div class="stat-card bg-orange-900/30 border border-orange-600/30">
+                                <h4>Marshalls On Duty</h4>
+                                <p id="gateMarshallCount" class="text-orange-400">0</p>
+                            </div>
+                            <div class="stat-card bg-blue-900/30 border border-blue-600/30">
+                                <h4>Active Gates</h4>
+                                <p id="gateActiveCount" class="text-blue-400">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Entry Gates Status -->
+                    <div class="card mb-6">
+                        <h3 class="font-semibold mb-4 text-yellow-400">
+                            <i class="fas fa-broadcast-tower mr-2"></i>Entry Gates Status
+                        </h3>
+                        <div id="gateCardsContainer" class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <p class="text-gray-500 text-sm col-span-full text-center py-4">Loading gates...</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Marshalls On Duty -->
+                    <div class="card mb-6">
+                        <h3 class="font-semibold mb-4 text-yellow-400">
+                            <i class="fas fa-user-shield mr-2"></i>Entry Marshalls On Duty
+                        </h3>
+                        <div id="gateMarshallsList" class="space-y-2">
+                            <p class="text-gray-500 text-sm text-center py-4">No marshalls on duty</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Gate Configuration (Super Admin Only) -->
+                    <div class="card super-admin-only">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-semibold text-yellow-400">
+                                <i class="fas fa-cog mr-2"></i>Gate Configuration
+                            </h3>
+                            <button onclick="openGateModal()" class="vamosfesta-button text-sm">
+                                <i class="fas fa-plus mr-1"></i>Add Gate
+                            </button>
+                        </div>
+                        <div id="gateConfigList" class="space-y-2">
+                            <p class="text-gray-500 text-sm text-center py-4">Loading gates...</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========== STATISTICS (Admin & Super Admin) ========== -->
+            <section id="tab-statistics" class="tab-content hidden">
+                <div class="vamosfesta-container p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold vamosfesta-header">
+                            <i class="fas fa-chart-pie mr-2"></i>Event Statistics
+                        </h2>
+                        <button onclick="downloadStatsReport()" class="vamosfesta-button text-sm">
+                            <i class="fas fa-download mr-1"></i>Download Report
+                        </button>
+                    </div>
+                    
+                    <!-- Overview Stats -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6 stats-grid">
+                        <div class="stat-card bg-yellow-900/30 border border-yellow-600/30">
+                            <h4>Total Registrations</h4>
+                            <p id="statTotalReg" class="text-yellow-400">0</p>
+                        </div>
+                        <div class="stat-card bg-blue-900/30 border border-blue-600/30">
+                            <h4>Total PAX</h4>
+                            <p id="statTotalPax" class="text-blue-400">0</p>
+                        </div>
+                        <div class="stat-card bg-green-900/30 border border-green-600/30">
+                            <h4>Verified Revenue</h4>
+                            <p id="statTotalRevenue" class="text-green-400">₹0</p>
+                        </div>
+                        <div class="stat-card bg-purple-900/30 border border-purple-600/30">
+                            <h4>Checked In</h4>
+                            <p id="statCheckedIn" class="text-purple-400">0</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Status Breakdown -->
+                    <div class="grid md:grid-cols-2 gap-6 mb-6">
+                        <div class="card">
+                            <h3 class="font-semibold mb-4 text-yellow-400">Status Breakdown</h3>
+                            <div class="space-y-3">
+                                <div class="flex justify-between">
+                                    <span>Pending Verification</span>
+                                    <span id="statPending" class="text-orange-400 font-semibold">0</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Payment Verified</span>
+                                    <span id="statVerified" class="text-blue-400 font-semibold">0</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Pass Generated</span>
+                                    <span id="statGenerated" class="text-purple-400 font-semibold">0</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Pass Sent</span>
+                                    <span id="statSent" class="text-green-400 font-semibold">0</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Checked In</span>
+                                    <span id="statChecked" class="text-teal-400 font-semibold">0</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Rejected</span>
+                                    <span id="statRejected" class="text-red-400 font-semibold">0</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card">
+                            <h3 class="font-semibold mb-4 text-yellow-400">Payment Breakdown</h3>
+                            <div class="space-y-3">
+                                <div class="flex justify-between">
+                                    <span>💵 Cash</span>
+                                    <span id="statCash" class="text-green-400 font-semibold">₹0</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>📱 UPI</span>
+                                    <span id="statUpi" class="text-blue-400 font-semibold">₹0</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>🏦 Bank Transfer</span>
+                                    <span id="statBank" class="text-purple-400 font-semibold">₹0</span>
+                                </div>
+                                <hr class="border-gray-600 my-2">
+                                <div class="flex justify-between text-lg">
+                                    <span class="font-semibold">Total Verified</span>
+                                    <span id="statTotalVerified" class="text-yellow-400 font-bold">₹0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Entry Type Breakdown -->
+                    <div class="card">
+                        <h3 class="font-semibold mb-4 text-yellow-400">Entry Type Breakdown</h3>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div class="flex justify-between items-center p-3 bg-blue-900/20 rounded">
+                                <span>Stag Entries</span>
+                                <span id="statStagCount" class="text-2xl font-bold text-blue-400">0</span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-pink-900/20 rounded">
+                                <span>Couple Entries</span>
+                                <span id="statCoupleCount" class="text-2xl font-bold text-pink-400">0</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Live Venue Status -->
+                    <div class="card mt-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-semibold text-yellow-400">
+                                <i class="fas fa-broadcast-tower mr-2 text-green-400 animate-pulse"></i>Live Venue Status
+                            </h3>
+                            <button onclick="refreshVenueStatus()" class="vamosfesta-button secondary text-xs">
+                                <i class="fas fa-sync-alt mr-1"></i>Refresh
+                            </button>
+                        </div>
+                        
+                        <!-- Venue Overview -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                            <div class="stat-card bg-green-900/30 border border-green-600/30">
+                                <h4>Inside Venue</h4>
+                                <p id="venueGuestsInside" class="text-green-400">0</p>
+                            </div>
+                            <div class="stat-card bg-red-900/30 border border-red-600/30">
+                                <h4>Exited</h4>
+                                <p id="venueGuestsExited" class="text-red-400">0</p>
+                            </div>
+                            <div class="stat-card bg-orange-900/30 border border-orange-600/30">
+                                <h4>Marshalls On Duty</h4>
+                                <p id="venueMarshallsOnDuty" class="text-orange-400">0</p>
+                            </div>
+                            <div class="stat-card bg-blue-900/30 border border-blue-600/30">
+                                <h4>Active Gates</h4>
+                                <p id="venueActiveGates" class="text-blue-400">0</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Gate-wise Stats -->
+                        <h4 class="text-sm font-semibold text-gray-400 mb-3">
+                            <i class="fas fa-door-open mr-1"></i> Entry Gates Status
+                        </h4>
+                        <div id="gateStatsContainer" class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <!-- Gate cards will be rendered here -->
+                            <p class="text-gray-500 text-sm col-span-full text-center py-4">Loading gate data...</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Marshalls On Duty -->
+                    <div class="card mt-6">
+                        <h3 class="font-semibold mb-4 text-yellow-400">
+                            <i class="fas fa-user-shield mr-2"></i>Entry Marshalls On Duty
+                        </h3>
+                        <div id="marshallsOnDutyList" class="space-y-2">
+                            <p class="text-gray-500 text-sm text-center py-4">No marshalls on duty</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========== ENTRY MARSHALL: Scan Section ========== -->
+            <section id="tab-entry-scan" class="tab-content hidden entry-marshall-only">
+                <div class="vamosfesta-container p-6 max-w-lg mx-auto">
+                    <h2 class="text-xl font-bold vamosfesta-header text-center mb-2">
+                        <i class="fas fa-door-open mr-2"></i>Entry Gate Scanner
+                    </h2>
+                    <p id="marshallNameDisplay" class="text-center text-sm text-gray-400 mb-4">Logged in as: Marshall</p>
+                    
+                    <!-- Duty Status Card -->
+                    <div id="dutyStatusCard" class="card mb-6">
+                        <!-- Off Duty State -->
+                        <div id="offDutySection">
+                            <div class="text-center mb-4">
+                                <span class="inline-block px-4 py-2 rounded-full bg-gray-700 text-gray-300 text-sm">
+                                    <i class="fas fa-moon mr-2"></i>Off Duty
+                                </span>
+                            </div>
+                            <div class="card bg-blue-900/20 border-blue-600/30 mb-4">
+                                <h4 class="text-sm font-semibold text-blue-400 mb-2">
+                                    <i class="fas fa-info-circle mr-1"></i> Clock-in Instructions
+                                </h4>
+                                <ul class="text-xs text-gray-300 space-y-1">
+                                    <li>• Get a clock-in QR token from your Gate Overseer</li>
+                                    <li>• Click the button below to scan the QR code</li>
+                                    <li>• You can only clock in to your assigned gate</li>
+                                </ul>
+                            </div>
+                            <button onclick="clockIn()" class="vamosfesta-button success w-full py-3">
+                                <i class="fas fa-qrcode mr-2"></i>Scan QR to Clock In
+                            </button>
+                        </div>
+                        
+                        <!-- On Duty State -->
+                        <div id="onDutySection" class="hidden">
+                            <div class="text-center mb-4">
+                                <span class="inline-block px-4 py-2 rounded-full bg-green-600 text-white text-sm animate-pulse">
+                                    <i class="fas fa-broadcast-tower mr-2"></i>On Duty
+                                </span>
+                            </div>
+                            <div class="bg-green-900/20 border border-green-600/30 rounded-lg p-3 mb-4 text-center">
+                                <p class="text-sm text-gray-400">Assigned Gate</p>
+                                <p id="currentGateName" class="text-xl font-bold text-green-400">Main Gate</p>
+                                <p id="dutyDuration" class="text-xs text-gray-500 mt-1">Since: --</p>
+                            </div>
+                            <div class="card bg-orange-900/20 border-orange-600/30 mb-3">
+                                <p class="text-xs text-gray-300 text-center">
+                                    <i class="fas fa-info-circle mr-1 text-orange-400"></i>
+                                    Clockout requires overseer approval
+                                </p>
+                            </div>
+                            <button onclick="clockOut()" class="vamosfesta-button danger w-full py-3">
+                                <i class="fas fa-hand-paper mr-2"></i>Request Clock Out
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Check-in Stats - 3 columns -->
+                    <div class="grid grid-cols-3 gap-3 mb-6">
+                        <div class="stat-card bg-orange-900/30 border border-orange-600/30">
+                            <h4>My Check-ins</h4>
+                            <p id="entryMyCheckins" class="text-orange-400">0</p>
+                        </div>
+                        <div class="stat-card bg-green-900/30 border border-green-600/30">
+                            <h4>Inside</h4>
+                            <p id="entryCheckedInCount" class="text-green-400">0</p>
+                        </div>
+                        <div class="stat-card bg-blue-900/30 border border-blue-600/30">
+                            <h4>Expected</h4>
+                            <p id="entryTotalExpected" class="text-blue-400">0</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Scan Button (only visible when on duty) -->
+                    <div id="scanSection" class="hidden">
+                        <!-- Entry/Exit Toggle -->
+                        <div class="flex gap-2 mb-4">
+                            <button id="btnModeEntry" onclick="setScanMode('entry')" class="vamosfesta-button flex-1 py-2">
+                                <i class="fas fa-sign-in-alt mr-1"></i>Entry
+                            </button>
+                            <button id="btnModeExit" onclick="setScanMode('exit')" class="vamosfesta-button secondary flex-1 py-2">
+                                <i class="fas fa-sign-out-alt mr-1"></i>Exit
+                            </button>
+                        </div>
+                        
+                        <!-- Scan Button -->
+                        <div class="card text-center mb-6">
+                            <button onclick="startQRScanner()" class="vamosfesta-button w-full py-6 text-xl mb-4" id="scanButton">
+                                <i class="fas fa-camera mr-3"></i>SCAN <span id="scanModeText">ENTRY</span>
+                            </button>
+                            <p class="text-sm text-gray-400">Tap to scan guest pass</p>
+                        </div>
+                        
+                        <!-- Manual Entry -->
+                        <div class="card mb-6">
+                            <h4 class="text-sm font-semibold text-yellow-400 mb-3">
+                                <i class="fas fa-keyboard mr-1"></i> Manual Lookup
+                            </h4>
+                            <div class="flex gap-2">
+                                <input type="tel" id="manualMobile" class="vamosfesta-input" placeholder="Guest Mobile Number" pattern="[0-9]{10}">
+                                <button onclick="manualLookup()" class="vamosfesta-button">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Not On Duty Message -->
+                    <div id="notOnDutyMessage" class="card text-center mb-6">
+                        <i class="fas fa-exclamation-circle text-yellow-400 text-4xl mb-3"></i>
+                        <p class="text-gray-400">Please clock in to start scanning</p>
+                    </div>
+                    
+                    <!-- My Check-ins List -->
+                    <div class="card">
+                        <h4 class="text-sm font-semibold text-yellow-400 mb-3">
+                            <i class="fas fa-history mr-1"></i> My Recent Activity
+                        </h4>
+                        <div id="recentCheckins" class="space-y-2 max-h-64 overflow-y-auto">
+                            <p class="text-gray-500 text-sm text-center py-4">No activity yet</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- ==================== MODALS ==================== -->
+    
+    <!-- Add/Edit User Modal -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="userModalTitle" class="text-xl font-bold vamosfesta-header">Add User</h3>
+                <button onclick="closeModal('userModal')" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="userForm" class="space-y-4">
+                <input type="hidden" id="editUserId">
+                <div>
+                    <label class="block text-sm mb-1">Username *</label>
+                    <input type="text" id="userUsername" class="vamosfesta-input" required>
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">Password *</label>
+                    <input type="password" id="userPassword" class="vamosfesta-input" required>
+                    <p class="text-xs text-gray-500 mt-1" id="passwordHint">Min 6 characters</p>
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">Full Name *</label>
+                    <input type="text" id="userFullName" class="vamosfesta-input" required>
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">Mobile Number *</label>
+                    <input type="tel" id="userMobile" class="vamosfesta-input" pattern="[0-9]{10}" required 
+                           placeholder="10-digit mobile number">
+                </div>
+                <div class="card bg-yellow-900/20 border-yellow-600/30">
+                    <h4 class="text-sm font-semibold text-yellow-400 mb-3">
+                        <i class="fas fa-users mr-1"></i> Rotary Club Info (Optional)
+                    </h4>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm mb-1 text-gray-300">Club Name</label>
+                            <input type="text" id="userClubName" class="vamosfesta-input" placeholder="e.g., Rotary Club of Kochi">
+                        </div>
+                        <div>
+                            <label class="block text-sm mb-1 text-gray-300">Club Number</label>
+                            <input type="text" id="userClubNumber" class="vamosfesta-input" placeholder="e.g., 12345">
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">Role *</label>
+                    <select id="userRoleSelect" class="vamosfesta-input" required>
+                        <option value="seller">Seller</option>
+                        <option value="entry_marshall">Entry Marshall</option>
+                        <option value="admin">Admin (Read-Only)</option>
+                        <option value="super_admin">Super Admin</option>
+                    </select>
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button type="submit" class="vamosfesta-button flex-1">
+                        <i class="fas fa-save mr-2"></i>Save
+                    </button>
+                    <button type="button" onclick="closeModal('userModal')" class="vamosfesta-button secondary flex-1">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Admin Modal -->
+    <div id="adminModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold vamosfesta-header">Add Admin</h3>
+                <button onclick="closeModal('adminModal')" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="adminForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm mb-1">Username *</label>
+                    <input type="text" id="adminUsername" class="vamosfesta-input" required>
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">Password *</label>
+                    <input type="password" id="adminPassword" class="vamosfesta-input" required>
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">Full Name *</label>
+                    <input type="text" id="adminFullName" class="vamosfesta-input" required>
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">Mobile Number *</label>
+                    <input type="tel" id="adminMobile" class="vamosfesta-input" pattern="[0-9]{10}" required>
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button type="submit" class="vamosfesta-button flex-1">
+                        <i class="fas fa-save mr-2"></i>Create Admin
+                    </button>
+                    <button type="button" onclick="closeModal('adminModal')" class="vamosfesta-button secondary flex-1">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Assign Gates to Overseer Modal -->
+    <div id="assignGatesModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold vamosfesta-header">Assign Gates to Overseer</h3>
+                <button onclick="closeModal('assignGatesModal')" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="assignGatesForm" class="space-y-4">
+                <input type="hidden" id="assignOverseer Id">
+                <div>
+                    <label class="block text-sm mb-2 text-yellow-400">Select Gates</label>
+                    <div id="gateCheckboxList" class="space-y-2 max-h-64 overflow-y-auto">
+                        <!-- Gate checkboxes will be populated here -->
+                    </div>
+                </div>
+                <div class="card bg-blue-900/20 border-blue-600/30">
+                    <label class="flex items-center cursor-pointer">
+                        <input type="checkbox" id="isLeadOverseer" class="mr-2">
+                        <span class="text-sm">
+                            <i class="fas fa-star mr-1 text-yellow-400"></i>
+                            Designate as <strong>Lead Overseer</strong> for these gates
+                        </span>
+                    </label>
+                    <p class="text-xs text-gray-400 mt-2">Lead Overseer can allocate marshalls to gates</p>
+                </div>
+                <div class="flex gap-3">
+                    <button type="submit" class="vamosfesta-button flex-1">
+                        <i class="fas fa-check mr-2"></i>Assign Gates
+                    </button>
+                    <button type="button" onclick="closeModal('assignGatesModal')" class="vamosfesta-button secondary flex-1">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Assign Marshall to Gate Modal -->
+    <div id="assignMarshallModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold vamosfesta-header">Assign Marshall to Gate</h3>
+                <button onclick="closeModal('assignMarshallModal')" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="assignMarshallForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm mb-1">Entry Marshall *</label>
+                    <select id="marshallSelect" class="vamosfesta-input" required>
+                        <option value="">-- Select Marshall --</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">Assign to Gate *</label>
+                    <select id="gateAssignSelect" class="vamosfesta-input" required>
+                        <option value="">-- Select Gate --</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">Notes (optional)</label>
+                    <textarea id="assignmentNotes" class="vamosfesta-input" rows="2"></textarea>
+                </div>
+                <div class="flex gap-3">
+                    <button type="submit" class="vamosfesta-button flex-1">
+                        <i class="fas fa-check mr-2"></i>Assign
+                    </button>
+                    <button type="button" onclick="closeModal('assignMarshallModal')" class="vamosfesta-button secondary flex-1">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Generate Clock-in Token Modal -->
+    <div id="generateTokenModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold vamosfesta-header">Generate Clock-in Token</h3>
+                <button onclick="closeModal('generateTokenModal')" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="generateTokenForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm mb-1">Select Gate *</label>
+                    <select id="tokenGateSelect" class="vamosfesta-input" required>
+                        <option value="">-- Select Gate --</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">Token Validity (minutes) *</label>
+                    <input type="number" id="tokenValidity" class="vamosfesta-input" value="30" min="5" max="1440" required>
+                    <p class="text-xs text-gray-500 mt-1">Token will expire after this duration</p>
+                </div>
+                <div id="tokenPreview" class="hidden card bg-green-900/20 border-green-600/30">
+                    <div class="text-center">
+                        <p class="text-sm text-gray-400 mb-2">Scan this QR to clock in</p>
+                        <div id="tokenQRCode" class="inline-block bg-white p-2 rounded"></div>
+                        <p class="text-xs text-gray-500 mt-2">Token: <span id="tokenCode" class="font-mono"></span></p>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <button type="submit" class="vamosfesta-button flex-1">
+                        <i class="fas fa-qrcode mr-2"></i>Generate Token
+                    </button>
+                    <button type="button" onclick="closeModal('generateTokenModal')" class="vamosfesta-button secondary flex-1">
+                        Close
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Verification Modal -->
+    <div id="verifyModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold vamosfesta-header">Verify Payment</h3>
+                <button onclick="closeModal('verifyModal')" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="verifyGuestInfo" class="card mb-4">
+                <!-- Guest info will be loaded here -->
+            </div>
+            <form id="verifyForm" class="space-y-4">
+                <input type="hidden" id="verifyGuestId">
+                <div>
+                    <label class="block text-sm mb-1">Verification Notes (optional)</label>
+                    <textarea id="verifyNotes" class="vamosfesta-input" rows="2" placeholder="Any notes about this verification"></textarea>
+                </div>
+                <div class="flex gap-3">
+                    <button type="submit" class="vamosfesta-button success flex-1">
+                        <i class="fas fa-check mr-2"></i>Verify Payment
+                    </button>
+                    <button type="button" onclick="rejectPayment()" class="vamosfesta-button danger flex-1">
+                        <i class="fas fa-times mr-2"></i>Reject
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Guest Pass Modal -->
+    <div id="passModal" class="modal">
+        <div class="modal-content max-w-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold vamosfesta-header">Guest Pass</h3>
+                <button onclick="closeModal('passModal')" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="guestPassPreview" class="mb-4">
+                <!-- Pass preview will be rendered here -->
+            </div>
+            <div class="flex gap-3">
+                <button onclick="sendWhatsApp()" class="vamosfesta-button success flex-1">
+                    <i class="fab fa-whatsapp mr-2"></i>Send via WhatsApp
+                </button>
+                <button onclick="downloadPass()" class="vamosfesta-button flex-1">
+                    <i class="fas fa-download mr-2"></i>Download
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Scanner Modal -->
+    <div id="scannerModal" class="modal">
+        <div class="modal-content max-w-lg">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold vamosfesta-header">
+                    <i class="fas fa-qrcode mr-2"></i>Scan QR Code
+                </h3>
+                <button onclick="stopQRScanner()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="qrScannerContainer" class="bg-black rounded-lg overflow-hidden aspect-square">
+                <video id="qrVideo" class="w-full h-full object-cover"></video>
+            </div>
+            <p class="text-center text-sm text-gray-400 mt-3">
+                <i class="fas fa-info-circle mr-1"></i> Point camera at the QR code on the guest pass
+            </p>
+        </div>
+    </div>
+
+    <!-- Check-in Result Modal -->
+    <div id="checkinResultModal" class="modal">
+        <div class="modal-content max-w-md text-center">
+            <div id="checkinResultContent">
+                <!-- Result will be rendered here -->
+            </div>
+            <button onclick="closeModal('checkinResultModal')" class="vamosfesta-button w-full mt-4">
+                <i class="fas fa-check mr-2"></i>OK
+            </button>
+        </div>
+    </div>
+
+    <!-- Clock-in QR Scanner Modal -->
+    <div id="clockinScannerModal" class="modal">
+        <div class="modal-content max-w-lg">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold vamosfesta-header">
+                    <i class="fas fa-qrcode mr-2"></i>Scan Clock-in Token
+                </h3>
+                <button onclick="stopClockinScanner(); closeModal('clockinScannerModal')" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="bg-black rounded-lg overflow-hidden aspect-square mb-3">
+                <video id="clockinQrVideo" class="w-full h-full object-cover"></video>
+            </div>
+            <div class="card bg-blue-900/20 border-blue-600/30">
+                <p class="text-center text-sm text-gray-300">
+                    <i class="fas fa-info-circle mr-1 text-blue-400"></i> 
+                    Scan the QR code provided by your Gate Overseer to clock in
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Gate Modal -->
+    <div id="gateModal" class="modal">
+        <div class="modal-content max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="gateModalTitle" class="text-xl font-bold vamosfesta-header">Add Entry Gate</h3>
+                <button onclick="closeModal('gateModal')" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="gateForm" class="space-y-4">
+                <input type="hidden" id="editGateId">
+                <div>
+                    <label class="block text-sm mb-1">Gate Name *</label>
+                    <input type="text" id="gateName" class="vamosfesta-input" required placeholder="e.g., Main Entrance">
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">Gate Code *</label>
+                    <input type="text" id="gateCode" class="vamosfesta-input" required placeholder="e.g., MAIN" 
+                           style="text-transform: uppercase;">
+                    <p class="text-xs text-gray-500 mt-1">Short unique identifier (uppercase)</p>
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">Description</label>
+                    <input type="text" id="gateDescription" class="vamosfesta-input" placeholder="Optional description">
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="gateActive" checked class="w-4 h-4 accent-yellow-500">
+                    <label for="gateActive" class="text-sm">Gate is Active</label>
+                </div>
+                <button type="submit" class="vamosfesta-button w-full py-3">
+                    <i class="fas fa-save mr-2"></i>Save Gate
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Guest Lookup Modal (for Entry/Exit) -->
+    <!-- Guest Detail Modal (for Verification Queue & All Guests) -->
+    <div id="guestDetailModal" class="modal">
+        <div class="modal-content max-w-lg">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold vamosfesta-header">
+                    <i class="fas fa-user mr-2"></i>Guest Details
+                </h3>
+                <button onclick="closeModal('guestDetailModal')" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="guestDetailContent">
+                <!-- Guest details will be rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <div id="guestLookupModal" class="modal">
+        <div class="modal-content max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold vamosfesta-header">Guest Details</h3>
+                <button onclick="closeModal('guestLookupModal')" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="guestLookupContent">
+                <!-- Guest details will be rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Success/Error Toast -->
+    <div id="toast" class="fixed bottom-4 right-4 p-4 rounded-lg shadow-lg transform translate-y-full opacity-0 transition-all duration-300 z-50">
+        <div class="flex items-center gap-3">
+            <i id="toastIcon" class="fas text-xl"></i>
+            <span id="toastMessage"></span>
+        </div>
+    </div>
+
+    <!-- SIPTOKEN UI COMPONENTS -->
+    <script type="module" src="/main.js"></script>
+<!-- =====================================================
+     SIPTOKEN UI COMPONENTS
+     Complete beverage sales system interfaces
+     ===================================================== -->
+
+<!-- Token Purchase Modal (for Sales Staff/Guests) -->
+<div id="tokenPurchaseModal" class="modal">
+    <div class="modal-content max-w-md">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold vamosfesta-header">
+                <i class="fas fa-coins mr-2"></i>Purchase Tokens
+            </h3>
+            <button onclick="closeModal('tokenPurchaseModal')" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <div class="card bg-blue-900/20 border-blue-600/30 mb-4">
+            <h4 class="font-bold" id="tokenWalletGuest">Guest Name</h4>
+            <p class="text-2xl text-yellow-500 mt-2">
+                <i class="fas fa-wallet mr-2"></i>
+                <span id="tokenWalletBalance">0</span> Tokens
+            </p>
+            <p class="text-xs text-gray-500 mt-1" id="tokenRate">₹10 = 1 Token</p>
+        </div>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm mb-1">Tokens to Purchase</label>
+                <input type="number" id="tokensToPurchase" class="vamosfesta-input" min="1" placeholder="Enter number of tokens">
+            </div>
+            
+            <div>
+                <label class="block text-sm mb-1">Payment Method</label>
+                <select id="tokenPaymentMethod" class="vamosfesta-input">
+                    <option value="cash">Cash</option>
+                    <option value="upi">UPI</option>
+                    <option value="online">Online</option>
+                </select>
+            </div>
+            
+            <button onclick="purchaseTokens()" class="vamosfesta-button w-full py-3">
+                <i class="fas fa-shopping-cart mr-2"></i>Purchase Tokens
+            </button>
+            
+            <button onclick="closeModal('tokenPurchaseModal')" class="vamosfesta-button secondary w-full">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Generate Token Payment QR Modal (for Guests ordering drinks) -->
+<div id="tokenPaymentQRModal" class="modal">
+    <div class="modal-content max-w-md text-center">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold vamosfesta-header">
+                <i class="fas fa-qrcode mr-2"></i>Payment QR Code
+            </h3>
+            <button onclick="closeModal('tokenPaymentQRModal')" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <div id="tokenPaymentQRInfo" class="mb-4">
+            <!-- QR info will be inserted here -->
+        </div>
+        
+        <div id="tokenPaymentQRDisplay" class="bg-white p-4 rounded-lg inline-block">
+            <!-- QR code will be rendered here -->
+        </div>
+        
+        <p class="text-sm text-gray-400 mt-4">
+            <i class="fas fa-info-circle mr-1"></i> Show this QR code to the barman to place your order
+        </p>
+        
+        <button onclick="closeModal('tokenPaymentQRModal')" class="vamosfesta-button w-full mt-4">
+            Close
+        </button>
+    </div>
+</div>
+
+<!-- Token Order Generation Form (shown after purchase or from guest interface) -->
+<div id="tokenOrderGeneratorModal" class="modal">
+    <div class="modal-content max-w-md">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold vamosfesta-header">
+                <i class="fas fa-cocktail mr-2"></i>Create Beverage Order
+            </h3>
+            <button onclick="closeModal('tokenOrderGeneratorModal')" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm mb-1">Tokens for This Order</label>
+                <input type="number" id="tokensForOrder" class="vamosfesta-input" min="1" placeholder="How many tokens?">
+                <p class="text-xs text-gray-500 mt-1">Your balance will be checked before generating QR</p>
+            </div>
+            
+            <button onclick="generateTokenPaymentQR()" class="vamosfesta-button w-full py-3">
+                <i class="fas fa-qrcode mr-2"></i>Generate Payment QR
+            </button>
+            
+            <button onclick="closeModal('tokenOrderGeneratorModal')" class="vamosfesta-button secondary w-full">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Barman QR Scanner Modal -->
+<div id="barmanScannerModal" class="modal">
+    <div class="modal-content max-w-lg">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold vamosfesta-header">
+                <i class="fas fa-qrcode mr-2"></i>Scan Token Payment
+            </h3>
+            <button onclick="stopBarmanScanner()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <div class="bg-black rounded-lg overflow-hidden aspect-square mb-3">
+            <video id="barmanQrVideo" class="w-full h-full object-cover"></video>
+        </div>
+        
+        <div class="card bg-orange-900/20 border-orange-600/30">
+            <p class="text-center text-sm text-gray-300">
+                <i class="fas fa-mobile-alt mr-1 text-orange-400"></i> 
+                Point camera at guest's payment QR code
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Barman Order Entry Modal (shown after scanning) -->
+<div id="barmanOrderModal" class="modal">
+    <div class="modal-content max-w-md">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold vamosfesta-header">
+                <i class="fas fa-cocktail mr-2"></i>Process Order
+            </h3>
+            <button onclick="closeModal('barmanOrderModal')" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <div id="barmanOrderGuestInfo">
+            <!-- Guest info will be inserted here -->
+        </div>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm mb-1">Order Items</label>
+                <textarea id="barmanOrderItems" class="vamosfesta-input" rows="3" placeholder="e.g., 2x Beer, 1x Mojito"></textarea>
+            </div>
+            
+            <div>
+                <label class="block text-sm mb-1">Tokens to Use</label>
+                <input type="number" id="orderTokensUsed" class="vamosfesta-input" min="1">
+                <p class="text-xs text-gray-500 mt-1">Maximum tokens from scanned QR</p>
+            </div>
+            
+            <button onclick="processBarmanOrder()" class="vamosfesta-button success w-full py-3">
+                <i class="fas fa-check mr-2"></i>Complete Order
+            </button>
+            
+            <button onclick="closeModal('barmanOrderModal')" class="vamosfesta-button secondary w-full">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Overseer Clock-In Modal -->
+<div id="overseerClockInModal" class="modal">
+    <div class="modal-content max-w-md">
+        <div class="flex justify-between items-center mb-4">
+            <h3 id="clockInModalTitle" class="text-xl font-bold vamosfesta-header">
+                <i class="fas fa-clock mr-2"></i>Clock In Staff
+            </h3>
+            <button onclick="closeModal('overseerClockInModal')" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <form onsubmit="event.preventDefault(); clockInStaff();" class="space-y-4">
+            <input type="hidden" id="clockInStaffRole">
+            
+            <div>
+                <label class="block text-sm mb-1">Select Staff Member</label>
+                <select id="clockInStaffSelect" class="vamosfesta-input" required>
+                    <option value="">Choose staff...</option>
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-sm mb-1">Counter/Station Name</label>
+                <input type="text" id="clockInCounter" class="vamosfesta-input" required placeholder="e.g., Token Counter 1, Bar Station A">
+            </div>
+            
+            <div id="clockInOpeningCashDiv">
+                <label class="block text-sm mb-1">Opening Cash (₹) - For Sales Staff</label>
+                <input type="number" id="clockInOpeningCash" class="vamosfesta-input" min="0" step="0.01" placeholder="0.00">
+            </div>
+            
+            <button type="submit" class="vamosfesta-button success w-full py-3">
+                <i class="fas fa-sign-in-alt mr-2"></i>Clock In Staff
+            </button>
+            
+            <button type="button" onclick="closeModal('overseerClockInModal')" class="vamosfesta-button secondary w-full">
+                Cancel
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Overseer Clock-Out & Reconciliation Modal -->
+<div id="overseerClockOutModal" class="modal">
+    <div class="modal-content max-w-lg">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold vamosfesta-header">
+                <i class="fas fa-clock mr-2"></i>Clock Out & Reconcile
+            </h3>
+            <button onclick="closeModal('overseerClockOutModal')" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <div id="clockOutStaffInfo" class="mb-4">
+            <!-- Staff info will be inserted here -->
+        </div>
+        
+        <!-- Token Sales Staff Reconciliation -->
+        <div id="tokenSalesReconciliation" class="space-y-4">
+            <h4 class="font-bold text-yellow-500">
+                <i class="fas fa-coins mr-2"></i>Sales Reconciliation
+            </h4>
+            
+            <div class="card bg-gray-800/50">
+                <p class="text-sm">Opening Cash: <span id="clockOutOpeningCash" class="font-bold">₹0.00</span></p>
+            </div>
+            
+            <div>
+                <label class="block text-sm mb-1">Tokens Sold</label>
+                <input type="number" id="clockOutTokensSold" class="vamosfesta-input" min="0" required>
+            </div>
+            
+            <div>
+                <label class="block text-sm mb-1">Total Cash Collected (₹)</label>
+                <input type="number" id="clockOutCashCollected" class="vamosfesta-input" min="0" step="0.01" required>
+            </div>
+        </div>
+        
+        <!-- Barman Reconciliation -->
+        <div id="barmanReconciliation" class="space-y-4">
+            <h4 class="font-bold text-blue-500">
+                <i class="fas fa-cocktail mr-2"></i>Service Reconciliation
+            </h4>
+            
+            <div>
+                <label class="block text-sm mb-1">Orders Served</label>
+                <input type="number" id="clockOutOrdersServed" class="vamosfesta-input" min="0" required>
+            </div>
+            
+            <div>
+                <label class="block text-sm mb-1">Tokens Processed</label>
+                <input type="number" id="clockOutTokensProcessed" class="vamosfesta-input" min="0" required>
+            </div>
+        </div>
+        
+        <!-- Common Fields -->
+        <div class="space-y-4 mt-4">
+            <div>
+                <label class="block text-sm mb-1">Notes (Optional)</label>
+                <textarea id="clockOutNotes" class="vamosfesta-input" rows="2" placeholder="Any issues or notes..."></textarea>
+            </div>
+            
+            <button onclick="clockOutStaff()" class="vamosfesta-button danger w-full py-3">
+                <i class="fas fa-sign-out-alt mr-2"></i>Clock Out Staff
+            </button>
+            
+            <button onclick="closeModal('overseerClockOutModal')" class="vamosfesta-button secondary w-full">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- SipToken Dashboard Tab (to be inserted in main tabs) -->
+<div id="siptokenTab" class="tab-content">
+    <div class="mb-6">
+        <h2 class="text-2xl font-bold vamosfesta-header mb-2">
+            <i class="fas fa-coins mr-2"></i>SipToken Beverage Sales
+        </h2>
+        <p class="text-gray-400 text-sm">Manage token sales, process orders, and track beverage service</p>
+    </div>
+    
+    <!-- Role-Specific Content -->
+    
+    <!-- Sales Staff Interface -->
+    <div class="role-content sales-staff-content">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="stat-card bg-yellow-900/20 border-yellow-600/30">
+                <h4>Tokens Sold Today</h4>
+                <p id="salesStaffTokensSold">0</p>
+            </div>
+            <div class="stat-card bg-green-900/20 border-green-600/30">
+                <h4>Revenue Today</h4>
+                <p id="salesStaffRevenue">₹0</p>
+            </div>
+            <div class="stat-card bg-blue-900/20 border-blue-600/30">
+                <h4>Transactions</h4>
+                <p id="salesStaffTransactions">0</p>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <h3 class="font-bold mb-4">
+                <i class="fas fa-search mr-2"></i>Find Guest by Phone
+            </h3>
+            <div class="flex gap-2">
+                <input type="tel" id="guestPhoneSearch" class="vamosfesta-input flex-1" placeholder="Enter phone number">
+                <button onclick="searchGuestForTokens()" class="vamosfesta-button">
+                    <i class="fas fa-search"></i> Search
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Barman Interface -->
+    <div class="role-content barman-content">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="stat-card bg-blue-900/20 border-blue-600/30">
+                <h4>Orders Today</h4>
+                <p id="barmanOrdersToday">0</p>
+            </div>
+            <div class="stat-card bg-purple-900/20 border-purple-600/30">
+                <h4>Tokens Processed</h4>
+                <p id="barmanTokensProcessed">0</p>
+            </div>
+            <div class="stat-card bg-green-900/20 border-green-600/30">
+                <h4>Active Orders</h4>
+                <p id="barmanActiveOrders">0</p>
+            </div>
+        </div>
+        
+        <div class="text-center">
+            <button onclick="startBarmanScanner()" class="vamosfesta-button py-6 px-8 text-lg">
+                <i class="fas fa-qrcode mr-3 text-2xl"></i>
+                <br>Scan Token Payment
+            </button>
+        </div>
+        
+        <div id="barmanRecentOrders" class="mt-6">
+            <h3 class="font-bold mb-3">
+                <i class="fas fa-history mr-2"></i>Recent Orders
+            </h3>
+            <div id="barmanOrdersList">
+                <!-- Orders will be loaded here -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Overseer Interface -->
+    <div class="role-content overseer-content">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="stat-card bg-green-900/20 border-green-600/30">
+                <h4>Staff On Duty</h4>
+                <p id="overseerStaffOnDuty">0</p>
+            </div>
+            <div class="stat-card bg-yellow-900/20 border-yellow-600/30">
+                <h4>Total Tokens Sold</h4>
+                <p id="overseerTotalTokens">0</p>
+            </div>
+            <div class="stat-card bg-blue-900/20 border-blue-600/30">
+                <h4>Orders Processed</h4>
+                <p id="overseerTotalOrders">0</p>
+            </div>
+            <div class="stat-card bg-purple-900/20 border-purple-600/30">
+                <h4>Revenue</h4>
+                <p id="overseerTotalRevenue">₹0</p>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <button onclick="showClockInModal('token_sales')" class="vamosfesta-button py-4">
+                <i class="fas fa-coins mr-2"></i>Clock In Sales Staff
+            </button>
+            <button onclick="showClockInModal('barman')" class="vamosfesta-button py-4">
+                <i class="fas fa-cocktail mr-2"></i>Clock In Barman
+            </button>
+        </div>
+        
+        <div class="card">
+            <h3 class="font-bold mb-4">
+                <i class="fas fa-users mr-2"></i>Active Duty Sessions
+            </h3>
+            <div id="overseerDutySessions">
+                <!-- Duty sessions will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

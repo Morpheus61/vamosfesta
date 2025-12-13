@@ -1,0 +1,406 @@
+<!-- =====================================================
+     SIPTOKEN UI COMPONENTS
+     Complete beverage sales system interfaces
+     ===================================================== -->
+
+<!-- Token Purchase Modal (for Sales Staff/Guests) -->
+<div id="tokenPurchaseModal" class="modal">
+    <div class="modal-content max-w-md">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold vamosfesta-header">
+                <i class="fas fa-coins mr-2"></i>Purchase Tokens
+            </h3>
+            <button onclick="closeModal('tokenPurchaseModal')" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <div class="card bg-blue-900/20 border-blue-600/30 mb-4">
+            <h4 class="font-bold" id="tokenWalletGuest">Guest Name</h4>
+            <p class="text-2xl text-yellow-500 mt-2">
+                <i class="fas fa-wallet mr-2"></i>
+                <span id="tokenWalletBalance">0</span> Tokens
+            </p>
+            <p class="text-xs text-gray-500 mt-1" id="tokenRate">₹10 = 1 Token</p>
+        </div>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm mb-1">Tokens to Purchase</label>
+                <input type="number" id="tokensToPurchase" class="vamosfesta-input" min="1" placeholder="Enter number of tokens">
+            </div>
+            
+            <div>
+                <label class="block text-sm mb-1">Payment Method</label>
+                <select id="tokenPaymentMethod" class="vamosfesta-input">
+                    <option value="cash">Cash</option>
+                    <option value="upi">UPI</option>
+                    <option value="online">Online</option>
+                </select>
+            </div>
+            
+            <button onclick="purchaseTokens()" class="vamosfesta-button w-full py-3">
+                <i class="fas fa-shopping-cart mr-2"></i>Purchase Tokens
+            </button>
+            
+            <button onclick="closeModal('tokenPurchaseModal')" class="vamosfesta-button secondary w-full">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Generate Token Payment QR Modal (for Guests ordering drinks) -->
+<div id="tokenPaymentQRModal" class="modal">
+    <div class="modal-content max-w-md text-center">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold vamosfesta-header">
+                <i class="fas fa-qrcode mr-2"></i>Payment QR Code
+            </h3>
+            <button onclick="closeModal('tokenPaymentQRModal')" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <div id="tokenPaymentQRInfo" class="mb-4">
+            <!-- QR info will be inserted here -->
+        </div>
+        
+        <div id="tokenPaymentQRDisplay" class="bg-white p-4 rounded-lg inline-block">
+            <!-- QR code will be rendered here -->
+        </div>
+        
+        <p class="text-sm text-gray-400 mt-4">
+            <i class="fas fa-info-circle mr-1"></i> Show this QR code to the barman to place your order
+        </p>
+        
+        <button onclick="closeModal('tokenPaymentQRModal')" class="vamosfesta-button w-full mt-4">
+            Close
+        </button>
+    </div>
+</div>
+
+<!-- Token Order Generation Form (shown after purchase or from guest interface) -->
+<div id="tokenOrderGeneratorModal" class="modal">
+    <div class="modal-content max-w-md">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold vamosfesta-header">
+                <i class="fas fa-cocktail mr-2"></i>Create Beverage Order
+            </h3>
+            <button onclick="closeModal('tokenOrderGeneratorModal')" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm mb-1">Tokens for This Order</label>
+                <input type="number" id="tokensForOrder" class="vamosfesta-input" min="1" placeholder="How many tokens?">
+                <p class="text-xs text-gray-500 mt-1">Your balance will be checked before generating QR</p>
+            </div>
+            
+            <button onclick="generateTokenPaymentQR()" class="vamosfesta-button w-full py-3">
+                <i class="fas fa-qrcode mr-2"></i>Generate Payment QR
+            </button>
+            
+            <button onclick="closeModal('tokenOrderGeneratorModal')" class="vamosfesta-button secondary w-full">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Barman QR Scanner Modal -->
+<div id="barmanScannerModal" class="modal">
+    <div class="modal-content max-w-lg">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold vamosfesta-header">
+                <i class="fas fa-qrcode mr-2"></i>Scan Token Payment
+            </h3>
+            <button onclick="stopBarmanScanner()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <div class="bg-black rounded-lg overflow-hidden aspect-square mb-3">
+            <video id="barmanQrVideo" class="w-full h-full object-cover"></video>
+        </div>
+        
+        <div class="card bg-orange-900/20 border-orange-600/30">
+            <p class="text-center text-sm text-gray-300">
+                <i class="fas fa-mobile-alt mr-1 text-orange-400"></i> 
+                Point camera at guest's payment QR code
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Barman Order Entry Modal (shown after scanning) -->
+<div id="barmanOrderModal" class="modal">
+    <div class="modal-content max-w-md">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold vamosfesta-header">
+                <i class="fas fa-cocktail mr-2"></i>Process Order
+            </h3>
+            <button onclick="closeModal('barmanOrderModal')" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <div id="barmanOrderGuestInfo">
+            <!-- Guest info will be inserted here -->
+        </div>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm mb-1">Order Items</label>
+                <textarea id="barmanOrderItems" class="vamosfesta-input" rows="3" placeholder="e.g., 2x Beer, 1x Mojito"></textarea>
+            </div>
+            
+            <div>
+                <label class="block text-sm mb-1">Tokens to Use</label>
+                <input type="number" id="orderTokensUsed" class="vamosfesta-input" min="1">
+                <p class="text-xs text-gray-500 mt-1">Maximum tokens from scanned QR</p>
+            </div>
+            
+            <button onclick="processBarmanOrder()" class="vamosfesta-button success w-full py-3">
+                <i class="fas fa-check mr-2"></i>Complete Order
+            </button>
+            
+            <button onclick="closeModal('barmanOrderModal')" class="vamosfesta-button secondary w-full">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Overseer Clock-In Modal -->
+<div id="overseerClockInModal" class="modal">
+    <div class="modal-content max-w-md">
+        <div class="flex justify-between items-center mb-4">
+            <h3 id="clockInModalTitle" class="text-xl font-bold vamosfesta-header">
+                <i class="fas fa-clock mr-2"></i>Clock In Staff
+            </h3>
+            <button onclick="closeModal('overseerClockInModal')" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <form onsubmit="event.preventDefault(); clockInStaff();" class="space-y-4">
+            <input type="hidden" id="clockInStaffRole">
+            
+            <div>
+                <label class="block text-sm mb-1">Select Staff Member</label>
+                <select id="clockInStaffSelect" class="vamosfesta-input" required>
+                    <option value="">Choose staff...</option>
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-sm mb-1">Counter/Station Name</label>
+                <input type="text" id="clockInCounter" class="vamosfesta-input" required placeholder="e.g., Token Counter 1, Bar Station A">
+            </div>
+            
+            <div id="clockInOpeningCashDiv">
+                <label class="block text-sm mb-1">Opening Cash (₹) - For Sales Staff</label>
+                <input type="number" id="clockInOpeningCash" class="vamosfesta-input" min="0" step="0.01" placeholder="0.00">
+            </div>
+            
+            <button type="submit" class="vamosfesta-button success w-full py-3">
+                <i class="fas fa-sign-in-alt mr-2"></i>Clock In Staff
+            </button>
+            
+            <button type="button" onclick="closeModal('overseerClockInModal')" class="vamosfesta-button secondary w-full">
+                Cancel
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Overseer Clock-Out & Reconciliation Modal -->
+<div id="overseerClockOutModal" class="modal">
+    <div class="modal-content max-w-lg">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold vamosfesta-header">
+                <i class="fas fa-clock mr-2"></i>Clock Out & Reconcile
+            </h3>
+            <button onclick="closeModal('overseerClockOutModal')" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <div id="clockOutStaffInfo" class="mb-4">
+            <!-- Staff info will be inserted here -->
+        </div>
+        
+        <!-- Token Sales Staff Reconciliation -->
+        <div id="tokenSalesReconciliation" class="space-y-4">
+            <h4 class="font-bold text-yellow-500">
+                <i class="fas fa-coins mr-2"></i>Sales Reconciliation
+            </h4>
+            
+            <div class="card bg-gray-800/50">
+                <p class="text-sm">Opening Cash: <span id="clockOutOpeningCash" class="font-bold">₹0.00</span></p>
+            </div>
+            
+            <div>
+                <label class="block text-sm mb-1">Tokens Sold</label>
+                <input type="number" id="clockOutTokensSold" class="vamosfesta-input" min="0" required>
+            </div>
+            
+            <div>
+                <label class="block text-sm mb-1">Total Cash Collected (₹)</label>
+                <input type="number" id="clockOutCashCollected" class="vamosfesta-input" min="0" step="0.01" required>
+            </div>
+        </div>
+        
+        <!-- Barman Reconciliation -->
+        <div id="barmanReconciliation" class="space-y-4">
+            <h4 class="font-bold text-blue-500">
+                <i class="fas fa-cocktail mr-2"></i>Service Reconciliation
+            </h4>
+            
+            <div>
+                <label class="block text-sm mb-1">Orders Served</label>
+                <input type="number" id="clockOutOrdersServed" class="vamosfesta-input" min="0" required>
+            </div>
+            
+            <div>
+                <label class="block text-sm mb-1">Tokens Processed</label>
+                <input type="number" id="clockOutTokensProcessed" class="vamosfesta-input" min="0" required>
+            </div>
+        </div>
+        
+        <!-- Common Fields -->
+        <div class="space-y-4 mt-4">
+            <div>
+                <label class="block text-sm mb-1">Notes (Optional)</label>
+                <textarea id="clockOutNotes" class="vamosfesta-input" rows="2" placeholder="Any issues or notes..."></textarea>
+            </div>
+            
+            <button onclick="clockOutStaff()" class="vamosfesta-button danger w-full py-3">
+                <i class="fas fa-sign-out-alt mr-2"></i>Clock Out Staff
+            </button>
+            
+            <button onclick="closeModal('overseerClockOutModal')" class="vamosfesta-button secondary w-full">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- SipToken Dashboard Tab (to be inserted in main tabs) -->
+<div id="siptokenTab" class="tab-content">
+    <div class="mb-6">
+        <h2 class="text-2xl font-bold vamosfesta-header mb-2">
+            <i class="fas fa-coins mr-2"></i>SipToken Beverage Sales
+        </h2>
+        <p class="text-gray-400 text-sm">Manage token sales, process orders, and track beverage service</p>
+    </div>
+    
+    <!-- Role-Specific Content -->
+    
+    <!-- Sales Staff Interface -->
+    <div class="role-content sales-staff-content">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="stat-card bg-yellow-900/20 border-yellow-600/30">
+                <h4>Tokens Sold Today</h4>
+                <p id="salesStaffTokensSold">0</p>
+            </div>
+            <div class="stat-card bg-green-900/20 border-green-600/30">
+                <h4>Revenue Today</h4>
+                <p id="salesStaffRevenue">₹0</p>
+            </div>
+            <div class="stat-card bg-blue-900/20 border-blue-600/30">
+                <h4>Transactions</h4>
+                <p id="salesStaffTransactions">0</p>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <h3 class="font-bold mb-4">
+                <i class="fas fa-search mr-2"></i>Find Guest by Phone
+            </h3>
+            <div class="flex gap-2">
+                <input type="tel" id="guestPhoneSearch" class="vamosfesta-input flex-1" placeholder="Enter phone number">
+                <button onclick="searchGuestForTokens()" class="vamosfesta-button">
+                    <i class="fas fa-search"></i> Search
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Barman Interface -->
+    <div class="role-content barman-content">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="stat-card bg-blue-900/20 border-blue-600/30">
+                <h4>Orders Today</h4>
+                <p id="barmanOrdersToday">0</p>
+            </div>
+            <div class="stat-card bg-purple-900/20 border-purple-600/30">
+                <h4>Tokens Processed</h4>
+                <p id="barmanTokensProcessed">0</p>
+            </div>
+            <div class="stat-card bg-green-900/20 border-green-600/30">
+                <h4>Active Orders</h4>
+                <p id="barmanActiveOrders">0</p>
+            </div>
+        </div>
+        
+        <div class="text-center">
+            <button onclick="startBarmanScanner()" class="vamosfesta-button py-6 px-8 text-lg">
+                <i class="fas fa-qrcode mr-3 text-2xl"></i>
+                <br>Scan Token Payment
+            </button>
+        </div>
+        
+        <div id="barmanRecentOrders" class="mt-6">
+            <h3 class="font-bold mb-3">
+                <i class="fas fa-history mr-2"></i>Recent Orders
+            </h3>
+            <div id="barmanOrdersList">
+                <!-- Orders will be loaded here -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Overseer Interface -->
+    <div class="role-content overseer-content">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="stat-card bg-green-900/20 border-green-600/30">
+                <h4>Staff On Duty</h4>
+                <p id="overseerStaffOnDuty">0</p>
+            </div>
+            <div class="stat-card bg-yellow-900/20 border-yellow-600/30">
+                <h4>Total Tokens Sold</h4>
+                <p id="overseerTotalTokens">0</p>
+            </div>
+            <div class="stat-card bg-blue-900/20 border-blue-600/30">
+                <h4>Orders Processed</h4>
+                <p id="overseerTotalOrders">0</p>
+            </div>
+            <div class="stat-card bg-purple-900/20 border-purple-600/30">
+                <h4>Revenue</h4>
+                <p id="overseerTotalRevenue">₹0</p>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <button onclick="showClockInModal('token_sales')" class="vamosfesta-button py-4">
+                <i class="fas fa-coins mr-2"></i>Clock In Sales Staff
+            </button>
+            <button onclick="showClockInModal('barman')" class="vamosfesta-button py-4">
+                <i class="fas fa-cocktail mr-2"></i>Clock In Barman
+            </button>
+        </div>
+        
+        <div class="card">
+            <h3 class="font-bold mb-4">
+                <i class="fas fa-users mr-2"></i>Active Duty Sessions
+            </h3>
+            <div id="overseerDutySessions">
+                <!-- Duty sessions will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
