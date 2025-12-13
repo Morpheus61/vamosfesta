@@ -1420,6 +1420,15 @@ window.showAddUserModal = function() {
     document.getElementById('userFullName').required = true;
     document.getElementById('userMobile').required = true;
     document.getElementById('passwordHint').textContent = 'Min 6 characters';
+    
+    // Reset SipToken checkboxes
+    const siptokenOverseerCheckbox = document.getElementById('userIsSiptokenOverseer');
+    const siptokenSalesCheckbox = document.getElementById('userIsSiptokenSales');
+    const barmanCheckbox = document.getElementById('userIsBarman');
+    if (siptokenOverseerCheckbox) siptokenOverseerCheckbox.checked = false;
+    if (siptokenSalesCheckbox) siptokenSalesCheckbox.checked = false;
+    if (barmanCheckbox) barmanCheckbox.checked = false;
+    
     openModal('userModal');
 };
 
@@ -1446,6 +1455,14 @@ window.editUser = async function(userId) {
         document.getElementById('userClubName').value = user.club_name || '';
         document.getElementById('userClubNumber').value = user.club_number || '';
         document.getElementById('userRoleSelect').value = user.role;
+        
+        // SipToken roles
+        const siptokenOverseerCheckbox = document.getElementById('userIsSiptokenOverseer');
+        const siptokenSalesCheckbox = document.getElementById('userIsSiptokenSales');
+        const barmanCheckbox = document.getElementById('userIsBarman');
+        if (siptokenOverseerCheckbox) siptokenOverseerCheckbox.checked = user.is_siptoken_overseer || false;
+        if (siptokenSalesCheckbox) siptokenSalesCheckbox.checked = user.is_siptoken_sales || false;
+        if (barmanCheckbox) barmanCheckbox.checked = user.is_barman || false;
         
         openModal('userModal');
         
@@ -1481,7 +1498,11 @@ async function handleUserForm(e) {
         mobile_number: mobileNumber,
         club_name: document.getElementById('userClubName').value.trim() || null,
         club_number: document.getElementById('userClubNumber').value.trim() || null,
-        role: document.getElementById('userRoleSelect').value
+        role: document.getElementById('userRoleSelect').value,
+        // SipToken roles
+        is_siptoken_overseer: document.getElementById('userIsSiptokenOverseer')?.checked || false,
+        is_siptoken_sales: document.getElementById('userIsSiptokenSales')?.checked || false,
+        is_barman: document.getElementById('userIsBarman')?.checked || false
     };
     
     // Validate role is selected
@@ -3205,6 +3226,7 @@ async function loadAdmins() {
         tbody.innerHTML = admins.map(admin => {
             const adminAssignments = assignments?.filter(a => a.overseer_id === admin.id) || [];
             const isOverseer = admin.is_gate_overseer;
+            const isSiptokenOverseer = admin.is_siptoken_overseer;
             const leadAssignments = adminAssignments.filter(a => a.is_lead_overseer);
             
             const gatesText = adminAssignments.length > 0
@@ -3215,28 +3237,43 @@ async function loadAdmins() {
                 : '<span class="text-gray-500">None</span>';
             
             const overseerBadge = isOverseer
-                ? `<span class="status-badge" style="background: #f59e0b; color: white;"><i class="fas fa-shield-alt mr-1"></i>Overseer</span>`
-                : '<span class="text-gray-500">Regular Admin</span>';
+                ? `<span class="status-badge" style="background: #f59e0b; color: white;"><i class="fas fa-shield-alt mr-1"></i>Gate Overseer</span>`
+                : '';
+            
+            const siptokenBadge = isSiptokenOverseer
+                ? `<span class="status-badge" style="background: #3b82f6; color: white;"><i class="fas fa-coins mr-1"></i>SipToken</span>`
+                : '';
+            
+            const badges = [overseerBadge, siptokenBadge].filter(b => b).join(' ') || '<span class="text-gray-500">Regular Admin</span>';
             
             return `
                 <tr>
                     <td class="font-semibold">${escapeHtml(admin.username)}</td>
                     <td>${escapeHtml(admin.full_name)}</td>
                     <td>${admin.mobile_number}</td>
-                    <td>${overseerBadge}</td>
+                    <td>${badges}</td>
                     <td class="text-sm">${gatesText}</td>
                     <td>
-                        <div class="flex gap-2">
+                        <div class="flex flex-wrap gap-1">
                             ${!isOverseer ? `
-                                <button onclick="toggleOverseerStatus('${admin.id}', true)" class="vamosfesta-button text-xs" title="Make Overseer">
+                                <button onclick="toggleOverseerStatus('${admin.id}', true)" class="vamosfesta-button text-xs py-1" title="Make Gate Overseer">
                                     <i class="fas fa-shield-alt"></i>
                                 </button>
                             ` : `
-                                <button onclick="showAssignGatesModal('${admin.id}')" class="vamosfesta-button success text-xs" title="Assign Gates">
+                                <button onclick="showAssignGatesModal('${admin.id}')" class="vamosfesta-button success text-xs py-1" title="Assign Gates">
                                     <i class="fas fa-door-open"></i>
                                 </button>
-                                <button onclick="toggleOverseerStatus('${admin.id}', false)" class="vamosfesta-button danger text-xs" title="Remove Overseer">
-                                    <i class="fas fa-times"></i>
+                                <button onclick="toggleOverseerStatus('${admin.id}', false)" class="vamosfesta-button danger text-xs py-1" title="Remove Gate Overseer">
+                                    <i class="fas fa-shield-alt"></i>
+                                </button>
+                            `}
+                            ${!isSiptokenOverseer ? `
+                                <button onclick="toggleSiptokenOverseerStatus('${admin.id}', true)" class="vamosfesta-button secondary text-xs py-1" title="Make SipToken Overseer" style="background: #3b82f6; border-color: #3b82f6;">
+                                    <i class="fas fa-coins"></i>
+                                </button>
+                            ` : `
+                                <button onclick="toggleSiptokenOverseerStatus('${admin.id}', false)" class="vamosfesta-button danger text-xs py-1" title="Remove SipToken Overseer">
+                                    <i class="fas fa-coins"></i>
                                 </button>
                             `}
                         </div>
@@ -3308,6 +3345,17 @@ async function loadGateOverseerAssignments() {
 
 window.showAddAdminModal = function() {
     document.getElementById('adminForm').reset();
+    
+    // Reset checkboxes
+    const gateOverseerCheckbox = document.getElementById('adminIsGateOverseer');
+    const siptokenOverseerCheckbox = document.getElementById('adminIsSiptokenOverseer');
+    const siptokenSalesCheckbox = document.getElementById('adminIsSiptokenSales');
+    const barmanCheckbox = document.getElementById('adminIsBarman');
+    if (gateOverseerCheckbox) gateOverseerCheckbox.checked = false;
+    if (siptokenOverseerCheckbox) siptokenOverseerCheckbox.checked = false;
+    if (siptokenSalesCheckbox) siptokenSalesCheckbox.checked = false;
+    if (barmanCheckbox) barmanCheckbox.checked = false;
+    
     openModal('adminModal');
 };
 
@@ -3320,7 +3368,13 @@ document.getElementById('adminForm')?.addEventListener('submit', async (e) => {
         full_name: document.getElementById('adminFullName').value.trim(),
         mobile_number: document.getElementById('adminMobile').value.trim(),
         role: 'admin',
-        created_by: currentUser.id
+        created_by: currentUser.id,
+        // Gate Overseer
+        is_gate_overseer: document.getElementById('adminIsGateOverseer')?.checked || false,
+        // SipToken roles
+        is_siptoken_overseer: document.getElementById('adminIsSiptokenOverseer')?.checked || false,
+        is_siptoken_sales: document.getElementById('adminIsSiptokenSales')?.checked || false,
+        is_barman: document.getElementById('adminIsBarman')?.checked || false
     };
     
     if (adminData.password.length < 6) {
@@ -3371,6 +3425,28 @@ window.toggleOverseerStatus = async function(adminId, makeOverseer) {
     } catch (error) {
         console.error('Error toggling overseer status:', error);
         showToast('Failed to update overseer status', 'error');
+    }
+};
+
+// Toggle SipToken Overseer status
+window.toggleSiptokenOverseerStatus = async function(adminId, makeOverseer) {
+    const action = makeOverseer ? 'designate as SipToken Overseer' : 'remove SipToken Overseer status from';
+    if (!confirm(`Are you sure you want to ${action} this admin?`)) return;
+    
+    try {
+        const { error } = await supabase
+            .from('users')
+            .update({ is_siptoken_overseer: makeOverseer })
+            .eq('id', adminId);
+        
+        if (error) throw error;
+        
+        showToast(makeOverseer ? 'Admin designated as SipToken Overseer' : 'SipToken Overseer status removed', 'success');
+        await loadAdmins();
+        
+    } catch (error) {
+        console.error('Error toggling SipToken overseer status:', error);
+        showToast('Failed to update SipToken overseer status', 'error');
     }
 };
 
@@ -3467,7 +3543,7 @@ async function loadOverseerGates() {
     try {
         const { data: assignments, error } = await supabase
             .from('overseer_assignments')
-            .select('*, entry_gates(*), duties:marshall_duties(count)')
+            .select('*, entry_gates(*)')
             .eq('overseer_id', currentUser.id);
         
         if (error) throw error;

@@ -696,7 +696,7 @@
             font-weight: 600;
             text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
         ">
-            • Event Management System •
+            • Viva la Fiesta •
         </p>
     </div>
 </div>
@@ -1955,6 +1955,28 @@
                         <option value="super_admin">Super Admin</option>
                     </select>
                 </div>
+                
+                <!-- SipToken Roles -->
+                <div class="card bg-blue-900/20 border-blue-600/30">
+                    <h4 class="text-sm font-semibold text-blue-400 mb-3">
+                        <i class="fas fa-coins mr-1"></i> SipToken Roles (Optional)
+                    </h4>
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="userIsSiptokenOverseer" class="w-4 h-4 accent-blue-500">
+                            <label for="userIsSiptokenOverseer" class="text-sm">SipToken Overseer (Manage staff, reconciliation)</label>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="userIsSiptokenSales" class="w-4 h-4 accent-green-500">
+                            <label for="userIsSiptokenSales" class="text-sm">Token Sales Staff (Sell tokens to guests)</label>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="userIsBarman" class="w-4 h-4 accent-purple-500">
+                            <label for="userIsBarman" class="text-sm">Barman (Scan QR, process orders)</label>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="flex gap-3 pt-4">
                     <button type="submit" class="vamosfesta-button flex-1">
                         <i class="fas fa-save mr-2"></i>Save
@@ -1993,6 +2015,34 @@
                     <label class="block text-sm mb-1">Mobile Number *</label>
                     <input type="tel" id="adminMobile" class="vamosfesta-input" pattern="[0-9]{10}" required>
                 </div>
+                
+                <!-- Gate Overseer Option -->
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="adminIsGateOverseer" class="w-4 h-4 accent-yellow-500">
+                    <label for="adminIsGateOverseer" class="text-sm">Gate Overseer (Manage entry marshalls)</label>
+                </div>
+                
+                <!-- SipToken Roles -->
+                <div class="card bg-blue-900/20 border-blue-600/30">
+                    <h4 class="text-sm font-semibold text-blue-400 mb-3">
+                        <i class="fas fa-coins mr-1"></i> SipToken Roles (Optional)
+                    </h4>
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="adminIsSiptokenOverseer" class="w-4 h-4 accent-blue-500">
+                            <label for="adminIsSiptokenOverseer" class="text-sm">SipToken Overseer (Manage staff, reconciliation)</label>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="adminIsSiptokenSales" class="w-4 h-4 accent-green-500">
+                            <label for="adminIsSiptokenSales" class="text-sm">Token Sales Staff (Sell tokens to guests)</label>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="adminIsBarman" class="w-4 h-4 accent-purple-500">
+                            <label for="adminIsBarman" class="text-sm">Barman (Scan QR, process orders)</label>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="flex gap-3 pt-4">
                     <button type="submit" class="vamosfesta-button flex-1">
                         <i class="fas fa-save mr-2"></i>Create Admin
