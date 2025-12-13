@@ -3303,7 +3303,7 @@ async function loadGateOverseerAssignments() {
         
         const { data: assignments, error: assignError } = await supabase
             .from('overseer_assignments')
-            .select('*, users(full_name), entry_gates(gate_name, gate_code)');
+            .select('*, users!overseer_assignments_overseer_id_fkey(full_name), entry_gates(gate_name, gate_code)');
         
         if (assignError) throw assignError;
         
