@@ -7,8 +7,8 @@ import { createClient } from '@supabase/supabase-js';
 import QRCode from 'qrcode';
 
 // Supabase Configuration - Use environment variables or fallback to hardcoded values
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://bruwwqxeevqnbhunrhia.supabase.co';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJydXd3cXhlZXZxbmJodW5yaGlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQwODYwMDEsImV4cCI6MjA0OTY2MjAwMX0.zU7vCWB9jl5bgDtE2kQM79u5vLs5HeCPq48NOIWp_eY';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://nybbovgdsvbwabuqthbd.supabase.co';
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55YmJvdmdkc3Zid2FidXF0aGJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ3NTU5NTIsImV4cCI6MjA4MDMzMTk1Mn0.g-1eRhGpiiOICp0tTPjsvAcuIUYur1NIqw1AOt1tugw';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Global State
@@ -75,6 +75,14 @@ async function initializeApp() {
     document.body.className = bodyClass;
     document.getElementById('loginScreen').classList.add('hidden');
     document.getElementById('mainApp').classList.remove('hidden');
+    
+    // Show SipToken tab for users with SipToken roles
+    const siptokenNavTab = document.getElementById('siptokenNavTab');
+    const siptokenMobileItems = document.querySelectorAll('.siptoken-menu-item');
+    if (currentUser.is_siptoken_sales || currentUser.is_barman || currentUser.is_siptoken_overseer || currentUser.role === 'super_admin') {
+        if (siptokenNavTab) siptokenNavTab.style.display = 'flex';
+        siptokenMobileItems.forEach(item => item.style.display = 'flex');
+    }
     
     // Update user display
     document.getElementById('userName').textContent = currentUser.full_name || currentUser.username;
@@ -509,8 +517,11 @@ function showTab(tabId) {
         item.classList.remove('active');
     });
     
-    // Show selected tab
-    const targetTab = document.getElementById(`tab-${tabId}`);
+    // Show selected tab - check both with and without 'tab-' prefix
+    let targetTab = document.getElementById(`tab-${tabId}`);
+    if (!targetTab) {
+        targetTab = document.getElementById(tabId);
+    }
     if (targetTab) {
         targetTab.classList.remove('hidden');
     }

@@ -749,6 +749,10 @@
                         <i class="fas fa-chart-pie"></i>
                         <span>Statistics</span>
                     </div>
+                    <div class="mobile-menu-item siptoken-menu-item" data-tab="siptokenTab" style="display: none;">
+                        <i class="fas fa-coins"></i>
+                        <span>SipToken</span>
+                    </div>
                 </div>
                 
                 <!-- Admin Menu Items -->
@@ -774,6 +778,10 @@
                         <i class="fas fa-chart-pie"></i>
                         <span>Statistics</span>
                     </div>
+                    <div class="mobile-menu-item siptoken-menu-item" data-tab="siptokenTab" style="display: none;">
+                        <i class="fas fa-coins"></i>
+                        <span>SipToken</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -786,7 +794,7 @@
                     <button class="hamburger-btn" onclick="toggleMobileMenu()">
                         <i class="fas fa-bars"></i>
                     </button>
-                    <img src="/assets/vamos-festa-logo.png" alt="Vamos Festa Logo" class="w-8 h-8 md:w-10 md:h-10 object-contain">
+                    <img src="/vamos_festa_logo.png" alt="Vamos Festa Logo" class="w-8 h-8 md:w-10 md:h-10 object-contain">
                     <div>
                         <h1 class="logo-text text-lg md:text-xl">VAMOS FESTA</h1>
                         <p class="tagline text-xs hidden md:block">¡Viva la Fiesta!</p>
@@ -854,6 +862,11 @@
                     <!-- Stats Tab (Admin & Super Admin) -->
                     <button class="nav-tab admin-view" data-tab="statistics">
                         <i class="fas fa-chart-pie mr-2"></i><span class="tab-text">Statistics</span>
+                    </button>
+                    
+                    <!-- SipToken Tab (for SipToken roles) -->
+                    <button class="nav-tab" data-tab="siptokenTab" id="siptokenNavTab" style="display: none;">
+                        <i class="fas fa-coins mr-2"></i><span class="tab-text">SipToken</span>
                     </button>
                     
                     <!-- Entry Marshall Tab -->
@@ -1920,12 +1933,12 @@
                 </div>
                 <div class="card bg-yellow-900/20 border-yellow-600/30">
                     <h4 class="text-sm font-semibold text-yellow-400 mb-3">
-                        <i class="fas fa-users mr-1"></i> Rotary Club Info (Optional)
+                        <i class="fas fa-users mr-1"></i> 41'ers Club Info (Optional)
                     </h4>
                     <div class="space-y-3">
                         <div>
                             <label class="block text-sm mb-1 text-gray-300">Club Name</label>
-                            <input type="text" id="userClubName" class="vamosfesta-input" placeholder="e.g., Rotary Club of Kochi">
+                            <input type="text" id="userClubName" class="vamosfesta-input" placeholder="e.g., 41'ers Club of Kochi">
                         </div>
                         <div>
                             <label class="block text-sm mb-1 text-gray-300">Club Number</label>
