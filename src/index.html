@@ -574,18 +574,6 @@
     position: relative;
 ">
     <style>
-        /* Try multiple image paths for compatibility */
-        #loginScreen {
-            background-image: url('/vamos_festa_logo.png');
-        }
-        /* Fallback paths */
-        @supports (background-image: url('/assets/vamos_festa_logo.png')) {
-            #loginScreen {
-                background-image: url('/vamos_festa_logo.png'), 
-                                  url('/assets/vamos_festa_logo.png');
-            }
-        }
-        
         #loginUsername::placeholder,
         #loginPassword::placeholder {
             color: rgba(255, 255, 255, 0.8);
