@@ -566,67 +566,52 @@
 
 
     <!-- ==================== LOGIN SCREEN ==================== -->
-<div id="loginScreen" class="min-h-screen flex flex-col items-center justify-between p-6" style="
-    background: linear-gradient(135deg, 
-        #FF3B30 0%, 
-        #FF3B30 15%,
-        #00CED1 15%,
-        #00CED1 50%,
-        #FFD700 50%,
-        #FFD700 85%,
-        #FF3B30 85%);
+<div id="loginScreen" class="min-h-screen flex flex-col items-center justify-center" style="
+    background-image: url('/vamos_festa_logo.png');
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
     position: relative;
-    overflow: hidden;
 ">
-    <!-- Decorative Elements (optional - adds depth) -->
-    <div style="
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: repeating-linear-gradient(
-            45deg,
-            transparent,
-            transparent 10px,
-            rgba(0,0,0,0.03) 10px,
-            rgba(0,0,0,0.03) 20px
-        );
-        pointer-events: none;
-    "></div>
-    
-    <!-- Logo Section (Top 70% of screen) -->
-    <div class="flex-1 flex flex-col items-center justify-center relative z-10 w-full max-w-md">
-        <!-- Logo Image -->
-        <div class="mb-8 relative">
-            <img src="/vamos-festa-logo.png" 
-                 alt="Vamos Festa Logo" 
-                 class="w-64 h-64 object-contain drop-shadow-2xl"
-                 style="filter: drop-shadow(0 10px 30px rgba(0,0,0,0.4));">
-        </div>
+    <style>
+        /* Try multiple image paths for compatibility */
+        #loginScreen {
+            background-image: url('/vamos_festa_logo.png');
+        }
+        /* Fallback paths */
+        @supports (background-image: url('/assets/vamos_festa_logo.png')) {
+            #loginScreen {
+                background-image: url('/vamos_festa_logo.png'), 
+                                  url('/assets/vamos_festa_logo.png');
+            }
+        }
         
-        <!-- AREA 8 MTM Text -->
-        <h1 style="
-            font-size: 3rem;
-            font-weight: 900;
-            color: rgba(0, 0, 0, 0.15);
-            text-transform: uppercase;
-            letter-spacing: 0.5rem;
-            text-shadow: 
-                2px 2px 0 rgba(255,255,255,0.3),
-                -2px -2px 0 rgba(0,0,0,0.3);
-            position: absolute;
-            bottom: 20%;
-            left: 50%;
-            transform: translateX(-50%);
-            white-space: nowrap;
-            pointer-events: none;
-        ">AREA 8 MTM</h1>
-    </div>
+        #loginUsername::placeholder,
+        #loginPassword::placeholder {
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 400;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-height: 700px) {
+            #loginFormContainer {
+                padding-bottom: 1rem !important;
+            }
+        }
+        
+        @media (min-height: 900px) {
+            #loginFormContainer {
+                margin-top: 5vh;
+            }
+        }
+    </style>
     
-    <!-- Login Form (Bottom 30% of screen) -->
-    <div class="w-full max-w-sm relative z-10 pb-8">
-        <form id="loginForm" class="space-y-4">
+    <!-- Spacer to push form below the mustache (approximately 65-70% down) -->
+    <div style="flex: 0 0 62vh; min-height: 350px;"></div>
+    
+    <!-- Login Form - Positioned Below Mustache -->
+    <div id="loginFormContainer" class="w-full max-w-sm relative z-10 px-6 pb-6" style="flex: 0 0 auto;">
+        <form id="loginForm" class="space-y-3">
             <!-- Login Input -->
             <div class="relative">
                 <input 
@@ -637,27 +622,20 @@
                     autocomplete="username"
                     style="
                         width: 100%;
-                        padding: 1rem 1.5rem;
-                        background: rgba(255, 107, 53, 0.85);
-                        border: 2px solid rgba(255, 255, 255, 0.5);
+                        padding: 0.875rem 1.25rem;
+                        background: rgba(255, 107, 53, 0.9);
+                        border: 2px solid rgba(255, 255, 255, 0.6);
                         border-radius: 12px;
                         color: white;
                         font-size: 1.1rem;
                         font-weight: 500;
                         backdrop-filter: blur(10px);
-                        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+                        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
                         transition: all 0.3s ease;
                     "
-                    onfocus="this.style.background='rgba(255, 107, 53, 0.95)'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 12px 40px rgba(0,0,0,0.4)'"
-                    onblur="this.style.background='rgba(255, 107, 53, 0.85)'; this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 32px rgba(0,0,0,0.3)'"
+                    onfocus="this.style.background='rgba(255, 107, 53, 1)'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 12px 40px rgba(0,0,0,0.5)'"
+                    onblur="this.style.background='rgba(255, 107, 53, 0.9)'; this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 32px rgba(0,0,0,0.4)'"
                 >
-                <style>
-                    #loginUsername::placeholder,
-                    #loginPassword::placeholder {
-                        color: rgba(255, 255, 255, 0.8);
-                        font-weight: 400;
-                    }
-                </style>
             </div>
             
             <!-- Password Input -->
@@ -670,40 +648,40 @@
                     autocomplete="current-password"
                     style="
                         width: 100%;
-                        padding: 1rem 1.5rem;
-                        background: rgba(255, 107, 53, 0.85);
-                        border: 2px solid rgba(255, 255, 255, 0.5);
+                        padding: 0.875rem 1.25rem;
+                        background: rgba(255, 107, 53, 0.9);
+                        border: 2px solid rgba(255, 255, 255, 0.6);
                         border-radius: 12px;
                         color: white;
                         font-size: 1.1rem;
                         font-weight: 500;
                         backdrop-filter: blur(10px);
-                        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+                        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
                         transition: all 0.3s ease;
                     "
-                    onfocus="this.style.background='rgba(255, 107, 53, 0.95)'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 12px 40px rgba(0,0,0,0.4)'"
-                    onblur="this.style.background='rgba(255, 107, 53, 0.85)'; this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 32px rgba(0,0,0,0.3)'"
+                    onfocus="this.style.background='rgba(255, 107, 53, 1)'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 12px 40px rgba(0,0,0,0.5)'"
+                    onblur="this.style.background='rgba(255, 107, 53, 0.9)'; this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 32px rgba(0,0,0,0.4)'"
                 >
             </div>
             
-            <!-- Submit Button (Hidden - submits on Enter) -->
+            <!-- Submit Button -->
             <button type="submit" style="
                 width: 100%;
-                padding: 1rem;
+                padding: 0.875rem;
                 background: linear-gradient(135deg, #FFD700, #FFA500);
                 border: none;
                 border-radius: 12px;
                 color: #1a1a2e;
-                font-size: 1.2rem;
+                font-size: 1.1rem;
                 font-weight: 700;
                 text-transform: uppercase;
                 letter-spacing: 2px;
                 cursor: pointer;
-                box-shadow: 0 8px 32px rgba(255, 215, 0, 0.4);
+                box-shadow: 0 8px 32px rgba(255, 215, 0, 0.5);
                 transition: all 0.3s ease;
             "
-            onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 12px 40px rgba(255,215,0,0.6)'"
-            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 32px rgba(255,215,0,0.4)'">
+            onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 12px 40px rgba(255,215,0,0.7)'"
+            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 32px rgba(255,215,0,0.5)'">
                 <i class="fas fa-sign-in-alt mr-2"></i> LOGIN
             </button>
             
@@ -711,24 +689,24 @@
             <div id="loginError" style="
                 display: none;
                 padding: 0.75rem;
-                background: rgba(239, 68, 68, 0.9);
+                background: rgba(239, 68, 68, 0.95);
                 border-radius: 8px;
                 color: white;
                 text-align: center;
                 font-weight: 600;
                 font-size: 0.9rem;
-                box-shadow: 0 4px 16px rgba(239, 68, 68, 0.4);
+                box-shadow: 0 4px 16px rgba(239, 68, 68, 0.5);
             "></div>
         </form>
         
-        <!-- Branding Text (Optional) -->
+        <!-- Branding Text -->
         <p style="
             text-align: center;
-            margin-top: 1.5rem;
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 0.85rem;
-            font-weight: 500;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            margin-top: 1rem;
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
         ">
             • Event Management System •
         </p>
@@ -1801,6 +1779,123 @@
                 </div>
             </section>
 
+
+            <!-- SipToken Dashboard Tab (to be inserted in main tabs) -->
+            <div id="siptokenTab" class="tab-content hidden">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold vamosfesta-header mb-2">
+                        <i class="fas fa-coins mr-2"></i>SipToken Beverage Sales
+                    </h2>
+                    <p class="text-gray-400 text-sm">Manage token sales, process orders, and track beverage service</p>
+                </div>
+    
+                <!-- Role-Specific Content -->
+    
+                <!-- Sales Staff Interface -->
+                <div class="role-content sales-staff-content">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div class="stat-card bg-yellow-900/20 border-yellow-600/30">
+                            <h4>Tokens Sold Today</h4>
+                            <p id="salesStaffTokensSold">0</p>
+                        </div>
+                        <div class="stat-card bg-green-900/20 border-green-600/30">
+                            <h4>Revenue Today</h4>
+                            <p id="salesStaffRevenue">₹0</p>
+                        </div>
+                        <div class="stat-card bg-blue-900/20 border-blue-600/30">
+                            <h4>Transactions</h4>
+                            <p id="salesStaffTransactions">0</p>
+                        </div>
+                    </div>
+        
+                    <div class="card mb-4">
+                        <h3 class="font-bold mb-4">
+                            <i class="fas fa-search mr-2"></i>Find Guest by Phone
+                        </h3>
+                        <div class="flex gap-2">
+                            <input type="tel" id="guestPhoneSearch" class="vamosfesta-input flex-1" placeholder="Enter phone number">
+                            <button onclick="searchGuestForTokens()" class="vamosfesta-button">
+                                <i class="fas fa-search"></i> Search
+                            </button>
+                        </div>
+                    </div>
+                </div>
+    
+                <!-- Barman Interface -->
+                <div class="role-content barman-content">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div class="stat-card bg-blue-900/20 border-blue-600/30">
+                            <h4>Orders Today</h4>
+                            <p id="barmanOrdersToday">0</p>
+                        </div>
+                        <div class="stat-card bg-purple-900/20 border-purple-600/30">
+                            <h4>Tokens Processed</h4>
+                            <p id="barmanTokensProcessed">0</p>
+                        </div>
+                        <div class="stat-card bg-green-900/20 border-green-600/30">
+                            <h4>Active Orders</h4>
+                            <p id="barmanActiveOrders">0</p>
+                        </div>
+                    </div>
+        
+                    <div class="text-center">
+                        <button onclick="startBarmanScanner()" class="vamosfesta-button py-6 px-8 text-lg">
+                            <i class="fas fa-qrcode mr-3 text-2xl"></i>
+                            <br>Scan Token Payment
+                        </button>
+                    </div>
+        
+                    <div id="barmanRecentOrders" class="mt-6">
+                        <h3 class="font-bold mb-3">
+                            <i class="fas fa-history mr-2"></i>Recent Orders
+                        </h3>
+                        <div id="barmanOrdersList">
+                            <!-- Orders will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+    
+                <!-- Overseer Interface -->
+                <div class="role-content overseer-content">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        <div class="stat-card bg-green-900/20 border-green-600/30">
+                            <h4>Staff On Duty</h4>
+                            <p id="overseerStaffOnDuty">0</p>
+                        </div>
+                        <div class="stat-card bg-yellow-900/20 border-yellow-600/30">
+                            <h4>Total Tokens Sold</h4>
+                            <p id="overseerTotalTokens">0</p>
+                        </div>
+                        <div class="stat-card bg-blue-900/20 border-blue-600/30">
+                            <h4>Orders Processed</h4>
+                            <p id="overseerTotalOrders">0</p>
+                        </div>
+                        <div class="stat-card bg-purple-900/20 border-purple-600/30">
+                            <h4>Revenue</h4>
+                            <p id="overseerTotalRevenue">₹0</p>
+                        </div>
+                    </div>
+        
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <button onclick="showClockInModal('token_sales')" class="vamosfesta-button py-4">
+                            <i class="fas fa-coins mr-2"></i>Clock In Sales Staff
+                        </button>
+                        <button onclick="showClockInModal('barman')" class="vamosfesta-button py-4">
+                            <i class="fas fa-cocktail mr-2"></i>Clock In Barman
+                        </button>
+                    </div>
+        
+                    <div class="card">
+                        <h3 class="font-bold mb-4">
+                            <i class="fas fa-users mr-2"></i>Active Duty Sessions
+                        </h3>
+                        <div id="overseerDutySessions">
+                            <!-- Duty sessions will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
 
@@ -2503,120 +2598,5 @@
     </div>
 </div>
 
-<!-- SipToken Dashboard Tab (to be inserted in main tabs) -->
-<div id="siptokenTab" class="tab-content">
-    <div class="mb-6">
-        <h2 class="text-2xl font-bold vamosfesta-header mb-2">
-            <i class="fas fa-coins mr-2"></i>SipToken Beverage Sales
-        </h2>
-        <p class="text-gray-400 text-sm">Manage token sales, process orders, and track beverage service</p>
-    </div>
-    
-    <!-- Role-Specific Content -->
-    
-    <!-- Sales Staff Interface -->
-    <div class="role-content sales-staff-content">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div class="stat-card bg-yellow-900/20 border-yellow-600/30">
-                <h4>Tokens Sold Today</h4>
-                <p id="salesStaffTokensSold">0</p>
-            </div>
-            <div class="stat-card bg-green-900/20 border-green-600/30">
-                <h4>Revenue Today</h4>
-                <p id="salesStaffRevenue">₹0</p>
-            </div>
-            <div class="stat-card bg-blue-900/20 border-blue-600/30">
-                <h4>Transactions</h4>
-                <p id="salesStaffTransactions">0</p>
-            </div>
-        </div>
-        
-        <div class="card mb-4">
-            <h3 class="font-bold mb-4">
-                <i class="fas fa-search mr-2"></i>Find Guest by Phone
-            </h3>
-            <div class="flex gap-2">
-                <input type="tel" id="guestPhoneSearch" class="vamosfesta-input flex-1" placeholder="Enter phone number">
-                <button onclick="searchGuestForTokens()" class="vamosfesta-button">
-                    <i class="fas fa-search"></i> Search
-                </button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Barman Interface -->
-    <div class="role-content barman-content">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div class="stat-card bg-blue-900/20 border-blue-600/30">
-                <h4>Orders Today</h4>
-                <p id="barmanOrdersToday">0</p>
-            </div>
-            <div class="stat-card bg-purple-900/20 border-purple-600/30">
-                <h4>Tokens Processed</h4>
-                <p id="barmanTokensProcessed">0</p>
-            </div>
-            <div class="stat-card bg-green-900/20 border-green-600/30">
-                <h4>Active Orders</h4>
-                <p id="barmanActiveOrders">0</p>
-            </div>
-        </div>
-        
-        <div class="text-center">
-            <button onclick="startBarmanScanner()" class="vamosfesta-button py-6 px-8 text-lg">
-                <i class="fas fa-qrcode mr-3 text-2xl"></i>
-                <br>Scan Token Payment
-            </button>
-        </div>
-        
-        <div id="barmanRecentOrders" class="mt-6">
-            <h3 class="font-bold mb-3">
-                <i class="fas fa-history mr-2"></i>Recent Orders
-            </h3>
-            <div id="barmanOrdersList">
-                <!-- Orders will be loaded here -->
-            </div>
-        </div>
-    </div>
-    
-    <!-- Overseer Interface -->
-    <div class="role-content overseer-content">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div class="stat-card bg-green-900/20 border-green-600/30">
-                <h4>Staff On Duty</h4>
-                <p id="overseerStaffOnDuty">0</p>
-            </div>
-            <div class="stat-card bg-yellow-900/20 border-yellow-600/30">
-                <h4>Total Tokens Sold</h4>
-                <p id="overseerTotalTokens">0</p>
-            </div>
-            <div class="stat-card bg-blue-900/20 border-blue-600/30">
-                <h4>Orders Processed</h4>
-                <p id="overseerTotalOrders">0</p>
-            </div>
-            <div class="stat-card bg-purple-900/20 border-purple-600/30">
-                <h4>Revenue</h4>
-                <p id="overseerTotalRevenue">₹0</p>
-            </div>
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <button onclick="showClockInModal('token_sales')" class="vamosfesta-button py-4">
-                <i class="fas fa-coins mr-2"></i>Clock In Sales Staff
-            </button>
-            <button onclick="showClockInModal('barman')" class="vamosfesta-button py-4">
-                <i class="fas fa-cocktail mr-2"></i>Clock In Barman
-            </button>
-        </div>
-        
-        <div class="card">
-            <h3 class="font-bold mb-4">
-                <i class="fas fa-users mr-2"></i>Active Duty Sessions
-            </h3>
-            <div id="overseerDutySessions">
-                <!-- Duty sessions will be loaded here -->
-            </div>
-        </div>
-    </div>
-</div>
 </body>
 </html>
