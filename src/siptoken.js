@@ -23,6 +23,9 @@ let currentTokenWallet = null;
 let barmanScanner = null;
 let currentScannedOrder = null;
 
+// Export tokenSettings for use in main.js
+export { tokenSettings };
+
 // =====================================================
 // INITIALIZATION
 // =====================================================
@@ -946,14 +949,5 @@ function showToast(message, type = 'info') {
         console.log(`[${type.toUpperCase()}] ${message}`);
     }
 }
-
-// =====================================================
-// EXPORTS
-// =====================================================
-
-export {
-    initializeSipToken,
-    tokenSettings
-};
 
 console.log('✅ SipToken V2 module loaded');
