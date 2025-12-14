@@ -4283,11 +4283,11 @@ window.loadOverseerGates = loadOverseerGates;
 // =====================================================
 
 // Import SipToken functionality
-import { initializeSipToken as initializeSipTokenModule, tokenSettings } from './siptoken.js';
+import { initializeGuestTokenPurchase, tokenSettings } from './siptoken.js';
 
 // Initialize SipToken on app load
 async function initializeSipToken() {
-    await initializeSipTokenModule();
+    await initializeGuestTokenPurchase();
     console.log('✅ SipToken module initialized');
 }
 

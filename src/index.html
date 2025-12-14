@@ -309,15 +309,28 @@
         .role-entry_marshall { background: #f97316; color: white; }
         
         /* Hide elements based on role */
-        .super-admin-only, .admin-only, .seller-only, .entry-marshall-only, .overseer-only { display: none; }
+        .super-admin-only, .admin-only, .admin-view, .seller-only, .entry-marshall-only, .overseer-only { display: none !important; }
         
-        body.role-super_admin .super-admin-only { display: block; }
-        body.role-super_admin .admin-view { display: block; }
-        body.role-admin .admin-only { display: block; }
-        body.role-admin .admin-view { display: block; }
-        body.role-admin.overseer .overseer-only { display: block; }
-        body.role-seller .seller-only { display: block; }
-        body.role-entry_marshall .entry-marshall-only { display: block; }
+        /* Show elements for Super Admin */
+        body.role-super_admin .super-admin-only { display: block !important; }
+        body.role-super_admin .admin-view { display: block !important; }
+        body.role-super_admin .nav-tab.super-admin-only,
+        body.role-super_admin .nav-tab.admin-view { display: flex !important; }
+        
+        /* Show elements for Admin */
+        body.role-admin .admin-only { display: block !important; }
+        body.role-admin .admin-view { display: block !important; }
+        body.role-admin .nav-tab.admin-only,
+        body.role-admin .nav-tab.admin-view { display: flex !important; }
+        body.role-admin.overseer .overseer-only { display: block !important; }
+        
+        /* Show elements for Seller */
+        body.role-seller .seller-only { display: block !important; }
+        body.role-seller .nav-tab.seller-only { display: flex !important; }
+        
+        /* Show elements for Entry Marshall */
+        body.role-entry_marshall .entry-marshall-only { display: block !important; }
+        body.role-entry_marshall .nav-tab.entry-marshall-only { display: flex !important; }
         
         /* Mobile Slide Menu for Admin/Super Admin */
         .mobile-menu-overlay {
