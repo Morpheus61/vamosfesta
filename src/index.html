@@ -1009,22 +1009,10 @@
                     </div>
                     
                     <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Guest Name</th>
-                                    <th>Mobile</th>
-                                    <th>Type</th>
-                                    <th>Amount</th>
-                                    <th>Payment</th>
-                                    <th>Status</th>
-                                    <th>Date</th>
-                                </tr>
-                            </thead>
-                            <tbody id="mySalesTableBody">
-                                <tr><td colspan="7" class="text-center py-8 text-gray-500">Loading...</td></tr>
-                            </tbody>
-                        </table>
+                        <!-- Simplified Guest List - Cards -->
+                        <div id="mySalesCardList" class="grid gap-3">
+                            <p class="text-center py-8 text-gray-500">Loading...</p>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -1949,31 +1937,29 @@
                 <div>
                     <label class="block text-sm mb-1">Role *</label>
                     <select id="userRoleSelect" class="vamosfesta-input" required>
-                        <option value="seller">Seller</option>
-                        <option value="entry_marshall">Entry Marshall</option>
-                        <option value="admin">Admin (Read-Only)</option>
-                        <option value="super_admin">Super Admin</option>
+                        <optgroup label="Event Staff">
+                            <option value="seller">Seller</option>
+                            <option value="entry_marshall">Entry Marshall</option>
+                        </optgroup>
+                        <optgroup label="SipToken Staff">
+                            <option value="token_sales">Token Sales Staff</option>
+                            <option value="barman">Barman</option>
+                        </optgroup>
+                        <optgroup label="Management">
+                            <option value="admin">Admin (Read-Only)</option>
+                            <option value="super_admin">Super Admin</option>
+                        </optgroup>
                     </select>
                 </div>
                 
-                <!-- SipToken Roles -->
-                <div class="card bg-blue-900/20 border-blue-600/30">
-                    <h4 class="text-sm font-semibold text-blue-400 mb-3">
-                        <i class="fas fa-coins mr-1"></i> SipToken Roles (Optional)
-                    </h4>
-                    <div class="space-y-2">
-                        <div class="flex items-center gap-2">
-                            <input type="checkbox" id="userIsSiptokenOverseer" class="w-4 h-4 accent-blue-500">
-                            <label for="userIsSiptokenOverseer" class="text-sm">SipToken Overseer (Manage staff, reconciliation)</label>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <input type="checkbox" id="userIsSiptokenSales" class="w-4 h-4 accent-green-500">
-                            <label for="userIsSiptokenSales" class="text-sm">Token Sales Staff (Sell tokens to guests)</label>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <input type="checkbox" id="userIsBarman" class="w-4 h-4 accent-purple-500">
-                            <label for="userIsBarman" class="text-sm">Barman (Scan QR, process orders)</label>
-                        </div>
+                <!-- SipToken Overseer (Additional permission) -->
+                <div id="siptokenOverseerOption" class="card bg-blue-900/20 border-blue-600/30 hidden">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="userIsSiptokenOverseer" class="w-4 h-4 accent-blue-500">
+                        <label for="userIsSiptokenOverseer" class="text-sm">
+                            <i class="fas fa-crown text-yellow-500 mr-1"></i>
+                            SipToken Overseer (Manage staff, reconciliation, refunds)
+                        </label>
                     </div>
                 </div>
                 

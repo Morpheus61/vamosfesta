@@ -1,27 +1,33 @@
 // =====================================================
-// SIPTOKEN MODULE - Complete Beverage Sales System
+// SIPTOKEN MODULE V2.0 - Complete Beverage Sales System
 // Vamos Festa Event Management
 // =====================================================
 
 import { createClient } from '@supabase/supabase-js';
 import QRCode from 'qrcode';
+import { 
+    sendTokenPurchaseMessage, 
+    sendOrderServedMessage, 
+    sendOrderRejectedMessage, 
+    sendRefundMessage 
+} from './whatsapp-service.js';
 
-// Import supabase from main
+// Supabase Configuration
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://bruwwqxeevqnbhunrhia.supabase.co';
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJydXd3cXhlZXZxbmJodW5yaGlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MzIwMjksImV4cCI6MjA4MTEwODAyOX0.dhmkH6aUudxm3eUZblRe9Iah1RWEr5fz8PzcPNqh4tw';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Global state for SipToken
-let tokenSettings = { token_rate: 10, qr_expiry_seconds: 60 };
+// Global State
+let tokenSettings = { token_rate: 10, qr_expiry_seconds: 300 };
 let currentTokenWallet = null;
-let currentPaymentQR = null;
-let barmanQrScanner = null;
+let barmanScanner = null;
+let currentScannedOrder = null;
 
 // =====================================================
-// GUEST TOKEN PURCHASE
+// INITIALIZATION
 // =====================================================
 
-export async function initializeGuestTokenPurchase() {
+export async function initializeSipToken() {
     // Load token settings
     const { data, error } = await supabase
         .from('siptoken_settings')
@@ -31,59 +37,86 @@ export async function initializeGuestTokenPurchase() {
     if (data) {
         tokenSettings = data;
     }
+    
+    console.log('✅ SipToken V2 initialized');
 }
 
-// Show token purchase modal for guests
-window.showTokenPurchaseModal = async function(guestPhone) {
-    const modal = document.getElementById('tokenPurchaseModal');
-    if (!modal) return;
+// =====================================================
+// TOKEN SALES (Sales Staff)
+// =====================================================
+
+// Search guest by phone for token purchase
+window.searchGuestForTokens = async function() {
+    const searchInput = document.getElementById('tokenGuestSearch');
+    const phone = searchInput.value.trim();
     
-    // Get or create wallet for this guest
-    const { data: wallet, error } = await supabase
-        .from('token_wallets')
-        .select('*')
-        .eq('guest_phone', guestPhone)
-        .single();
+    if (!phone || phone.length < 10) {
+        showToast('Enter valid phone number', 'error');
+        return;
+    }
     
-    currentTokenWallet = wallet;
-    
-    if (!wallet) {
-        // Create new wallet
-        const { data: guest } = await supabase
+    try {
+        // Find guest
+        const { data: guest, error } = await supabase
             .from('guests')
             .select('*')
-            .eq('phone', guestPhone)
+            .eq('phone', phone)
             .single();
         
-        if (guest) {
+        if (error || !guest) {
+            showToast('Guest not found with this phone number', 'error');
+            return;
+        }
+        
+        // Find or create wallet
+        let { data: wallet } = await supabase
+            .from('token_wallets')
+            .select('*')
+            .eq('guest_phone', phone)
+            .single();
+        
+        if (!wallet) {
             const { data: newWallet } = await supabase
                 .from('token_wallets')
                 .insert({
                     guest_id: guest.id,
                     guest_name: guest.guest_name,
-                    guest_phone: guest.phone,
+                    guest_phone: phone,
                     token_balance: 0
                 })
                 .select()
                 .single();
-            
-            currentTokenWallet = newWallet;
+            wallet = newWallet;
         }
+        
+        currentTokenWallet = wallet;
+        
+        // Show purchase modal
+        document.getElementById('purchaseGuestName').textContent = guest.guest_name;
+        document.getElementById('purchaseGuestPhone').textContent = phone;
+        document.getElementById('purchaseCurrentBalance').textContent = wallet.token_balance;
+        document.getElementById('purchaseTokenAmount').value = '';
+        document.getElementById('purchaseTotalAmount').textContent = '₹0';
+        
+        openModal('tokenPurchaseModal');
+        
+    } catch (error) {
+        console.error('Search error:', error);
+        showToast('Error searching for guest', 'error');
     }
-    
-    // Display wallet info
-    document.getElementById('tokenWalletBalance').textContent = currentTokenWallet?.token_balance || 0;
-    document.getElementById('tokenWalletGuest').textContent = currentTokenWallet?.guest_name || '';
-    document.getElementById('tokenRate').textContent = `₹${tokenSettings.token_rate} = 1 Token`;
-    
-    openModal('tokenPurchaseModal');
 };
 
-// Purchase tokens (cash/online)
-window.purchaseTokens = async function() {
-    const tokensInput = document.getElementById('tokensToPurchase');
-    const paymentMethod = document.getElementById('tokenPaymentMethod').value;
-    const tokens = parseInt(tokensInput.value);
+// Calculate purchase amount
+window.calculatePurchaseAmount = function() {
+    const tokens = parseInt(document.getElementById('purchaseTokenAmount').value) || 0;
+    const amount = tokens * tokenSettings.token_rate;
+    document.getElementById('purchaseTotalAmount').textContent = `₹${amount}`;
+};
+
+// Process token purchase
+window.processTokenPurchase = async function() {
+    const tokens = parseInt(document.getElementById('purchaseTokenAmount').value);
+    const paymentMethod = document.getElementById('purchasePaymentMethod').value;
     
     if (!tokens || tokens < 1) {
         showToast('Enter valid token amount', 'error');
@@ -91,8 +124,6 @@ window.purchaseTokens = async function() {
     }
     
     const amount = tokens * tokenSettings.token_rate;
-    
-    if (!confirm(`Purchase ${tokens} tokens for ₹${amount}?`)) return;
     
     try {
         // Record purchase
@@ -111,150 +142,59 @@ window.purchaseTokens = async function() {
         
         if (error) throw error;
         
-        // Reload wallet (will be updated by trigger)
+        // Wait for trigger to update balance
         await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Reload wallet
         const { data: updatedWallet } = await supabase
             .from('token_wallets')
             .select('*')
             .eq('id', currentTokenWallet.id)
             .single();
         
-        currentTokenWallet = updatedWallet;
-        document.getElementById('tokenWalletBalance').textContent = updatedWallet.token_balance;
+        // Send WhatsApp notification
+        try {
+            await sendTokenPurchaseMessage(
+                currentTokenWallet.guest_phone,
+                currentTokenWallet.guest_name,
+                currentTokenWallet.guest_id,
+                tokens,
+                amount,
+                updatedWallet.token_balance
+            );
+        } catch (whatsappError) {
+            console.warn('WhatsApp notification failed:', whatsappError);
+        }
         
-        showToast(`✅ Purchased ${tokens} tokens successfully!`, 'success');
-        tokensInput.value = '';
+        showToast(`✅ ${tokens} tokens purchased successfully!`, 'success');
+        closeModal('tokenPurchaseModal');
+        
+        // Refresh stats
+        if (window.loadSalesStaffStats) {
+            await window.loadSalesStaffStats();
+        }
         
     } catch (error) {
-        console.error('Token purchase error:', error);
-        showToast('Failed to purchase tokens', 'error');
+        console.error('Purchase error:', error);
+        showToast('Failed to process purchase', 'error');
     }
 };
 
 // =====================================================
-// TOKEN PAYMENT QR GENERATION (for beverage orders)
+// BARMAN - QR SCANNER
 // =====================================================
 
-window.generateTokenPaymentQR = async function() {
-    const tokensForOrder = parseInt(document.getElementById('tokensForOrder').value);
+// Start barman scanner
+window.startBarmanOrderScanner = async function() {
+    const video = document.getElementById('barmanOrderVideo');
+    const modal = document.getElementById('barmanOrderScannerModal');
     
-    if (!tokensForOrder || tokensForOrder < 1) {
-        showToast('Enter token amount for order', 'error');
+    if (!modal || !video) {
+        console.error('Scanner elements not found');
         return;
     }
     
-    if (tokensForOrder > currentTokenWallet.token_balance) {
-        showToast(`Insufficient tokens! Balance: ${currentTokenWallet.token_balance}`, 'error');
-        return;
-    }
-    
-    try {
-        // Create QR with expiry
-        const expiresAt = new Date();
-        expiresAt.setSeconds(expiresAt.getSeconds() + tokenSettings.qr_expiry_seconds);
-        
-        const qrData = {
-            type: 'token_payment',
-            wallet_id: currentTokenWallet.id,
-            tokens: tokensForOrder,
-            guest_name: currentTokenWallet.guest_name,
-            guest_phone: currentTokenWallet.guest_phone,
-            timestamp: new Date().toISOString()
-        };
-        
-        const qrString = JSON.stringify(qrData);
-        
-        // Insert into database
-        const { data: paymentQR, error } = await supabase
-            .from('token_payment_qrs')
-            .insert({
-                wallet_id: currentTokenWallet.id,
-                qr_data: qrString,
-                tokens_amount: tokensForOrder,
-                status: 'pending',
-                expires_at: expiresAt.toISOString()
-            })
-            .select()
-            .single();
-        
-        if (error) throw error;
-        
-        currentPaymentQR = paymentQR;
-        
-        // Generate QR code image
-        const qrCanvas = await QRCode.toCanvas(qrString, {
-            width: 300,
-            margin: 2,
-            color: {
-                dark: '#1a1a2e',
-                light: '#ffffff'
-            }
-        });
-        
-        // Display QR
-        const qrContainer = document.getElementById('tokenPaymentQRDisplay');
-        qrContainer.innerHTML = '';
-        qrContainer.appendChild(qrCanvas);
-        
-        // Show countdown
-        startQRCountdown(paymentQR.id, tokenSettings.qr_expiry_seconds);
-        
-        // Show QR modal
-        document.getElementById('tokenPaymentQRInfo').innerHTML = `
-            <div class="text-center">
-                <h3 class="text-xl font-bold mb-2">Payment QR Ready</h3>
-                <p class="text-gray-300 mb-1">${tokensForOrder} tokens</p>
-                <p class="text-sm text-gray-400">Show this to barman to place order</p>
-                <p class="text-xs text-yellow-500 mt-2">⏱️ Expires in <span id="qrCountdown">${tokenSettings.qr_expiry_seconds}</span> seconds</p>
-            </div>
-        `;
-        
-        openModal('tokenPaymentQRModal');
-        
-    } catch (error) {
-        console.error('QR generation error:', error);
-        showToast('Failed to generate payment QR', 'error');
-    }
-};
-
-function startQRCountdown(qrId, seconds) {
-    let remaining = seconds;
-    const countdownEl = document.getElementById('qrCountdown');
-    
-    const interval = setInterval(async () => {
-        remaining--;
-        if (countdownEl) {
-            countdownEl.textContent = remaining;
-        }
-        
-        if (remaining <= 0) {
-            clearInterval(interval);
-            
-            // Mark as expired
-            await supabase
-                .from('token_payment_qrs')
-                .update({ status: 'expired' })
-                .eq('id', qrId);
-            
-            showToast('Payment QR expired', 'warning');
-            closeModal('tokenPaymentQRModal');
-        }
-    }, 1000);
-}
-
-// =====================================================
-// BARMAN QR SCANNER & ORDER PROCESSING
-// =====================================================
-
-window.startBarmanScanner = async function() {
-    const video = document.getElementById('barmanQrVideo');
-    
-    if (!video) {
-        console.error('Barman video element not found');
-        return;
-    }
-    
-    openModal('barmanScannerModal');
+    openModal('barmanOrderScannerModal');
     
     try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -264,517 +204,716 @@ window.startBarmanScanner = async function() {
         video.srcObject = stream;
         video.play();
         
-        // Load QR Scanner library
-        if (!window.QrScanner) {
-            const script = document.createElement('script');
-            script.src = 'https://unpkg.com/qr-scanner@1.4.2/qr-scanner.umd.min.js';
-            document.head.appendChild(script);
-            await new Promise(resolve => script.onload = resolve);
-        }
-        
-        barmanQrScanner = new QrScanner(video, result => {
-            processBarmanQRScan(result.data);
-        }, {
-            highlightScanRegion: true,
-            highlightCodeOutline: true
-        });
-        
-        await barmanQrScanner.start();
+        // Start scanning
+        barmanScanner = setInterval(() => {
+            scanBarmanQR(video);
+        }, 500);
         
     } catch (error) {
         console.error('Camera error:', error);
-        closeModal('barmanScannerModal');
-        showToast('Camera access denied', 'error');
+        showToast('Unable to access camera', 'error');
+        closeModal('barmanOrderScannerModal');
     }
 };
 
-window.stopBarmanScanner = function() {
-    if (barmanQrScanner) {
-        barmanQrScanner.stop();
-        barmanQrScanner.destroy();
-        barmanQrScanner = null;
+// Stop barman scanner
+window.stopBarmanOrderScanner = function() {
+    const video = document.getElementById('barmanOrderVideo');
+    
+    if (barmanScanner) {
+        clearInterval(barmanScanner);
+        barmanScanner = null;
     }
     
-    const video = document.getElementById('barmanQrVideo');
-    if (video?.srcObject) {
+    if (video && video.srcObject) {
         video.srcObject.getTracks().forEach(track => track.stop());
         video.srcObject = null;
     }
     
-    closeModal('barmanScannerModal');
+    closeModal('barmanOrderScannerModal');
 };
 
-async function processBarmanQRScan(qrData) {
-    stopBarmanScanner();
-    
+// Scan QR code
+async function scanBarmanQR(video) {
     try {
-        let paymentData;
-        try {
-            paymentData = JSON.parse(qrData);
-        } catch {
-            showToast('Invalid QR Code', 'error');
+        // Use jsQR or similar library
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+        
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        
+        // Check if jsQR is available
+        if (typeof jsQR !== 'undefined') {
+            const code = jsQR(imageData.data, imageData.width, imageData.height);
+            
+            if (code && code.data) {
+                await processScannedOrder(code.data);
+            }
+        }
+    } catch (error) {
+        // Silently ignore scan errors
+    }
+}
+
+// Process scanned order QR
+async function processScannedOrder(qrData) {
+    try {
+        const data = JSON.parse(qrData);
+        
+        if (data.type !== 'beverage_order') {
+            showToast('Invalid QR code - not an order', 'error');
             return;
         }
         
-        if (paymentData.type !== 'token_payment') {
-            showToast('Not a token payment QR', 'error');
-            return;
-        }
+        // Stop scanner
+        stopBarmanOrderScanner();
         
-        // Get payment QR from database
-        const { data: paymentQR, error } = await supabase
-            .from('token_payment_qrs')
-            .select('*, token_wallets(*)')
-            .eq('qr_data', qrData)
+        // Fetch order from database
+        const { data: order, error } = await supabase
+            .from('beverage_orders_v2')
+            .select('*, order_items(*)')
+            .eq('id', data.order_id)
             .single();
         
-        if (error || !paymentQR) {
-            showToast('Payment QR not found', 'error');
+        if (error || !order) {
+            showToast('Order not found', 'error');
+            return;
+        }
+        
+        // Check order status
+        if (order.status !== 'pending') {
+            showToast(`Order already ${order.status}`, 'error');
             return;
         }
         
         // Check if expired
-        if (new Date(paymentQR.expires_at) < new Date()) {
-            await supabase
-                .from('token_payment_qrs')
-                .update({ status: 'expired' })
-                .eq('id', paymentQR.id);
+        if (new Date(order.qr_expires_at) < new Date()) {
+            showToast('QR code has expired', 'error');
             
-            showToast('Payment QR has expired', 'error');
+            // Mark as expired
+            await supabase
+                .from('beverage_orders_v2')
+                .update({ status: 'expired' })
+                .eq('id', order.id);
+            
             return;
         }
         
-        // Check if already used
-        if (paymentQR.status !== 'pending') {
-            showToast(`Payment QR already ${paymentQR.status}`, 'error');
-            return;
-        }
-        
-        // Check wallet balance
-        if (paymentQR.token_wallets.token_balance < paymentQR.tokens_amount) {
-            showToast('Insufficient token balance', 'error');
-            return;
-        }
-        
-        // Show order entry form
-        showBarmanOrderEntry(paymentQR);
+        // Show order confirmation
+        currentScannedOrder = order;
+        showScannedOrderModal(order);
         
     } catch (error) {
-        console.error('Barman QR processing error:', error);
-        showToast('Failed to process QR code', 'error');
+        console.error('QR processing error:', error);
+        showToast('Invalid QR code format', 'error');
     }
 }
 
-function showBarmanOrderEntry(paymentQR) {
-    const modal = document.getElementById('barmanOrderModal');
+// Show scanned order for barman confirmation
+function showScannedOrderModal(order) {
+    const modal = document.getElementById('barmanOrderConfirmModal');
     if (!modal) return;
     
-    // Store current payment QR
-    window.currentBarmanPaymentQR = paymentQR;
+    document.getElementById('scannedOrderNumber').textContent = `#${order.order_number}`;
+    document.getElementById('scannedGuestName').textContent = order.guest_name;
+    document.getElementById('scannedTotalTokens').textContent = order.total_tokens;
     
-    // Display customer info
-    document.getElementById('barmanOrderGuestInfo').innerHTML = `
-        <div class="card bg-blue-900/20 border-blue-600/30 mb-4">
-            <h4 class="font-bold">${paymentQR.token_wallets.guest_name}</h4>
-            <p class="text-sm text-gray-400">${paymentQR.token_wallets.guest_phone}</p>
-            <p class="text-lg text-yellow-500 mt-2">
-                <i class="fas fa-coins mr-2"></i>${paymentQR.tokens_amount} Tokens
-            </p>
-            <p class="text-xs text-gray-500 mt-1">Wallet Balance: ${paymentQR.token_wallets.token_balance} tokens</p>
+    // Display order items
+    const itemsContainer = document.getElementById('scannedOrderItems');
+    itemsContainer.innerHTML = order.order_items.map(item => `
+        <div class="scanned-item">
+            <span class="item-qty">${item.quantity}x</span>
+            <span class="item-name">${item.item_name}</span>
+            <span class="item-tokens">${item.total_tokens} 🪙</span>
         </div>
-    `;
+    `).join('');
     
-    // Set max tokens
-    document.getElementById('orderTokensUsed').value = paymentQR.tokens_amount;
-    document.getElementById('orderTokensUsed').max = paymentQR.tokens_amount;
+    // Update order status to scanned
+    supabase
+        .from('beverage_orders_v2')
+        .update({ status: 'scanned' })
+        .eq('id', order.id);
     
-    openModal('barmanOrderModal');
+    openModal('barmanOrderConfirmModal');
 }
 
-window.processBarmanOrder = async function() {
-    const paymentQR = window.currentBarmanPaymentQR;
-    if (!paymentQR) return;
-    
-    const orderItems = document.getElementById('barmanOrderItems').value;
-    const tokensUsed = parseInt(document.getElementById('orderTokensUsed').value);
-    
-    if (!orderItems) {
-        showToast('Enter order items', 'error');
-        return;
-    }
-    
-    if (tokensUsed > paymentQR.tokens_amount) {
-        showToast('Tokens exceed QR amount', 'error');
-        return;
-    }
+// Barman serves order
+window.serveOrder = async function() {
+    if (!currentScannedOrder) return;
     
     try {
-        // Store original balance
-        const originalBalance = paymentQR.token_wallets.token_balance;
-        
-        // Create beverage order
-        const { data: order, error: orderError } = await supabase
-            .from('beverage_orders')
-            .insert({
-                wallet_id: paymentQR.wallet_id,
-                payment_qr_id: paymentQR.id,
-                barman_id: window.currentUser?.id,
-                tokens_spent: tokensUsed,
-                items: { description: orderItems },
-                total_tokens: tokensUsed,
-                status: 'completed'
-            })
-            .select()
-            .single();
-        
-        if (orderError) throw orderError;
-        
-        // Mark payment QR as completed
-        await supabase
-            .from('token_payment_qrs')
+        // Update order status
+        const { error } = await supabase
+            .from('beverage_orders_v2')
             .update({
-                status: 'completed',
-                completed_at: new Date().toISOString(),
+                status: 'served',
                 barman_id: window.currentUser?.id,
-                order_details: { items: orderItems }
+                barman_name: window.currentUser?.full_name,
+                served_at: new Date().toISOString()
             })
-            .eq('id', paymentQR.id);
+            .eq('id', currentScannedOrder.id);
         
-        // Wait for trigger to update wallet
-        await new Promise(resolve => setTimeout(resolve, 500));
+        if (error) throw error;
         
-        // Fetch updated wallet balance
-        const { data: updatedWallet, error: walletError } = await supabase
+        // Get updated wallet balance
+        const { data: wallet } = await supabase
             .from('token_wallets')
             .select('*')
-            .eq('id', paymentQR.wallet_id)
+            .eq('id', currentScannedOrder.wallet_id)
             .single();
         
-        const newBalance = updatedWallet?.token_balance || (originalBalance - tokensUsed);
+        // Send WhatsApp notification
+        try {
+            const items = currentScannedOrder.order_items
+                .map(i => `${i.quantity}x ${i.item_name}`)
+                .join(', ');
+            
+            await sendOrderServedMessage(
+                currentScannedOrder.guest_phone,
+                currentScannedOrder.guest_name,
+                currentScannedOrder.order_number,
+                items,
+                currentScannedOrder.total_tokens,
+                wallet?.token_balance || 0
+            );
+        } catch (whatsappError) {
+            console.warn('WhatsApp notification failed:', whatsappError);
+        }
         
-        // Show guest balance notification
-        showGuestBalanceNotification(
-            paymentQR.token_wallets.guest_name,
-            tokensUsed,
-            newBalance
-        );
+        showToast('✅ Order served successfully!', 'success');
+        closeModal('barmanOrderConfirmModal');
+        currentScannedOrder = null;
         
-        showToast(`✅ Order completed! ${tokensUsed} tokens processed`, 'success');
-        closeModal('barmanOrderModal');
-        
-        // Clear form
-        document.getElementById('barmanOrderItems').value = '';
-        document.getElementById('orderTokensUsed').value = '';
-        
-        // Reload barman stats if function exists
+        // Refresh barman stats
         if (window.loadBarmanStats) {
             await window.loadBarmanStats();
         }
         
     } catch (error) {
-        console.error('Order processing error:', error);
+        console.error('Serve error:', error);
         showToast('Failed to process order', 'error');
     }
 };
 
-// Show guest balance notification after order
-function showGuestBalanceNotification(guestName, tokensDeducted, remainingBalance) {
-    const modal = document.getElementById('guestBalanceNotificationModal');
-    if (!modal) {
-        // Create modal if it doesn't exist
-        createGuestBalanceNotificationModal();
-        return showGuestBalanceNotification(guestName, tokensDeducted, remainingBalance);
+// Barman rejects order
+window.rejectOrder = async function() {
+    if (!currentScannedOrder) return;
+    
+    const reason = prompt('Reason for rejection (optional):');
+    
+    try {
+        // Update order status
+        const { error } = await supabase
+            .from('beverage_orders_v2')
+            .update({
+                status: 'rejected',
+                barman_id: window.currentUser?.id,
+                barman_name: window.currentUser?.full_name,
+                rejection_reason: reason || 'Not specified'
+            })
+            .eq('id', currentScannedOrder.id);
+        
+        if (error) throw error;
+        
+        // Send WhatsApp notification
+        try {
+            await sendOrderRejectedMessage(
+                currentScannedOrder.guest_phone,
+                currentScannedOrder.guest_name,
+                currentScannedOrder.order_number,
+                reason
+            );
+        } catch (whatsappError) {
+            console.warn('WhatsApp notification failed:', whatsappError);
+        }
+        
+        showToast('Order rejected', 'success');
+        closeModal('barmanOrderConfirmModal');
+        currentScannedOrder = null;
+        
+    } catch (error) {
+        console.error('Reject error:', error);
+        showToast('Failed to reject order', 'error');
     }
-    
-    // Update notification content
-    document.getElementById('guestNotificationName').textContent = guestName;
-    document.getElementById('guestNotificationDeducted').textContent = tokensDeducted;
-    document.getElementById('guestNotificationBalance').textContent = remainingBalance;
-    
-    // Show modal
-    openModal('guestBalanceNotificationModal');
-    
-    // Auto-close after 5 seconds
-    setTimeout(() => {
-        closeModal('guestBalanceNotificationModal');
-    }, 5000);
-}
-
-// Create guest balance notification modal dynamically
-function createGuestBalanceNotificationModal() {
-    const modalHTML = `
-        <div id="guestBalanceNotificationModal" class="modal">
-            <div class="modal-content max-w-md">
-                <div style="text-align: center; padding: 1rem;">
-                    <div style="
-                        background: linear-gradient(135deg, #22c55e, #10b981);
-                        color: white;
-                        padding: 1.5rem;
-                        border-radius: 1rem;
-                        margin-bottom: 1.5rem;
-                        box-shadow: 0 10px 30px rgba(34, 197, 94, 0.3);
-                    ">
-                        <i class="fas fa-check-circle" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-                        <h2 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 0.5rem;">
-                            ORDER COMPLETED!
-                        </h2>
-                        <p style="font-size: 1rem; opacity: 0.9;">
-                            Thank you, <span id="guestNotificationName" style="font-weight: 700;">Guest</span>!
-                        </p>
-                    </div>
-                    
-                    <div style="
-                        background: rgba(255, 107, 53, 0.1);
-                        border: 2px solid #FF6B35;
-                        border-radius: 1rem;
-                        padding: 1.5rem;
-                        margin-bottom: 1rem;
-                    ">
-                        <p style="
-                            color: #666;
-                            font-size: 0.9rem;
-                            margin-bottom: 0.5rem;
-                            font-weight: 600;
-                        ">Tokens Deducted:</p>
-                        <p style="
-                            font-size: 2.5rem;
-                            font-weight: 800;
-                            color: #FF6B35;
-                            margin: 0;
-                        ">
-                            <i class="fas fa-minus-circle" style="font-size: 2rem; vertical-align: middle;"></i>
-                            <span id="guestNotificationDeducted">0</span>
-                        </p>
-                    </div>
-                    
-                    <div style="
-                        background: rgba(0, 180, 216, 0.1);
-                        border: 2px solid #00B4D8;
-                        border-radius: 1rem;
-                        padding: 1.5rem;
-                    ">
-                        <p style="
-                            color: #666;
-                            font-size: 0.9rem;
-                            margin-bottom: 0.5rem;
-                            font-weight: 600;
-                        ">Your Remaining Balance:</p>
-                        <p style="
-                            font-size: 2.5rem;
-                            font-weight: 800;
-                            color: #00B4D8;
-                            margin: 0;
-                        ">
-                            <i class="fas fa-coins" style="font-size: 2rem; vertical-align: middle;"></i>
-                            <span id="guestNotificationBalance">0</span> tokens
-                        </p>
-                    </div>
-                    
-                    <button onclick="closeModal('guestBalanceNotificationModal')" style="
-                        margin-top: 1.5rem;
-                        width: 100%;
-                        padding: 1rem;
-                        background: linear-gradient(135deg, #FF6B35, #FFD60A);
-                        color: #1a1a2e;
-                        border: none;
-                        border-radius: 0.75rem;
-                        font-size: 1.1rem;
-                        font-weight: 700;
-                        cursor: pointer;
-                        box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
-                    ">
-                        <i class="fas fa-check mr-2"></i> OK, Got It!
-                    </button>
-                    
-                    <p style="
-                        margin-top: 1rem;
-                        font-size: 0.75rem;
-                        color: #999;
-                    ">This window will close automatically in 5 seconds</p>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // Append to body
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
-}
-
-// =====================================================
-// OVERSEER STAFF MANAGEMENT
-// =====================================================
-
-window.showClockInModal = async function(staffRole) {
-    // staffRole: 'token_sales' or 'barman'
-    
-    const modal = document.getElementById('overseerClockInModal');
-    if (!modal) return;
-    
-    // Load available staff
-    const roleFilter = staffRole === 'token_sales' ? 'is_siptoken_sales' : 'is_barman';
-    
-    const { data: staff, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq(roleFilter, true)
-        .eq('is_active', true);
-    
-    if (error) {
-        console.error('Error loading staff:', error);
-        return;
-    }
-    
-    // Populate staff select
-    const select = document.getElementById('clockInStaffSelect');
-    select.innerHTML = staff.map(s => `
-        <option value="${s.id}">${s.full_name} (${s.username})</option>
-    `).join('');
-    
-    document.getElementById('clockInStaffRole').value = staffRole;
-    document.getElementById('clockInModalTitle').textContent = `Clock In ${staffRole === 'token_sales' ? 'Sales Staff' : 'Barman'}`;
-    
-    openModal('overseerClockInModal');
 };
 
-window.clockInStaff = async function() {
-    const staffId = document.getElementById('clockInStaffSelect').value;
-    const staffRole = document.getElementById('clockInStaffRole').value;
-    const counterName = document.getElementById('clockInCounter').value;
-    const openingCash = parseFloat(document.getElementById('clockInOpeningCash').value) || 0;
+// =====================================================
+// REFUND PANEL (Overseer/Sales Staff)
+// =====================================================
+
+// Search for refund
+window.searchForRefund = async function() {
+    const searchInput = document.getElementById('refundSearch');
+    const searchTerm = searchInput.value.trim();
     
-    if (!staffId || !counterName) {
-        showToast('Select staff and enter counter name', 'error');
+    if (!searchTerm) {
+        showToast('Enter phone number or order ID', 'error');
         return;
     }
     
     try {
-        const { data: session, error } = await supabase
-            .from('siptoken_duty_sessions')
-            .insert({
-                staff_id: staffId,
-                overseer_id: window.currentUser?.id,
-                staff_role: staffRole,
-                counter_name: counterName,
-                opening_cash: staffRole === 'token_sales' ? openingCash : null,
-                status: 'on_duty'
-            })
-            .select()
-            .single();
+        let guest = null;
+        let orders = [];
         
-        if (error) throw error;
-        
-        showToast('✅ Staff clocked in successfully', 'success');
-        closeModal('overseerClockInModal');
-        
-        // Reload duty sessions
-        if (window.loadDutySessions) {
-            await window.loadDutySessions();
+        // Check if it's an order number
+        if (searchTerm.toUpperCase().startsWith('VF-')) {
+            const { data: order, error } = await supabase
+                .from('beverage_orders_v2')
+                .select('*, order_items(*)')
+                .eq('order_number', searchTerm.toUpperCase())
+                .single();
+            
+            if (order) {
+                orders = [order];
+                
+                // Get guest info
+                const { data: guestData } = await supabase
+                    .from('guests')
+                    .select('*')
+                    .eq('id', order.guest_id)
+                    .single();
+                guest = guestData;
+            }
+        } else {
+            // Search by phone
+            const { data: guestData, error } = await supabase
+                .from('guests')
+                .select('*')
+                .eq('phone', searchTerm)
+                .single();
+            
+            if (guestData) {
+                guest = guestData;
+                
+                // Get all orders
+                const { data: ordersData } = await supabase
+                    .from('beverage_orders_v2')
+                    .select('*, order_items(*)')
+                    .eq('guest_id', guest.id)
+                    .in('status', ['served', 'refunded'])
+                    .order('created_at', { ascending: false })
+                    .limit(20);
+                
+                orders = ordersData || [];
+            }
         }
         
+        if (!guest) {
+            showToast('Guest not found', 'error');
+            return;
+        }
+        
+        // Display results
+        displayRefundResults(guest, orders);
+        
     } catch (error) {
-        console.error('Clock in error:', error);
-        showToast('Failed to clock in staff', 'error');
+        console.error('Search error:', error);
+        showToast('Search failed', 'error');
     }
 };
 
-window.showClockOutModal = async function(sessionId) {
-    const { data: session, error } = await supabase
-        .from('siptoken_duty_sessions')
-        .select('*, users(*)')
-        .eq('id', sessionId)
-        .single();
+// Display refund search results
+function displayRefundResults(guest, orders) {
+    const container = document.getElementById('refundResultsContainer');
     
-    if (error || !session) {
-        showToast('Session not found', 'error');
+    // Get wallet
+    supabase
+        .from('token_wallets')
+        .select('*')
+        .eq('guest_phone', guest.phone)
+        .single()
+        .then(({ data: wallet }) => {
+            let html = `
+                <div class="refund-guest-info card">
+                    <h4><i class="fas fa-user"></i> ${guest.guest_name}</h4>
+                    <p>Phone: ${guest.phone}</p>
+                    <p>Balance: <strong>${wallet?.token_balance || 0} tokens</strong></p>
+                </div>
+                
+                <h4 class="mt-4 mb-2"><i class="fas fa-receipt"></i> Orders</h4>
+            `;
+            
+            if (orders.length === 0) {
+                html += '<p class="text-gray-500">No refundable orders found</p>';
+            } else {
+                html += '<div class="refund-orders-list">';
+                
+                orders.forEach(order => {
+                    const items = order.order_items?.map(i => `${i.quantity}x ${i.item_name}`).join(', ') || '';
+                    const date = new Date(order.created_at).toLocaleString();
+                    const isRefunded = order.status === 'refunded';
+                    
+                    html += `
+                        <div class="refund-order-item ${isRefunded ? 'refunded' : ''}" onclick="${!isRefunded ? `showRefundModal('${order.id}')` : ''}">
+                            <div class="order-header">
+                                <span class="order-number">#${order.order_number}</span>
+                                <span class="order-status status-${order.status}">${order.status}</span>
+                            </div>
+                            <div class="order-items">${items}</div>
+                            <div class="order-footer">
+                                <span>${order.total_tokens} tokens</span>
+                                <span>${date}</span>
+                            </div>
+                            ${!isRefunded ? '<button class="refund-btn">Refund</button>' : '<span class="refunded-badge">Already Refunded</span>'}
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+            }
+            
+            container.innerHTML = html;
+        });
+}
+
+// Show refund modal for specific order
+window.showRefundModal = async function(orderId) {
+    try {
+        const { data: order, error } = await supabase
+            .from('beverage_orders_v2')
+            .select('*, order_items(*)')
+            .eq('id', orderId)
+            .single();
+        
+        if (error || !order) {
+            showToast('Order not found', 'error');
+            return;
+        }
+        
+        currentScannedOrder = order;
+        
+        // Populate modal
+        document.getElementById('refundOrderNumber').textContent = `#${order.order_number}`;
+        document.getElementById('refundGuestName').textContent = order.guest_name;
+        document.getElementById('refundTotalTokens').textContent = order.total_tokens;
+        
+        // Show items with checkboxes for partial refund
+        const itemsContainer = document.getElementById('refundOrderItems');
+        itemsContainer.innerHTML = order.order_items.map(item => `
+            <div class="refund-item ${item.is_refunded ? 'already-refunded' : ''}">
+                <label>
+                    <input type="checkbox" 
+                           class="refund-item-checkbox" 
+                           value="${item.id}" 
+                           data-tokens="${item.total_tokens}"
+                           ${item.is_refunded ? 'disabled checked' : 'checked'}
+                           onchange="calculateRefundTotal()">
+                    <span>${item.quantity}x ${item.item_name}</span>
+                </label>
+                <span class="item-tokens">${item.total_tokens} tokens ${item.is_refunded ? '(refunded)' : ''}</span>
+            </div>
+        `).join('');
+        
+        calculateRefundTotal();
+        openModal('processRefundModal');
+        
+    } catch (error) {
+        console.error('Error loading order:', error);
+        showToast('Error loading order', 'error');
+    }
+};
+
+// Calculate refund total based on selected items
+window.calculateRefundTotal = function() {
+    const checkboxes = document.querySelectorAll('.refund-item-checkbox:checked:not(:disabled)');
+    let total = 0;
+    
+    checkboxes.forEach(cb => {
+        total += parseInt(cb.dataset.tokens) || 0;
+    });
+    
+    document.getElementById('refundTokensAmount').textContent = total;
+};
+
+// Process refund
+window.processRefund = async function() {
+    if (!currentScannedOrder) return;
+    
+    const reason = document.getElementById('refundReason').value;
+    const notes = document.getElementById('refundNotes').value;
+    const checkboxes = document.querySelectorAll('.refund-item-checkbox:checked:not(:disabled)');
+    
+    if (checkboxes.length === 0) {
+        showToast('Select at least one item to refund', 'error');
         return;
     }
     
-    window.currentClockOutSession = session;
+    let tokensToRefund = 0;
+    const itemIds = [];
     
-    const modal = document.getElementById('overseerClockOutModal');
-    if (!modal) return;
+    checkboxes.forEach(cb => {
+        tokensToRefund += parseInt(cb.dataset.tokens) || 0;
+        itemIds.push(cb.value);
+    });
     
-    // Display staff info
-    document.getElementById('clockOutStaffInfo').innerHTML = `
-        <div class="card bg-gray-800">
-            <h4 class="font-bold">${session.users.full_name}</h4>
-            <p class="text-sm text-gray-400">${session.counter_name}</p>
-            <p class="text-xs text-gray-500">Clocked in: ${new Date(session.clock_in_time).toLocaleString()}</p>
-        </div>
-    `;
-    
-    // Show appropriate reconciliation fields
-    if (session.staff_role === 'token_sales') {
-        document.getElementById('tokenSalesReconciliation').classList.remove('hidden');
-        document.getElementById('barmanReconciliation').classList.add('hidden');
-        document.getElementById('clockOutOpeningCash').textContent = `₹${session.opening_cash}`;
-    } else {
-        document.getElementById('tokenSalesReconciliation').classList.add('hidden');
-        document.getElementById('barmanReconciliation').classList.remove('hidden');
+    if (!confirm(`Refund ${tokensToRefund} tokens to ${currentScannedOrder.guest_name}?`)) {
+        return;
     }
     
-    openModal('overseerClockOutModal');
+    try {
+        // Determine refund type
+        const totalItems = currentScannedOrder.order_items.filter(i => !i.is_refunded).length;
+        const refundType = itemIds.length === totalItems ? 'full' : 'partial';
+        
+        // Create refund record
+        const { error: refundError } = await supabase
+            .from('token_refunds')
+            .insert({
+                order_id: currentScannedOrder.id,
+                order_number: currentScannedOrder.order_number,
+                guest_id: currentScannedOrder.guest_id,
+                guest_phone: currentScannedOrder.guest_phone,
+                wallet_id: currentScannedOrder.wallet_id,
+                refund_type: refundType,
+                tokens_refunded: tokensToRefund,
+                reason: reason,
+                notes: notes,
+                processed_by: window.currentUser?.id,
+                processed_by_name: window.currentUser?.full_name
+            });
+        
+        if (refundError) throw refundError;
+        
+        // Mark items as refunded
+        await supabase
+            .from('order_items')
+            .update({ is_refunded: true, refunded_at: new Date().toISOString() })
+            .in('id', itemIds);
+        
+        // Update order status if full refund
+        if (refundType === 'full') {
+            await supabase
+                .from('beverage_orders_v2')
+                .update({ status: 'refunded' })
+                .eq('id', currentScannedOrder.id);
+        }
+        
+        // Get updated wallet balance
+        const { data: wallet } = await supabase
+            .from('token_wallets')
+            .select('*')
+            .eq('id', currentScannedOrder.wallet_id)
+            .single();
+        
+        // Send WhatsApp notification
+        try {
+            await sendRefundMessage(
+                currentScannedOrder.guest_phone,
+                currentScannedOrder.guest_name,
+                currentScannedOrder.guest_id,
+                currentScannedOrder.order_number,
+                tokensToRefund,
+                wallet?.token_balance || 0,
+                reason
+            );
+        } catch (whatsappError) {
+            console.warn('WhatsApp notification failed:', whatsappError);
+        }
+        
+        showToast(`✅ Refunded ${tokensToRefund} tokens successfully!`, 'success');
+        closeModal('processRefundModal');
+        currentScannedOrder = null;
+        
+        // Refresh search results
+        document.getElementById('refundSearch').dispatchEvent(new Event('search'));
+        
+    } catch (error) {
+        console.error('Refund error:', error);
+        showToast('Failed to process refund', 'error');
+    }
 };
 
-window.clockOutStaff = async function() {
-    const session = window.currentClockOutSession;
-    if (!session) return;
+// =====================================================
+// MENU MANAGEMENT (Super Admin)
+// =====================================================
+
+// Load menu items for management
+window.loadMenuManagement = async function() {
+    try {
+        const { data: items, error } = await supabase
+            .from('beverage_menu')
+            .select('*')
+            .order('display_order');
+        
+        if (error) throw error;
+        
+        const container = document.getElementById('menuManagementList');
+        if (!container) return;
+        
+        if (!items || items.length === 0) {
+            container.innerHTML = '<p class="text-center text-gray-500 py-4">No menu items. Add some!</p>';
+            return;
+        }
+        
+        const categories = {
+            'alcoholic': { title: '🍺 Alcoholic', items: [] },
+            'non_alcoholic': { title: '🥤 Non-Alcoholic', items: [] },
+            'snacks': { title: '🍿 Snacks', items: [] }
+        };
+        
+        items.forEach(item => {
+            const cat = categories[item.category] || categories['snacks'];
+            cat.items.push(item);
+        });
+        
+        let html = '';
+        
+        Object.entries(categories).forEach(([key, category]) => {
+            if (category.items.length === 0) return;
+            
+            html += `
+                <div class="menu-category-section">
+                    <h4 class="category-header">${category.title}</h4>
+                    <div class="menu-items-list">
+                        ${category.items.map(item => `
+                            <div class="menu-manage-item ${!item.is_available ? 'unavailable' : ''}">
+                                <div class="item-info">
+                                    <span class="item-name">${item.name}</span>
+                                    <span class="item-price">${item.token_price} tokens</span>
+                                </div>
+                                <div class="item-actions">
+                                    <button onclick="toggleMenuItemAvailability('${item.id}', ${!item.is_available})" 
+                                            class="btn-icon ${item.is_available ? 'success' : 'danger'}"
+                                            title="${item.is_available ? 'Mark Unavailable' : 'Mark Available'}">
+                                        <i class="fas fa-${item.is_available ? 'check' : 'times'}"></i>
+                                    </button>
+                                    <button onclick="editMenuItem('${item.id}')" class="btn-icon" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button onclick="deleteMenuItem('${item.id}')" class="btn-icon danger" title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error loading menu:', error);
+    }
+};
+
+// Add/Edit menu item
+window.showAddMenuItemModal = function() {
+    document.getElementById('menuItemForm').reset();
+    document.getElementById('menuItemId').value = '';
+    document.getElementById('menuItemModalTitle').textContent = 'Add Menu Item';
+    openModal('menuItemModal');
+};
+
+window.editMenuItem = async function(itemId) {
+    try {
+        const { data: item, error } = await supabase
+            .from('beverage_menu')
+            .select('*')
+            .eq('id', itemId)
+            .single();
+        
+        if (error || !item) {
+            showToast('Item not found', 'error');
+            return;
+        }
+        
+        document.getElementById('menuItemId').value = item.id;
+        document.getElementById('menuItemName').value = item.name;
+        document.getElementById('menuItemDescription').value = item.description || '';
+        document.getElementById('menuItemCategory').value = item.category;
+        document.getElementById('menuItemPrice').value = item.token_price;
+        document.getElementById('menuItemOrder').value = item.display_order;
+        document.getElementById('menuItemAvailable').checked = item.is_available;
+        
+        document.getElementById('menuItemModalTitle').textContent = 'Edit Menu Item';
+        openModal('menuItemModal');
+        
+    } catch (error) {
+        console.error('Error loading item:', error);
+    }
+};
+
+window.saveMenuItem = async function(event) {
+    event.preventDefault();
     
-    let updateData = {
-        clock_out_time: new Date().toISOString(),
-        status: 'clocked_out',
-        notes: document.getElementById('clockOutNotes').value
+    const itemId = document.getElementById('menuItemId').value;
+    const itemData = {
+        name: document.getElementById('menuItemName').value.trim(),
+        description: document.getElementById('menuItemDescription').value.trim(),
+        category: document.getElementById('menuItemCategory').value,
+        token_price: parseInt(document.getElementById('menuItemPrice').value) || 0,
+        display_order: parseInt(document.getElementById('menuItemOrder').value) || 0,
+        is_available: document.getElementById('menuItemAvailable').checked
     };
     
-    if (session.staff_role === 'token_sales') {
-        const tokensSold = parseInt(document.getElementById('clockOutTokensSold').value) || 0;
-        const cashCollected = parseFloat(document.getElementById('clockOutCashCollected').value) || 0;
-        const expectedCash = (session.opening_cash || 0) + (tokensSold * tokenSettings.token_rate);
-        const discrepancy = cashCollected - expectedCash;
-        
-        updateData = {
-            ...updateData,
-            closing_cash: cashCollected,
-            tokens_sold: tokensSold,
-            rupees_collected: tokensSold * tokenSettings.token_rate,
-            discrepancy_amount: discrepancy
-        };
-        
-        if (Math.abs(discrepancy) > 0.01) {
-            if (!confirm(`Discrepancy of ₹${discrepancy.toFixed(2)} detected. Continue?`)) {
-                return;
-            }
+    try {
+        if (itemId) {
+            // Update existing
+            const { error } = await supabase
+                .from('beverage_menu')
+                .update(itemData)
+                .eq('id', itemId);
+            
+            if (error) throw error;
+            showToast('Menu item updated', 'success');
+        } else {
+            // Create new
+            const { error } = await supabase
+                .from('beverage_menu')
+                .insert(itemData);
+            
+            if (error) throw error;
+            showToast('Menu item added', 'success');
         }
-    } else {
-        const ordersServed = parseInt(document.getElementById('clockOutOrdersServed').value) || 0;
-        const tokensProcessed = parseInt(document.getElementById('clockOutTokensProcessed').value) || 0;
         
-        updateData = {
-            ...updateData,
-            orders_served: ordersServed,
-            tokens_processed: tokensProcessed,
-            discrepancy_amount: ordersServed !== tokensProcessed ? Math.abs(ordersServed - tokensProcessed) : 0
-        };
+        closeModal('menuItemModal');
+        loadMenuManagement();
+        
+    } catch (error) {
+        console.error('Save error:', error);
+        showToast('Failed to save menu item', 'error');
     }
+};
+
+window.toggleMenuItemAvailability = async function(itemId, isAvailable) {
+    try {
+        const { error } = await supabase
+            .from('beverage_menu')
+            .update({ is_available: isAvailable })
+            .eq('id', itemId);
+        
+        if (error) throw error;
+        
+        loadMenuManagement();
+        
+    } catch (error) {
+        console.error('Toggle error:', error);
+        showToast('Failed to update availability', 'error');
+    }
+};
+
+window.deleteMenuItem = async function(itemId) {
+    if (!confirm('Delete this menu item?')) return;
     
     try {
         const { error } = await supabase
-            .from('siptoken_duty_sessions')
-            .update(updateData)
-            .eq('id', session.id);
+            .from('beverage_menu')
+            .delete()
+            .eq('id', itemId);
         
         if (error) throw error;
         
-        showToast('✅ Staff clocked out successfully', 'success');
-        closeModal('overseerClockOutModal');
-        
-        if (window.loadDutySessions) {
-            await window.loadDutySessions();
-        }
+        showToast('Menu item deleted', 'success');
+        loadMenuManagement();
         
     } catch (error) {
-        console.error('Clock out error:', error);
-        showToast('Failed to clock out staff', 'error');
+        console.error('Delete error:', error);
+        showToast('Failed to delete item', 'error');
     }
 };
 
@@ -798,10 +937,23 @@ function closeModal(modalId) {
     }
 }
 
+window.closeModal = closeModal;
+
 function showToast(message, type = 'info') {
-    // Implement toast notification
-    console.log(`[${type.toUpperCase()}] ${message}`);
-    if (window.showToast) {
+    if (window.showToast && typeof window.showToast === 'function') {
         window.showToast(message, type);
+    } else {
+        console.log(`[${type.toUpperCase()}] ${message}`);
     }
 }
+
+// =====================================================
+// EXPORTS
+// =====================================================
+
+export {
+    initializeSipToken,
+    tokenSettings
+};
+
+console.log('✅ SipToken V2 module loaded');

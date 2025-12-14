@@ -101,7 +101,9 @@ function formatRole(role) {
         'super_admin': 'Super Admin',
         'admin': 'Admin',
         'seller': 'Seller',
-        'entry_marshall': 'Entry Marshall'
+        'entry_marshall': 'Entry Marshall',
+        'token_sales': 'Token Sales',
+        'barman': 'Barman'
     };
     return roles[role] || role;
 }
@@ -693,23 +695,30 @@ async function loadMySales() {
         document.getElementById('myVerifiedCount').textContent = verified;
         document.getElementById('myTotalAmount').textContent = `₹${totalAmount.toLocaleString()}`;
         
-        // Render table
-        const tbody = document.getElementById('mySalesTableBody');
+        // Render card list (simplified: Name & Phone only)
+        const cardList = document.getElementById('mySalesCardList');
         if (guests.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500">No registrations yet</td></tr>';
+            cardList.innerHTML = '<p class="text-center py-8 text-gray-500">No registrations yet</p>';
             return;
         }
         
-        tbody.innerHTML = guests.map(g => `
-            <tr>
-                <td class="font-semibold">${escapeHtml(g.guest_name)}</td>
-                <td>${g.mobile_number}</td>
-                <td class="capitalize">${g.entry_type}</td>
-                <td>₹${g.ticket_price?.toLocaleString()}</td>
-                <td class="capitalize">${formatPaymentMode(g.payment_mode)}</td>
-                <td>${getStatusBadge(g.status)}</td>
-                <td class="text-sm text-gray-400">${formatDate(g.created_at)}</td>
-            </tr>
+        // Store guests data for modal access
+        window.mySalesData = guests;
+        
+        cardList.innerHTML = guests.map(g => `
+            <div class="guest-card bg-gray-800/50 rounded-lg p-4 border border-gray-700 cursor-pointer hover:border-yellow-600/50 transition-all" 
+                 onclick="showGuestDetailModal('${g.id}', 'sales')">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1 min-w-0">
+                        <h4 class="font-semibold text-white truncate">${escapeHtml(g.guest_name)}</h4>
+                        <p class="text-sm text-gray-400">${g.mobile_number}</p>
+                    </div>
+                    <div class="flex items-center gap-2 ml-3">
+                        ${getStatusBadgeSmall(g.status)}
+                        <i class="fas fa-chevron-right text-gray-500"></i>
+                    </div>
+                </div>
+            </div>
         `).join('');
         
     } catch (error) {
@@ -1421,16 +1430,41 @@ window.showAddUserModal = function() {
     document.getElementById('userMobile').required = true;
     document.getElementById('passwordHint').textContent = 'Min 6 characters';
     
-    // Reset SipToken checkboxes
+    // Reset SipToken Overseer checkbox
     const siptokenOverseerCheckbox = document.getElementById('userIsSiptokenOverseer');
-    const siptokenSalesCheckbox = document.getElementById('userIsSiptokenSales');
-    const barmanCheckbox = document.getElementById('userIsBarman');
     if (siptokenOverseerCheckbox) siptokenOverseerCheckbox.checked = false;
-    if (siptokenSalesCheckbox) siptokenSalesCheckbox.checked = false;
-    if (barmanCheckbox) barmanCheckbox.checked = false;
+    
+    // Update Overseer visibility based on default role
+    updateSipTokenOverseerVisibility();
     
     openModal('userModal');
 };
+
+// Toggle Overseer option visibility based on selected role
+function updateSipTokenOverseerVisibility() {
+    const selectedRole = document.getElementById('userRoleSelect').value;
+    const overseerOption = document.getElementById('siptokenOverseerOption');
+    const sipTokenRoles = ['token_sales', 'barman'];
+    
+    if (overseerOption) {
+        if (sipTokenRoles.includes(selectedRole)) {
+            overseerOption.classList.remove('hidden');
+        } else {
+            overseerOption.classList.add('hidden');
+            // Uncheck if hidden
+            const checkbox = document.getElementById('userIsSiptokenOverseer');
+            if (checkbox) checkbox.checked = false;
+        }
+    }
+}
+
+// Add event listener for role change
+document.addEventListener('DOMContentLoaded', function() {
+    const roleSelect = document.getElementById('userRoleSelect');
+    if (roleSelect) {
+        roleSelect.addEventListener('change', updateSipTokenOverseerVisibility);
+    }
+});
 
 window.editUser = async function(userId) {
     try {
@@ -1454,15 +1488,22 @@ window.editUser = async function(userId) {
         document.getElementById('userMobile').value = user.mobile_number || '';
         document.getElementById('userClubName').value = user.club_name || '';
         document.getElementById('userClubNumber').value = user.club_number || '';
-        document.getElementById('userRoleSelect').value = user.role;
         
-        // SipToken roles
+        // Determine role to select in dropdown
+        let roleToSelect = user.role;
+        if (user.is_siptoken_sales) {
+            roleToSelect = 'token_sales';
+        } else if (user.is_barman) {
+            roleToSelect = 'barman';
+        }
+        document.getElementById('userRoleSelect').value = roleToSelect;
+        
+        // SipToken Overseer checkbox
         const siptokenOverseerCheckbox = document.getElementById('userIsSiptokenOverseer');
-        const siptokenSalesCheckbox = document.getElementById('userIsSiptokenSales');
-        const barmanCheckbox = document.getElementById('userIsBarman');
         if (siptokenOverseerCheckbox) siptokenOverseerCheckbox.checked = user.is_siptoken_overseer || false;
-        if (siptokenSalesCheckbox) siptokenSalesCheckbox.checked = user.is_siptoken_sales || false;
-        if (barmanCheckbox) barmanCheckbox.checked = user.is_barman || false;
+        
+        // Update Overseer visibility
+        updateSipTokenOverseerVisibility();
         
         openModal('userModal');
         
@@ -1492,17 +1533,22 @@ async function handleUserForm(e) {
         return;
     }
     
+    const selectedRole = document.getElementById('userRoleSelect').value;
+    
+    // Map SipToken roles to appropriate flags
+    const isSipTokenRole = ['token_sales', 'barman'].includes(selectedRole);
+    
     const userData = {
         username: document.getElementById('userUsername').value.trim(),
         full_name: fullName,
         mobile_number: mobileNumber,
         club_name: document.getElementById('userClubName').value.trim() || null,
         club_number: document.getElementById('userClubNumber').value.trim() || null,
-        role: document.getElementById('userRoleSelect').value,
-        // SipToken roles
+        role: isSipTokenRole ? 'seller' : selectedRole, // SipToken staff are sellers by base role
+        // SipToken roles based on selection
         is_siptoken_overseer: document.getElementById('userIsSiptokenOverseer')?.checked || false,
-        is_siptoken_sales: document.getElementById('userIsSiptokenSales')?.checked || false,
-        is_barman: document.getElementById('userIsBarman')?.checked || false
+        is_siptoken_sales: selectedRole === 'token_sales',
+        is_barman: selectedRole === 'barman'
     };
     
     // Validate role is selected
