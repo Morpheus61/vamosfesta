@@ -709,7 +709,7 @@
             font-weight: 600;
             text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
         ">
-            • Viva la Fiesta •
+            • Event Management System •
         </p>
     </div>
 </div>
@@ -1784,70 +1784,71 @@
 
             <!-- SipToken Dashboard Tab (to be inserted in main tabs) -->
             <div id="siptokenTab" class="tab-content hidden">
-                <div class="mb-6">
-                    <h2 class="text-2xl font-bold vamosfesta-header mb-2">
-                        <i class="fas fa-coins mr-2"></i>SipToken Beverage Sales
-                    </h2>
-                    <p class="text-gray-400 text-sm">Manage token sales, process orders, and track beverage service</p>
-                </div>
+                <div class="vamosfesta-container p-4 md:p-6">
+                    <div class="mb-6">
+                        <h2 class="text-2xl font-bold vamosfesta-header mb-2">
+                            <i class="fas fa-coins mr-2"></i>SipToken Beverage Sales
+                        </h2>
+                        <p class="text-gray-400 text-sm">Manage token sales, process orders, and track beverage service</p>
+                    </div>
     
-                <!-- Role-Specific Content -->
+                    <!-- Role-Specific Content -->
     
-                <!-- Sales Staff Interface -->
-                <div class="role-content sales-staff-content">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                        <div class="stat-card bg-yellow-900/20 border-yellow-600/30">
-                            <h4>Tokens Sold Today</h4>
-                            <p id="salesStaffTokensSold">0</p>
+                    <!-- Sales Staff Interface -->
+                    <div class="role-content sales-staff-content">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            <div class="stat-card bg-yellow-900/20 border-yellow-600/30">
+                                <h4>Tokens Sold Today</h4>
+                                <p id="salesStaffTokensSold">0</p>
+                            </div>
+                            <div class="stat-card bg-green-900/20 border-green-600/30">
+                                <h4>Revenue Today</h4>
+                                <p id="salesStaffRevenue">₹0</p>
+                            </div>
+                            <div class="stat-card bg-blue-900/20 border-blue-600/30">
+                                <h4>Transactions</h4>
+                                <p id="salesStaffTransactions">0</p>
+                            </div>
                         </div>
-                        <div class="stat-card bg-green-900/20 border-green-600/30">
-                            <h4>Revenue Today</h4>
-                            <p id="salesStaffRevenue">₹0</p>
-                        </div>
-                        <div class="stat-card bg-blue-900/20 border-blue-600/30">
-                            <h4>Transactions</h4>
-                            <p id="salesStaffTransactions">0</p>
+        
+                        <div class="card mb-4">
+                            <h3 class="font-bold mb-4">
+                                <i class="fas fa-search mr-2"></i>Find Guest by Phone
+                            </h3>
+                            <div class="flex gap-2">
+                                <input type="tel" id="guestPhoneSearch" class="vamosfesta-input flex-1" placeholder="Enter phone number">
+                                <button onclick="searchGuestForTokens()" class="vamosfesta-button">
+                                    <i class="fas fa-search"></i> Search
+                                </button>
+                            </div>
                         </div>
                     </div>
+    
+                    <!-- Barman Interface -->
+                    <div class="role-content barman-content">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            <div class="stat-card bg-blue-900/20 border-blue-600/30">
+                                <h4>Orders Today</h4>
+                                <p id="barmanOrdersToday">0</p>
+                            </div>
+                            <div class="stat-card bg-purple-900/20 border-purple-600/30">
+                                <h4>Tokens Processed</h4>
+                                <p id="barmanTokensProcessed">0</p>
+                            </div>
+                            <div class="stat-card bg-green-900/20 border-green-600/30">
+                                <h4>Active Orders</h4>
+                                <p id="barmanActiveOrders">0</p>
+                            </div>
+                        </div>
         
-                    <div class="card mb-4">
-                        <h3 class="font-bold mb-4">
-                            <i class="fas fa-search mr-2"></i>Find Guest by Phone
-                        </h3>
-                        <div class="flex gap-2">
-                            <input type="tel" id="guestPhoneSearch" class="vamosfesta-input flex-1" placeholder="Enter phone number">
-                            <button onclick="searchGuestForTokens()" class="vamosfesta-button">
-                                <i class="fas fa-search"></i> Search
+                        <div class="text-center">
+                            <button onclick="startBarmanScanner()" class="vamosfesta-button py-6 px-8 text-lg">
+                                <i class="fas fa-qrcode mr-3 text-2xl"></i>
+                                <br>Scan Token Payment
                             </button>
                         </div>
-                    </div>
-                </div>
-    
-                <!-- Barman Interface -->
-                <div class="role-content barman-content">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                        <div class="stat-card bg-blue-900/20 border-blue-600/30">
-                            <h4>Orders Today</h4>
-                            <p id="barmanOrdersToday">0</p>
-                        </div>
-                        <div class="stat-card bg-purple-900/20 border-purple-600/30">
-                            <h4>Tokens Processed</h4>
-                            <p id="barmanTokensProcessed">0</p>
-                        </div>
-                        <div class="stat-card bg-green-900/20 border-green-600/30">
-                            <h4>Active Orders</h4>
-                            <p id="barmanActiveOrders">0</p>
-                        </div>
-                    </div>
         
-                    <div class="text-center">
-                        <button onclick="startBarmanScanner()" class="vamosfesta-button py-6 px-8 text-lg">
-                            <i class="fas fa-qrcode mr-3 text-2xl"></i>
-                            <br>Scan Token Payment
-                        </button>
-                    </div>
-        
-                    <div id="barmanRecentOrders" class="mt-6">
+                        <div id="barmanRecentOrders" class="mt-6">
                         <h3 class="font-bold mb-3">
                             <i class="fas fa-history mr-2"></i>Recent Orders
                         </h3>
@@ -1896,6 +1897,7 @@
                         </div>
                     </div>
                 </div>
+                </div> <!-- Close vamosfesta-container -->
             </div>
 
         </main>
