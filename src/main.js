@@ -92,6 +92,28 @@ async function initializeApp() {
     document.getElementById('loginScreen').classList.add('hidden');
     document.getElementById('mainApp').classList.remove('hidden');
     
+    // =====================================================
+    // HIDE MAIN SETTINGS/ADMIN TABS FOR SIPTOKEN OVERSEER
+    // SipToken Overseer should ONLY see SipToken tab with their own config
+    // =====================================================
+    if (currentUser.is_siptoken_overseer && currentUser.role !== 'super_admin') {
+        const tabsToHide = ['settings', 'verification-queue', 'all-registrations', 
+                           'seller-management', 'admin-management', 'gate-management',
+                           'view-registrations', 'view-sellers'];
+        
+        tabsToHide.forEach(tabName => {
+            // Hide nav tabs
+            const navTab = document.querySelector(`.nav-tab[data-tab="${tabName}"]`);
+            if (navTab) navTab.style.display = 'none';
+            
+            // Hide mobile menu items
+            const mobileItem = document.querySelector(`.mobile-menu-item[data-tab="${tabName}"]`);
+            if (mobileItem) mobileItem.style.display = 'none';
+        });
+        
+        console.log('✅ SipToken Overseer: Hidden admin tabs - user has access only to SipToken management');
+    }
+    
     // Show SipToken tab for users with SipToken roles
     const siptokenNavTab = document.getElementById('siptokenNavTab');
     const siptokenMobileItems = document.querySelectorAll('.siptoken-menu-item');
@@ -142,8 +164,8 @@ function formatRole(role) {
 function showDefaultTab() {
     let defaultTab;
     
-    // SipToken staff get SipToken tab by default
-    if (currentUser.is_siptoken_sales || currentUser.is_barman) {
+    // SipToken staff and overseers get SipToken tab by default
+    if (currentUser.is_siptoken_sales || currentUser.is_barman || currentUser.is_siptoken_overseer) {
         defaultTab = 'siptokenTab';
         showTab(defaultTab);
         showSipTokenRoleContent();
@@ -5246,6 +5268,9 @@ function showSipTokenRoleContent() {
         document.querySelector('.barman-content')?.classList.remove('hidden');
     } else if (currentUser.is_siptoken_overseer) {
         document.querySelector('.overseer-content')?.classList.remove('hidden');
+        // Initialize overseer dashboard with staff section by default
+        showOverseerSection('staff');
+        loadOverseerDashboardStats();
     }
 }
 
@@ -7214,6 +7239,533 @@ function playNotificationSound() {
         console.log('Could not play notification sound');
     }
 }
+
+// =====================================================
+// SIPTOKEN OVERSEER SECTION FUNCTIONS
+// =====================================================
+
+// Show Overseer Section (tabs within SipToken)
+window.showOverseerSection = function(section) {
+    // Hide all sections
+    document.querySelectorAll('.overseer-section').forEach(s => s.classList.add('hidden'));
+    
+    // Remove active styling from all tabs
+    document.querySelectorAll('.overseer-tab').forEach(t => {
+        t.style.background = 'rgba(31, 41, 55, 1)';
+        t.style.borderBottom = 'none';
+        t.style.color = '#9ca3af';
+    });
+    
+    // Show selected section
+    const sectionId = 'overseer' + section.charAt(0).toUpperCase() + section.slice(1) + 'Section';
+    const sectionEl = document.getElementById(sectionId);
+    if (sectionEl) sectionEl.classList.remove('hidden');
+    
+    // Activate tab
+    const tab = document.querySelector(`.overseer-tab[data-section="${section}"]`);
+    if (tab) {
+        tab.style.background = 'rgba(139, 92, 246, 0.2)';
+        tab.style.borderBottom = '2px solid #8b5cf6';
+        tab.style.color = '#a78bfa';
+    }
+    
+    // Load section data
+    switch(section) {
+        case 'staff':
+            loadOverseerDutySessions();
+            break;
+        case 'counters':
+            loadBarCounters();
+            break;
+        case 'menu':
+            loadOverseerMenu();
+            break;
+        case 'settings':
+            loadOverseerSettings();
+            break;
+    }
+};
+
+// Filter Menu for Overseer
+window.filterOverseerMenu = function(category) {
+    document.querySelectorAll('.overseer-menu-cat').forEach(btn => {
+        btn.style.background = 'rgba(31, 41, 55, 1)';
+        btn.style.color = '#9ca3af';
+    });
+    
+    const activeBtn = document.querySelector(`.overseer-menu-cat[data-cat="${category}"]`);
+    if (activeBtn) {
+        activeBtn.style.background = 'rgba(212, 168, 83, 0.3)';
+        activeBtn.style.color = '#fcd34d';
+    }
+    
+    // Filter items
+    document.querySelectorAll('#overseerMenuList .menu-item').forEach(item => {
+        if (category === 'all' || item.dataset.category === category) {
+            item.classList.remove('hidden');
+        } else {
+            item.classList.add('hidden');
+        }
+    });
+};
+
+// Save Token Rate (Overseer version)
+window.saveOverseerTokenRate = async function() {
+    const rateInput = document.getElementById('overseerTokenRate');
+    const rate = rateInput?.value;
+    
+    if (!rate || rate < 1) {
+        showToast('Please enter a valid token rate', 'error');
+        return;
+    }
+    
+    try {
+        const { error } = await supabase
+            .from('settings')
+            .upsert({ 
+                setting_key: 'token_rate',
+                setting_value: rate.toString(),
+                description: 'Price per token in INR',
+                updated_at: new Date().toISOString(),
+                updated_by: currentUser.id
+            }, { onConflict: 'setting_key' });
+        
+        if (error) throw error;
+        
+        // Update display
+        const display = document.getElementById('currentTokenRateDisplay');
+        if (display) display.textContent = rate;
+        
+        showToast('Token rate updated to ₹' + rate, 'success');
+        
+    } catch (error) {
+        console.error('Error saving token rate:', error);
+        showToast('Failed to save token rate', 'error');
+    }
+};
+
+// Load Overseer Settings
+async function loadOverseerSettings() {
+    try {
+        const { data } = await supabase
+            .from('settings')
+            .select('setting_value')
+            .eq('setting_key', 'token_rate')
+            .single();
+        
+        const rate = data?.setting_value || '10';
+        
+        const rateInput = document.getElementById('overseerTokenRate');
+        const rateDisplay = document.getElementById('currentTokenRateDisplay');
+        
+        if (rateInput) rateInput.value = rate;
+        if (rateDisplay) rateDisplay.textContent = rate;
+        
+        // Load today's summary
+        await loadOverseerTodaySummary();
+        
+    } catch (error) {
+        console.log('Using default token rate');
+    }
+}
+
+// Load Today's Summary for Overseer
+async function loadOverseerTodaySummary() {
+    try {
+        const today = new Date().toISOString().slice(0, 10);
+        
+        // Get today's sales
+        const { data: sales } = await supabase
+            .from('siptoken_invoices')
+            .select('tokens_requested, amount')
+            .eq('status', 'confirmed')
+            .gte('confirmed_at', today);
+        
+        // Get today's orders
+        const { count: orderCount } = await supabase
+            .from('token_orders')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'served')
+            .gte('served_at', today);
+        
+        // Get active staff count
+        const { count: activeStaff } = await supabase
+            .from('siptoken_duty_sessions')
+            .select('*', { count: 'exact', head: true })
+            .is('ended_at', null);
+        
+        const totalTokens = sales?.reduce((sum, s) => sum + (s.tokens_requested || 0), 0) || 0;
+        const totalRevenue = sales?.reduce((sum, s) => sum + (s.amount || 0), 0) || 0;
+        
+        // Update displays
+        const updates = {
+            'overseerTodayTokens': totalTokens,
+            'overseerTodayRevenue': '₹' + totalRevenue,
+            'overseerTodayOrders': orderCount || 0,
+            'overseerActiveStaff': activeStaff || 0
+        };
+        
+        for (const [id, value] of Object.entries(updates)) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+        }
+        
+    } catch (error) {
+        console.error('Error loading today summary:', error);
+    }
+}
+
+// Load Bar Counters
+async function loadBarCounters() {
+    try {
+        const { data: counters, error } = await supabase
+            .from('bar_counters')
+            .select('*')
+            .order('counter_name');
+        
+        if (error) throw error;
+        
+        const container = document.getElementById('barCountersList');
+        if (!container) return;
+        
+        if (!counters || counters.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No bar counters configured. Click "Add Counter" to create one.</p>';
+            return;
+        }
+        
+        container.innerHTML = counters.map(c => `
+            <div class="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-blue-600/20 flex items-center justify-center">
+                        <i class="fas fa-glass-martini-alt text-blue-400"></i>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-white">${escapeHtml(c.counter_name)}</p>
+                        <p class="text-xs text-gray-500 font-mono">${c.counter_code}</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="px-2 py-1 rounded text-xs ${c.is_active ? 'bg-green-600' : 'bg-red-600'}">
+                        ${c.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                    <button onclick="editBarCounter('${c.id}')" class="p-2 text-gray-400 hover:text-white">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+        
+    } catch (error) {
+        console.error('Error loading counters:', error);
+        const container = document.getElementById('barCountersList');
+        if (container) container.innerHTML = '<p class="text-red-400 text-sm text-center py-4">Failed to load counters</p>';
+    }
+}
+
+// Load Overseer Menu
+async function loadOverseerMenu() {
+    try {
+        const { data: items, error } = await supabase
+            .from('beverage_menu')
+            .select('*')
+            .order('category')
+            .order('item_name');
+        
+        if (error) throw error;
+        
+        const container = document.getElementById('overseerMenuList');
+        if (!container) return;
+        
+        if (!items || items.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No menu items configured. Click "Add Item" to create one.</p>';
+            return;
+        }
+        
+        const categoryIcons = {
+            'alcoholic': '🍺',
+            'non_alcoholic': '🥤',
+            'snacks': '🍿'
+        };
+        
+        container.innerHTML = items.map(item => `
+            <div class="menu-item flex items-center justify-between p-3 bg-gray-800/50 rounded-lg" data-category="${item.category}">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">${categoryIcons[item.category] || '🍹'}</span>
+                    <div>
+                        <p class="font-semibold text-white">${escapeHtml(item.item_name)}</p>
+                        <p class="text-xs text-gray-500">${item.measure || '-'}</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-yellow-400 font-bold">${item.token_price} tokens</span>
+                    <span class="px-2 py-1 rounded text-xs ${item.is_available ? 'bg-green-600' : 'bg-red-600'}">
+                        ${item.is_available ? 'Available' : 'Out'}
+                    </span>
+                    <button onclick="editMenuItem('${item.id}')" class="p-2 text-gray-400 hover:text-white">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+        
+    } catch (error) {
+        console.error('Error loading menu:', error);
+        const container = document.getElementById('overseerMenuList');
+        if (container) container.innerHTML = '<p class="text-red-400 text-sm text-center py-4">Failed to load menu</p>';
+    }
+}
+
+// Load Overseer Duty Sessions
+async function loadOverseerDutySessions() {
+    try {
+        const { data: sessions, error } = await supabase
+            .from('siptoken_duty_sessions')
+            .select(`
+                *,
+                users:user_id(username, full_name),
+                bar_counters:counter_id(counter_name, counter_code)
+            `)
+            .is('ended_at', null)
+            .order('started_at', { ascending: false });
+        
+        if (error) throw error;
+        
+        const container = document.getElementById('overseerDutySessions');
+        if (!container) return;
+        
+        if (!sessions || sessions.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No staff currently on duty</p>';
+            
+            // Update stats
+            const statsEl = document.getElementById('overseerStaffOnDuty');
+            if (statsEl) statsEl.textContent = '0';
+            return;
+        }
+        
+        container.innerHTML = sessions.map(s => {
+            const startTime = new Date(s.started_at);
+            const now = new Date();
+            const diffMs = now - startTime;
+            const hours = Math.floor(diffMs / (1000 * 60 * 60));
+            const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+            const duration = hours > 0 ? `${hours}h ${mins}m` : `${mins} min`;
+            
+            const roleIcon = s.role_type === 'barman' ? 'fa-cocktail' : 'fa-coins';
+            const roleColor = s.role_type === 'barman' ? 'purple' : 'green';
+            const userName = s.users?.full_name || s.users?.username || 'Staff';
+            const counterName = s.bar_counters?.counter_name || 'No counter';
+            
+            return `
+                <div class="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg mb-2">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-${roleColor}-600/20 flex items-center justify-center">
+                            <i class="fas ${roleIcon} text-${roleColor}-400"></i>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-white">${escapeHtml(userName)}</p>
+                            <p class="text-xs text-gray-500">
+                                ${escapeHtml(counterName)} • ${duration}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="px-2 py-1 rounded text-xs bg-${roleColor}-600 capitalize">
+                            ${s.role_type === 'barman' ? 'Barman' : 'Sales'}
+                        </span>
+                        <button onclick="endDutySession('${s.id}')" class="p-2 text-red-400 hover:text-red-300" title="End Session">
+                            <i class="fas fa-stop-circle"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // Update stats
+        const statsEl = document.getElementById('overseerStaffOnDuty');
+        if (statsEl) statsEl.textContent = sessions.length;
+        
+    } catch (error) {
+        console.error('Error loading duty sessions:', error);
+        const container = document.getElementById('overseerDutySessions');
+        if (container) container.innerHTML = '<p class="text-red-400 text-sm text-center py-4">Failed to load sessions</p>';
+    }
+}
+
+// End duty session
+window.endDutySession = async function(sessionId) {
+    if (!confirm('End this staff member\'s duty session?')) return;
+    
+    try {
+        const { error } = await supabase
+            .from('siptoken_duty_sessions')
+            .update({ ended_at: new Date().toISOString() })
+            .eq('id', sessionId);
+        
+        if (error) throw error;
+        
+        showToast('Duty session ended', 'success');
+        loadOverseerDutySessions();
+        
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Failed to end session', 'error');
+    }
+};
+
+// Bar Counter Modal
+window.openBarCounterModal = function() {
+    // Check if modal exists
+    let modal = document.getElementById('barCounterModal');
+    if (!modal) {
+        // Create modal
+        const modalHtml = `
+            <div id="barCounterModal" class="modal">
+                <div class="modal-content max-w-md">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold text-blue-400">
+                            <i class="fas fa-store mr-2"></i>Add Bar Counter
+                        </h3>
+                        <button onclick="closeModal('barCounterModal')" class="text-gray-400 hover:text-white">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    <form id="barCounterForm" onsubmit="saveBarCounter(event)" class="space-y-4">
+                        <input type="hidden" id="editBarCounterId">
+                        <div>
+                            <label class="block text-sm mb-1">Counter Name *</label>
+                            <input type="text" id="barCounterName" class="vamosfesta-input" required placeholder="e.g., Main Bar">
+                        </div>
+                        <div>
+                            <label class="block text-sm mb-1">Counter Code *</label>
+                            <input type="text" id="barCounterCode" class="vamosfesta-input" required placeholder="e.g., BAR-1" style="text-transform: uppercase;">
+                            <p class="text-xs text-gray-500 mt-1">Unique identifier for this counter</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="barCounterActive" checked class="w-4 h-4 accent-green-500">
+                            <label for="barCounterActive" class="text-sm">Counter is Active</label>
+                        </div>
+                        <button type="submit" class="vamosfesta-button w-full py-3">
+                            <i class="fas fa-save mr-2"></i>Save Counter
+                        </button>
+                    </form>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+    
+    // Reset form
+    const form = document.getElementById('barCounterForm');
+    if (form) form.reset();
+    document.getElementById('editBarCounterId').value = '';
+    
+    openModal('barCounterModal');
+};
+
+window.editBarCounter = async function(counterId) {
+    openBarCounterModal();
+    
+    try {
+        const { data: counter, error } = await supabase
+            .from('bar_counters')
+            .select('*')
+            .eq('id', counterId)
+            .single();
+        
+        if (error) throw error;
+        
+        document.getElementById('editBarCounterId').value = counterId;
+        document.getElementById('barCounterName').value = counter.counter_name || '';
+        document.getElementById('barCounterCode').value = counter.counter_code || '';
+        document.getElementById('barCounterActive').checked = counter.is_active;
+        
+    } catch (error) {
+        console.error('Error:', error);
+    }
+};
+
+window.saveBarCounter = async function(e) {
+    e.preventDefault();
+    
+    const counterId = document.getElementById('editBarCounterId').value;
+    const counterData = {
+        counter_name: document.getElementById('barCounterName').value.trim(),
+        counter_code: document.getElementById('barCounterCode').value.trim().toUpperCase(),
+        is_active: document.getElementById('barCounterActive').checked
+    };
+    
+    try {
+        if (counterId) {
+            const { error } = await supabase
+                .from('bar_counters')
+                .update(counterData)
+                .eq('id', counterId);
+            if (error) throw error;
+        } else {
+            const { error } = await supabase
+                .from('bar_counters')
+                .insert([counterData]);
+            if (error) throw error;
+        }
+        
+        closeModal('barCounterModal');
+        showToast('Bar counter saved!', 'success');
+        loadBarCounters();
+        
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Failed to save counter: ' + error.message, 'error');
+    }
+};
+
+// Initialize overseer dashboard stats
+async function loadOverseerDashboardStats() {
+    try {
+        // Get active staff count
+        const { count: staffCount } = await supabase
+            .from('siptoken_duty_sessions')
+            .select('*', { count: 'exact', head: true })
+            .is('ended_at', null);
+        
+        // Get today's data
+        const today = new Date().toISOString().slice(0, 10);
+        
+        // Tokens sold today
+        const { data: sales } = await supabase
+            .from('siptoken_invoices')
+            .select('tokens_requested, amount')
+            .eq('status', 'confirmed')
+            .gte('confirmed_at', today);
+        
+        // Orders processed today
+        const { count: orderCount } = await supabase
+            .from('token_orders')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'served')
+            .gte('served_at', today);
+        
+        const totalTokens = sales?.reduce((sum, s) => sum + (s.tokens_requested || 0), 0) || 0;
+        const totalRevenue = sales?.reduce((sum, s) => sum + (s.amount || 0), 0) || 0;
+        
+        // Update UI
+        const updates = {
+            'overseerStaffOnDuty': staffCount || 0,
+            'overseerTotalTokens': totalTokens,
+            'overseerTotalOrders': orderCount || 0,
+            'overseerTotalRevenue': '₹' + totalRevenue
+        };
+        
+        for (const [id, value] of Object.entries(updates)) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+        }
+        
+    } catch (error) {
+        console.error('Error loading overseer stats:', error);
+    }
+}
+
+console.log('✅ Vamos Festa v2.0 with SipToken Overseer loaded');
 
 // Log barman action to audit
 async function logBarmanAction(action, orderId, details = {}) {
