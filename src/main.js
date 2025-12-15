@@ -7580,8 +7580,8 @@ async function loadOverseerDutySessions() {
             .from('siptoken_duty_sessions')
             .select(`
                 *,
-                staff:staff_id(username, full_name),
-                counter:counter_id(counter_name, counter_code)
+                users!staff_id(username, full_name),
+                bar_counters!counter_id(counter_name, counter_code)
             `)
             .is('clock_out_time', null)
             .eq('status', 'on_duty')
@@ -7611,9 +7611,9 @@ async function loadOverseerDutySessions() {
             
             const roleIcon = s.staff_role === 'barman' ? 'fa-cocktail' : 'fa-coins';
             const roleColor = s.staff_role === 'barman' ? 'purple' : 'green';
-            const userName = s.staff?.full_name || s.staff?.username || 'Staff';
+            const userName = s.users?.full_name || s.users?.username || 'Staff';
             // Try counter from join first, fallback to counter_name text field
-            const counterName = s.counter?.counter_name || s.counter_name || 'No counter';
+            const counterName = s.bar_counters?.counter_name || s.counter_name || 'No counter';
             
             return `
                 <div class="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg mb-2">
