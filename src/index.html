@@ -573,6 +573,30 @@
                 transform: scale(1.05);
             }
         }
+        
+        /* Slow pulse for pending orders */
+        @keyframes pulse-slow {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 0 10px rgba(249, 115, 22, 0);
+            }
+        }
+        
+        .animate-pulse-slow {
+            animation: pulse-slow 2s infinite;
+        }
+        
+        /* Order notification badge bounce */
+        @keyframes bounce-subtle {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .badge-bounce {
+            animation: bounce-subtle 1s infinite;
+        }
     </style>
 </head>
 <body class="vamosfesta-bg">
@@ -1352,6 +1376,61 @@
                                 <p class="text-gray-500 text-sm text-center py-4">Loading gates...</p>
                             </div>
                         </div>
+                        
+                        <!-- SipToken Configuration -->
+                        <div class="card mt-6 border-2 border-blue-600/30">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="font-semibold text-blue-400">
+                                    <i class="fas fa-coins mr-2"></i>SipToken Configuration
+                                </h3>
+                            </div>
+                            
+                            <!-- Token Rate -->
+                            <div class="mb-6 p-4 bg-blue-900/20 rounded-lg">
+                                <label class="block text-sm mb-2 text-blue-300">Token Rate (₹ per token)</label>
+                                <div class="flex gap-3 items-center">
+                                    <input type="number" id="settingTokenRate" class="vamosfesta-input w-32" 
+                                           min="1" value="10" placeholder="10">
+                                    <button type="button" onclick="saveTokenRate()" class="vamosfesta-button text-sm">
+                                        <i class="fas fa-save mr-1"></i>Save Rate
+                                    </button>
+                                    <span class="text-sm text-gray-400">Example: If rate is ₹10, buying 5 tokens costs ₹50</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Beverage Menu -->
+                            <div class="border-t border-gray-700 pt-4">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h4 class="font-semibold text-yellow-400">
+                                        <i class="fas fa-glass-martini-alt mr-2"></i>Beverage Menu
+                                    </h4>
+                                    <button onclick="openMenuItemModal()" class="vamosfesta-button text-sm">
+                                        <i class="fas fa-plus mr-1"></i>Add Item
+                                    </button>
+                                </div>
+                                
+                                <!-- Category Tabs -->
+                                <div class="flex gap-2 mb-4 flex-wrap">
+                                    <button onclick="filterMenuCategory('all')" class="menu-cat-btn active px-3 py-1 rounded text-sm bg-gray-700" data-cat="all">
+                                        All Items
+                                    </button>
+                                    <button onclick="filterMenuCategory('alcoholic')" class="menu-cat-btn px-3 py-1 rounded text-sm bg-gray-800" data-cat="alcoholic">
+                                        🍺 Alcoholic
+                                    </button>
+                                    <button onclick="filterMenuCategory('non_alcoholic')" class="menu-cat-btn px-3 py-1 rounded text-sm bg-gray-800" data-cat="non_alcoholic">
+                                        🥤 Non-Alcoholic
+                                    </button>
+                                    <button onclick="filterMenuCategory('snacks')" class="menu-cat-btn px-3 py-1 rounded text-sm bg-gray-800" data-cat="snacks">
+                                        🍿 Snacks
+                                    </button>
+                                </div>
+                                
+                                <!-- Menu Items List -->
+                                <div id="menuItemsList" class="space-y-2 max-h-96 overflow-y-auto">
+                                    <p class="text-gray-500 text-sm text-center py-4">Loading menu...</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -1782,7 +1861,7 @@
             </section>
 
 
-            <!-- SipToken Dashboard Tab (to be inserted in main tabs) -->
+            <!-- SipToken Dashboard Tab (for SipToken roles) -->
             <div id="siptokenTab" class="tab-content hidden">
                 <div class="vamosfesta-container p-4 md:p-6">
                     <div class="mb-6">
@@ -1794,9 +1873,10 @@
     
                     <!-- Role-Specific Content -->
     
-                    <!-- Sales Staff Interface -->
-                    <div class="role-content sales-staff-content">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <!-- Sales Staff Interface - Invoice Flow -->
+                    <div class="role-content sales-staff-content hidden">
+                        <!-- Stats Row -->
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                             <div class="stat-card bg-yellow-900/20 border-yellow-600/30">
                                 <h4>Tokens Sold Today</h4>
                                 <p id="salesStaffTokensSold">0</p>
@@ -1806,98 +1886,282 @@
                                 <p id="salesStaffRevenue">₹0</p>
                             </div>
                             <div class="stat-card bg-blue-900/20 border-blue-600/30">
-                                <h4>Transactions</h4>
+                                <h4>Confirmed Sales</h4>
                                 <p id="salesStaffTransactions">0</p>
+                            </div>
+                            <div class="stat-card bg-orange-900/20 border-orange-600/30">
+                                <h4>Pending Invoices</h4>
+                                <p id="salesStaffPending">0</p>
                             </div>
                         </div>
         
-                        <div class="card mb-4">
-                            <h3 class="font-bold mb-4">
-                                <i class="fas fa-search mr-2"></i>Find Guest by Phone
+                        <!-- Step 1: Find Guest -->
+                        <div class="card mb-4" id="tokenSalesStep1">
+                            <h3 class="font-bold mb-4 text-yellow-400 flex items-center gap-2">
+                                <span class="bg-yellow-600 text-black w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold">1</span>
+                                Find Guest
                             </h3>
-                            <div class="flex gap-2">
-                                <input type="tel" id="guestPhoneSearch" class="vamosfesta-input flex-1" placeholder="Enter phone number">
-                                <button onclick="searchGuestForTokens()" class="vamosfesta-button">
-                                    <i class="fas fa-search"></i> Search
+                            
+                            <!-- QR Scan Option -->
+                            <div class="mb-4">
+                                <button onclick="startGuestQRScanner()" class="vamosfesta-button w-full py-4 text-lg">
+                                    <i class="fas fa-qrcode mr-3 text-2xl"></i>
+                                    Scan Guest Pass QR
                                 </button>
+                                <p class="text-xs text-gray-500 text-center mt-2">Scan the guest's event pass</p>
+                            </div>
+                            
+                            <div class="flex items-center gap-4 my-4">
+                                <hr class="flex-1 border-gray-700">
+                                <span class="text-gray-500 text-sm">OR</span>
+                                <hr class="flex-1 border-gray-700">
+                            </div>
+                            
+                            <!-- Phone Search Option -->
+                            <div>
+                                <label class="block text-sm mb-2 text-gray-400">Search by Phone Number</label>
+                                <div class="flex gap-2">
+                                    <input type="tel" id="guestPhoneSearch" class="vamosfesta-input flex-1" 
+                                           placeholder="Enter 10-digit phone number" maxlength="10"
+                                           onkeypress="if(event.key==='Enter')searchGuestForTokens()">
+                                    <button onclick="searchGuestForTokens()" class="vamosfesta-button">
+                                        <i class="fas fa-search mr-1"></i> Search
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Step 2: Create Invoice (Hidden until guest found) -->
+                        <div class="card mb-4 hidden" id="tokenSalesStep2">
+                            <h3 class="font-bold mb-4 text-green-400 flex items-center gap-2">
+                                <span class="bg-green-600 text-black w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold">2</span>
+                                Create Invoice
+                            </h3>
+                            
+                            <!-- Guest Info Card -->
+                            <div class="bg-gray-800/50 rounded-xl p-4 mb-4 border border-gray-700">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-xs text-gray-500 uppercase tracking-wider">Guest</p>
+                                        <p class="text-xl font-bold text-white" id="invoiceGuestName">-</p>
+                                        <p class="text-sm text-gray-400" id="invoiceGuestPhone">-</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-xs text-gray-500 uppercase tracking-wider">Current Balance</p>
+                                        <p class="text-2xl font-bold text-yellow-400" id="invoiceGuestBalance">0 <span class="text-sm">tokens</span></p>
+                                    </div>
+                                </div>
+                                <button onclick="clearSelectedGuest()" class="text-xs text-red-400 hover:text-red-300 mt-2">
+                                    <i class="fas fa-times mr-1"></i>Change Guest
+                                </button>
+                            </div>
+                            
+                            <!-- Token Rate Display -->
+                            <div class="bg-yellow-900/20 rounded-lg p-3 mb-4 border border-yellow-600/30">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-yellow-400 text-sm font-medium">Token Rate:</span>
+                                    <span class="text-white font-bold">₹<span id="invoiceTokenRate">10</span> per token</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Token Quantity Input -->
+                            <div class="mb-4">
+                                <label class="block text-sm mb-2 text-gray-300 font-medium">Tokens to Purchase *</label>
+                                <div class="flex items-center gap-3">
+                                    <button onclick="adjustTokenQty(-10)" class="w-12 h-12 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-bold text-lg">-10</button>
+                                    <button onclick="adjustTokenQty(-1)" class="w-10 h-10 rounded-lg bg-gray-700 hover:bg-gray-600 text-white">-1</button>
+                                    <input type="number" id="invoiceTokenQty" class="vamosfesta-input text-center text-2xl font-bold flex-1" 
+                                           value="10" min="1" max="500" onchange="calculateInvoiceTotal()">
+                                    <button onclick="adjustTokenQty(1)" class="w-10 h-10 rounded-lg bg-gray-700 hover:bg-gray-600 text-white">+1</button>
+                                    <button onclick="adjustTokenQty(10)" class="w-12 h-12 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-bold text-lg">+10</button>
+                                </div>
+                                <!-- Quick amounts -->
+                                <div class="flex gap-2 mt-3">
+                                    <button onclick="setTokenQty(10)" class="flex-1 py-2 rounded bg-gray-800 hover:bg-gray-700 text-sm">10 tokens</button>
+                                    <button onclick="setTokenQty(20)" class="flex-1 py-2 rounded bg-gray-800 hover:bg-gray-700 text-sm">20 tokens</button>
+                                    <button onclick="setTokenQty(50)" class="flex-1 py-2 rounded bg-gray-800 hover:bg-gray-700 text-sm">50 tokens</button>
+                                    <button onclick="setTokenQty(100)" class="flex-1 py-2 rounded bg-gray-800 hover:bg-gray-700 text-sm">100 tokens</button>
+                                </div>
+                            </div>
+                            
+                            <!-- Total Amount -->
+                            <div class="bg-green-900/30 rounded-xl p-4 mb-4 border border-green-600/30">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-green-400 text-lg">Total Amount:</span>
+                                    <span class="text-3xl font-bold text-white">₹<span id="invoiceTotal">100</span></span>
+                                </div>
+                            </div>
+                            
+                            <!-- Send Invoice Button -->
+                            <button onclick="sendInvoiceToGuest()" class="vamosfesta-button w-full py-4 text-lg bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600">
+                                <i class="fab fa-whatsapp mr-3 text-2xl"></i>
+                                Send Invoice via WhatsApp
+                            </button>
+                            <p class="text-xs text-gray-500 text-center mt-2">Guest will receive payment link on WhatsApp</p>
+                        </div>
+                        
+                        <!-- Pending Invoices Section -->
+                        <div class="card mb-4">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-bold text-orange-400">
+                                    <i class="fas fa-clock mr-2"></i>Pending Invoices
+                                </h3>
+                                <button onclick="loadPendingInvoices()" class="text-xs text-gray-400 hover:text-white">
+                                    <i class="fas fa-sync-alt mr-1"></i>Refresh
+                                </button>
+                            </div>
+                            <div id="pendingInvoicesList">
+                                <p class="text-gray-500 text-sm text-center py-4">No pending invoices</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Recent Confirmed Sales -->
+                        <div class="card">
+                            <h3 class="font-bold mb-3 text-gray-400">
+                                <i class="fas fa-check-circle mr-2 text-green-400"></i>Recent Confirmed Sales
+                            </h3>
+                            <div id="salesStaffRecentSales">
+                                <p class="text-gray-500 text-sm text-center py-4">Sales will appear here</p>
                             </div>
                         </div>
                     </div>
     
-                    <!-- Barman Interface -->
-                    <div class="role-content barman-content">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <!-- Barman Interface - Order Queue Dashboard -->
+                    <div class="role-content barman-content hidden">
+                        <!-- Counter Assignment Banner -->
+                        <div class="bg-purple-900/30 border border-purple-600/50 rounded-xl p-4 mb-6" id="barmanCounterBanner">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-12 h-12 bg-purple-600 rounded-xl flex items-center justify-center">
+                                        <i class="fas fa-glass-martini-alt text-xl"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-purple-400 uppercase tracking-wider">Your Counter</p>
+                                        <p class="text-xl font-bold text-white" id="barmanCounterName">Not Assigned</p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-xs text-gray-500">Counter Code</p>
+                                    <p class="font-mono text-purple-400" id="barmanCounterCode">-</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Stats Row -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                            <div class="stat-card bg-orange-900/20 border-orange-600/30">
+                                <h4>Pending</h4>
+                                <p id="barmanPendingCount" class="text-orange-400">0</p>
+                            </div>
                             <div class="stat-card bg-blue-900/20 border-blue-600/30">
-                                <h4>Orders Today</h4>
-                                <p id="barmanOrdersToday">0</p>
+                                <h4>In Progress</h4>
+                                <p id="barmanAcceptedCount" class="text-blue-400">0</p>
+                            </div>
+                            <div class="stat-card bg-green-900/20 border-green-600/30">
+                                <h4>Served Today</h4>
+                                <p id="barmanServedToday">0</p>
                             </div>
                             <div class="stat-card bg-purple-900/20 border-purple-600/30">
                                 <h4>Tokens Processed</h4>
                                 <p id="barmanTokensProcessed">0</p>
                             </div>
+                        </div>
+        
+                        <!-- Pending Orders Queue -->
+                        <div class="card mb-4 border-2 border-orange-600/30">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-bold text-orange-400 flex items-center gap-2">
+                                    <i class="fas fa-bell"></i>
+                                    Pending Orders
+                                    <span class="bg-orange-600 text-white text-xs px-2 py-1 rounded-full" id="pendingOrdersBadge">0</span>
+                                </h3>
+                                <button onclick="loadBarmanOrders()" class="text-xs text-gray-400 hover:text-white">
+                                    <i class="fas fa-sync-alt mr-1"></i>Refresh
+                                </button>
+                            </div>
+                            <div id="pendingOrdersList">
+                                <div class="text-center py-8 text-gray-500">
+                                    <i class="fas fa-inbox text-4xl mb-3 opacity-30"></i>
+                                    <p>No pending orders</p>
+                                    <p class="text-xs mt-1">New orders will appear here automatically</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Accepted Orders (In Progress) -->
+                        <div class="card mb-4 border-2 border-blue-600/30">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-bold text-blue-400 flex items-center gap-2">
+                                    <i class="fas fa-blender"></i>
+                                    Preparing
+                                    <span class="bg-blue-600 text-white text-xs px-2 py-1 rounded-full" id="acceptedOrdersBadge">0</span>
+                                </h3>
+                            </div>
+                            <div id="acceptedOrdersList">
+                                <div class="text-center py-6 text-gray-500">
+                                    <p class="text-sm">No orders being prepared</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recent Served Orders -->
+                        <div class="card">
+                            <h3 class="font-bold mb-3 text-green-400">
+                                <i class="fas fa-check-circle mr-2"></i>Recently Served
+                            </h3>
+                            <div id="servedOrdersList">
+                                <p class="text-gray-500 text-sm text-center py-4">Served orders will appear here</p>
+                            </div>
+                        </div>
+
+                        <!-- Show Counter QR Button (for guests to scan) -->
+                        <div class="fixed bottom-20 right-4 z-40">
+                            <button onclick="showCounterQR()" class="w-14 h-14 bg-purple-600 hover:bg-purple-500 rounded-full shadow-lg flex items-center justify-center">
+                                <i class="fas fa-qrcode text-xl"></i>
+                            </button>
+                        </div>
+                    </div>
+    
+                    <!-- Overseer Interface -->
+                    <div class="role-content overseer-content hidden">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                             <div class="stat-card bg-green-900/20 border-green-600/30">
-                                <h4>Active Orders</h4>
-                                <p id="barmanActiveOrders">0</p>
+                                <h4>Staff On Duty</h4>
+                                <p id="overseerStaffOnDuty">0</p>
+                            </div>
+                            <div class="stat-card bg-yellow-900/20 border-yellow-600/30">
+                                <h4>Total Tokens Sold</h4>
+                                <p id="overseerTotalTokens">0</p>
+                            </div>
+                            <div class="stat-card bg-blue-900/20 border-blue-600/30">
+                                <h4>Orders Processed</h4>
+                                <p id="overseerTotalOrders">0</p>
+                            </div>
+                            <div class="stat-card bg-purple-900/20 border-purple-600/30">
+                                <h4>Revenue</h4>
+                                <p id="overseerTotalRevenue">₹0</p>
                             </div>
                         </div>
         
-                        <div class="text-center">
-                            <button onclick="startBarmanScanner()" class="vamosfesta-button py-6 px-8 text-lg">
-                                <i class="fas fa-qrcode mr-3 text-2xl"></i>
-                                <br>Scan Token Payment
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <button onclick="showClockInModal('token_sales')" class="vamosfesta-button py-4">
+                                <i class="fas fa-coins mr-2"></i>Clock In Sales Staff
+                            </button>
+                            <button onclick="showClockInModal('barman')" class="vamosfesta-button py-4">
+                                <i class="fas fa-cocktail mr-2"></i>Clock In Barman
                             </button>
                         </div>
         
-                        <div id="barmanRecentOrders" class="mt-6">
-                        <h3 class="font-bold mb-3">
-                            <i class="fas fa-history mr-2"></i>Recent Orders
-                        </h3>
-                        <div id="barmanOrdersList">
-                            <!-- Orders will be loaded here -->
+                        <div class="card">
+                            <h3 class="font-bold mb-4">
+                                <i class="fas fa-users mr-2"></i>Active Duty Sessions
+                            </h3>
+                            <div id="overseerDutySessions">
+                                <p class="text-gray-500 text-sm text-center py-4">No staff on duty</p>
+                            </div>
                         </div>
                     </div>
                 </div>
-    
-                <!-- Overseer Interface -->
-                <div class="role-content overseer-content">
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                        <div class="stat-card bg-green-900/20 border-green-600/30">
-                            <h4>Staff On Duty</h4>
-                            <p id="overseerStaffOnDuty">0</p>
-                        </div>
-                        <div class="stat-card bg-yellow-900/20 border-yellow-600/30">
-                            <h4>Total Tokens Sold</h4>
-                            <p id="overseerTotalTokens">0</p>
-                        </div>
-                        <div class="stat-card bg-blue-900/20 border-blue-600/30">
-                            <h4>Orders Processed</h4>
-                            <p id="overseerTotalOrders">0</p>
-                        </div>
-                        <div class="stat-card bg-purple-900/20 border-purple-600/30">
-                            <h4>Revenue</h4>
-                            <p id="overseerTotalRevenue">₹0</p>
-                        </div>
-                    </div>
-        
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                        <button onclick="showClockInModal('token_sales')" class="vamosfesta-button py-4">
-                            <i class="fas fa-coins mr-2"></i>Clock In Sales Staff
-                        </button>
-                        <button onclick="showClockInModal('barman')" class="vamosfesta-button py-4">
-                            <i class="fas fa-cocktail mr-2"></i>Clock In Barman
-                        </button>
-                    </div>
-        
-                    <div class="card">
-                        <h3 class="font-bold mb-4">
-                            <i class="fas fa-users mr-2"></i>Active Duty Sessions
-                        </h3>
-                        <div id="overseerDutySessions">
-                            <!-- Duty sessions will be loaded here -->
-                        </div>
-                    </div>
-                </div>
-                </div> <!-- Close vamosfesta-container -->
             </div>
 
         </main>
@@ -1905,82 +2169,367 @@
 
     <!-- ==================== MODALS ==================== -->
     
+    <!-- Add/Edit Menu Item Modal -->
+    <div id="menuItemModal" class="modal">
+        <div class="modal-content max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="menuItemModalTitle" class="text-xl font-bold vamosfesta-header">Add Menu Item</h3>
+                <button onclick="closeModal('menuItemModal')" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="menuItemForm" class="space-y-4" onsubmit="saveMenuItem(event)">
+                <input type="hidden" id="editMenuItemId">
+                
+                <div>
+                    <label class="block text-sm mb-1">Category *</label>
+                    <select id="menuItemCategory" class="vamosfesta-input" required>
+                        <option value="alcoholic">🍺 Alcoholic</option>
+                        <option value="non_alcoholic">🥤 Non-Alcoholic</option>
+                        <option value="snacks">🍿 Snacks</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm mb-1">Item Name *</label>
+                    <input type="text" id="menuItemName" class="vamosfesta-input" required placeholder="e.g., Beer, Whiskey, Mojito">
+                </div>
+                
+                <div>
+                    <label class="block text-sm mb-1">Measure/Portion</label>
+                    <input type="text" id="menuItemMeasure" class="vamosfesta-input" placeholder="e.g., 330ml, 60ml, Large">
+                </div>
+                
+                <div>
+                    <label class="block text-sm mb-1">Token Price *</label>
+                    <div class="flex items-center gap-2">
+                        <input type="number" id="menuItemTokens" class="vamosfesta-input w-24" required min="0" placeholder="5">
+                        <span class="text-gray-400">tokens</span>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="menuItemAvailable" class="w-4 h-4 accent-green-500" checked>
+                    <label for="menuItemAvailable" class="text-sm">Available for ordering</label>
+                </div>
+                
+                <div class="flex gap-3 pt-4">
+                    <button type="submit" class="vamosfesta-button flex-1">
+                        <i class="fas fa-save mr-2"></i>Save Item
+                    </button>
+                    <button type="button" onclick="closeModal('menuItemModal')" class="vamosfesta-button secondary flex-1">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== SIPTOKEN MODALS ==================== -->
+    
+    <!-- Token Purchase Modal -->
+    <div id="tokenPurchaseModal" class="modal">
+        <div class="modal-content max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold vamosfesta-header">
+                    <i class="fas fa-coins mr-2"></i>Sell Tokens
+                </h3>
+                <button onclick="closeModal('tokenPurchaseModal')" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <!-- Guest Info -->
+            <div class="card bg-green-900/20 border-green-600/30 mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center">
+                        <i class="fas fa-user text-xl"></i>
+                    </div>
+                    <div>
+                        <h4 id="purchaseGuestName" class="font-bold text-lg">Guest Name</h4>
+                        <p id="purchaseGuestPhone" class="text-sm text-gray-400">Phone</p>
+                    </div>
+                </div>
+                <div class="mt-3 pt-3 border-t border-green-600/30">
+                    <span class="text-sm text-gray-400">Current Balance:</span>
+                    <span id="purchaseCurrentBalance" class="font-bold text-yellow-400 ml-2">0</span>
+                    <span class="text-gray-400">tokens</span>
+                </div>
+            </div>
+            
+            <!-- Purchase Form -->
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm mb-2">Token Rate</label>
+                    <div class="text-lg font-bold text-yellow-400" id="purchaseTokenRate">₹10</div>
+                    <p class="text-xs text-gray-500">per token</p>
+                </div>
+                
+                <div>
+                    <label class="block text-sm mb-2">Number of Tokens *</label>
+                    <input type="number" id="purchaseTokenAmount" class="vamosfesta-input text-2xl text-center" 
+                           min="1" placeholder="0" oninput="calculatePurchaseAmount()">
+                </div>
+                
+                <div class="text-center p-4 bg-yellow-900/20 rounded-lg">
+                    <span class="text-sm text-gray-400">Total Amount:</span>
+                    <div id="purchaseTotalAmount" class="text-3xl font-bold text-yellow-400">₹0</div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm mb-2">Payment Method *</label>
+                    <select id="purchasePaymentMethod" class="vamosfesta-input">
+                        <option value="cash">💵 Cash</option>
+                        <option value="upi">📱 UPI</option>
+                        <option value="bank">🏦 Bank Transfer</option>
+                    </select>
+                </div>
+                
+                <button onclick="processTokenPurchase()" class="vamosfesta-button w-full py-4 text-lg">
+                    <i class="fas fa-check mr-2"></i>Complete Purchase
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Guest QR Scanner Modal -->
+    <div id="guestQRScannerModal" class="modal">
+        <div class="modal-content max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold vamosfesta-header">
+                    <i class="fas fa-qrcode mr-2"></i>Scan Guest Pass
+                </h3>
+                <button onclick="stopGuestQRScanner()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="relative bg-black rounded-lg overflow-hidden" style="aspect-ratio: 1;">
+                <video id="guestScanVideo" class="w-full h-full object-cover" playsinline autoplay muted></video>
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div class="w-48 h-48 border-2 border-yellow-400 rounded-lg"></div>
+                </div>
+            </div>
+            
+            <p class="text-center text-sm text-gray-400 mt-4">
+                Point camera at guest's event pass QR code
+            </p>
+            
+            <button onclick="stopGuestQRScanner()" class="vamosfesta-button secondary w-full mt-4">
+                <i class="fas fa-times mr-2"></i>Cancel
+            </button>
+        </div>
+    </div>
+    
+    <!-- Barman Scanner Modal -->
+    <div id="barmanScannerModal" class="modal">
+        <div class="modal-content max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold vamosfesta-header">
+                    <i class="fas fa-cocktail mr-2"></i>Scan Order QR
+                </h3>
+                <button onclick="stopBarmanScanner()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="relative bg-black rounded-lg overflow-hidden" style="aspect-ratio: 1;">
+                <video id="barmanScanVideo" class="w-full h-full object-cover" playsinline autoplay muted></video>
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div class="w-48 h-48 border-2 border-purple-400 rounded-lg"></div>
+                </div>
+            </div>
+            
+            <p class="text-center text-sm text-gray-400 mt-4">
+                Scan guest's order QR code to process their drink order
+            </p>
+            
+            <button onclick="stopBarmanScanner()" class="vamosfesta-button secondary w-full mt-4">
+                <i class="fas fa-times mr-2"></i>Cancel
+            </button>
+        </div>
+    </div>
+    
+    <!-- Order Confirmation Modal -->
+    <div id="orderConfirmationModal" class="modal">
+        <div class="modal-content max-w-md">
+            <input type="hidden" id="currentOrderId">
+            <input type="hidden" id="currentWalletId">
+            
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold vamosfesta-header">
+                    <i class="fas fa-clipboard-list mr-2"></i>Order Details
+                </h3>
+                <button onclick="closeModal('orderConfirmationModal')" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <!-- Guest Info -->
+            <div class="card bg-purple-900/20 border-purple-600/30 mb-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <span class="text-sm text-gray-400">Guest:</span>
+                        <span id="orderGuestName" class="font-bold ml-2">Guest Name</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-sm text-gray-400">Total:</span>
+                        <span id="orderTotalTokens" class="font-bold text-yellow-400 ml-2 text-xl">0</span>
+                        <span class="text-gray-400">tokens</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Order Items -->
+            <div class="card mb-4">
+                <h4 class="font-semibold mb-3 text-gray-400">
+                    <i class="fas fa-glass-martini-alt mr-2"></i>Items Ordered
+                </h4>
+                <div id="orderItemsList" class="space-y-1">
+                    <!-- Items will be loaded here -->
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="rejectOrder()" class="vamosfesta-button danger py-4 text-lg">
+                    <i class="fas fa-times mr-2"></i>REJECT
+                </button>
+                <button onclick="serveOrder()" class="vamosfesta-button success py-4 text-lg">
+                    <i class="fas fa-check mr-2"></i>SERVE
+                </button>
+            </div>
+            
+            <p class="text-center text-xs text-gray-500 mt-3">
+                Tokens will be deducted only when you tap SERVE
+            </p>
+        </div>
+    </div>
+
     <!-- Add/Edit User Modal -->
     <div id="userModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content max-w-lg">
             <div class="flex justify-between items-center mb-4">
-                <h3 id="userModalTitle" class="text-xl font-bold vamosfesta-header">Add User</h3>
+                <h3 id="userModalTitle" class="text-xl font-bold vamosfesta-header">Add New Staff Member</h3>
                 <button onclick="closeModal('userModal')" class="text-gray-400 hover:text-white">
                     <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
             <form id="userForm" class="space-y-4">
                 <input type="hidden" id="editUserId">
-                <div>
-                    <label class="block text-sm mb-1">Username *</label>
-                    <input type="text" id="userUsername" class="vamosfesta-input" required>
-                </div>
-                <div>
-                    <label class="block text-sm mb-1">Password *</label>
-                    <input type="password" id="userPassword" class="vamosfesta-input" required>
-                    <p class="text-xs text-gray-500 mt-1" id="passwordHint">Min 6 characters</p>
-                </div>
-                <div>
-                    <label class="block text-sm mb-1">Full Name *</label>
-                    <input type="text" id="userFullName" class="vamosfesta-input" required>
-                </div>
-                <div>
-                    <label class="block text-sm mb-1">Mobile Number *</label>
-                    <input type="tel" id="userMobile" class="vamosfesta-input" pattern="[0-9]{10}" required 
-                           placeholder="10-digit mobile number">
-                </div>
-                <div class="card bg-yellow-900/20 border-yellow-600/30">
-                    <h4 class="text-sm font-semibold text-yellow-400 mb-3">
-                        <i class="fas fa-users mr-1"></i> 41'ers Club Info (Optional)
-                    </h4>
-                    <div class="space-y-3">
-                        <div>
-                            <label class="block text-sm mb-1 text-gray-300">Club Name</label>
-                            <input type="text" id="userClubName" class="vamosfesta-input" placeholder="e.g., 41'ers Club of Kochi">
-                        </div>
-                        <div>
-                            <label class="block text-sm mb-1 text-gray-300">Club Number</label>
-                            <input type="text" id="userClubNumber" class="vamosfesta-input" placeholder="e.g., 12345">
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-sm mb-1">Role *</label>
-                    <select id="userRoleSelect" class="vamosfesta-input" required>
-                        <optgroup label="Event Staff">
-                            <option value="seller">Seller</option>
-                            <option value="entry_marshall">Entry Marshall</option>
+                
+                <!-- Step 1: Select Role First -->
+                <div class="card bg-purple-900/20 border-purple-600/30">
+                    <label class="block text-sm mb-2 font-semibold text-purple-400">
+                        <i class="fas fa-user-tag mr-1"></i> Step 1: Select Role *
+                    </label>
+                    <select id="userRoleSelect" class="vamosfesta-input" required onchange="updateRoleSelection()">
+                        <option value="">-- Select Role --</option>
+                        <optgroup label="👑 Administration">
+                            <option value="super_admin">Super Admin (Admin-Name)</option>
+                            <option value="admin">Admin Read-Only (Viewer-Name)</option>
                         </optgroup>
-                        <optgroup label="SipToken Staff">
-                            <option value="token_sales">Token Sales Staff</option>
-                            <option value="barman">Barman</option>
+                        <optgroup label="🚪 Gate Operations">
+                            <option value="gate_overseer">Gate Overseer (GateOvr-Name)</option>
+                            <option value="presales_seller">Pre-Event Sales (PreSales-Name)</option>
+                            <option value="event_seller">Venue Sales (EventSales-Name)</option>
+                            <option value="entry_marshall">Entry Marshall (Marshall-Name)</option>
                         </optgroup>
-                        <optgroup label="Management">
-                            <option value="admin">Admin (Read-Only)</option>
-                            <option value="super_admin">Super Admin</option>
+                        <optgroup label="🍹 SipToken Operations">
+                            <option value="siptoken_overseer">SipToken Overseer (TokenOvr-Name)</option>
+                            <option value="token_sales">Token Sales Staff (TokenSales-Name)</option>
+                            <option value="barman">Barman / Bev Service (BevServe-Name)</option>
                         </optgroup>
                     </select>
                 </div>
                 
-                <!-- SipToken Overseer (Additional permission) -->
-                <div id="siptokenOverseerOption" class="card bg-blue-900/20 border-blue-600/30 hidden">
-                    <div class="flex items-center gap-2">
-                        <input type="checkbox" id="userIsSiptokenOverseer" class="w-4 h-4 accent-blue-500">
-                        <label for="userIsSiptokenOverseer" class="text-sm">
-                            <i class="fas fa-crown text-yellow-500 mr-1"></i>
-                            SipToken Overseer (Manage staff, reconciliation, refunds)
-                        </label>
+                <!-- Step 2: Enter Name -->
+                <div>
+                    <label class="block text-sm mb-1">
+                        <i class="fas fa-user mr-1"></i> Step 2: First Name / Nickname *
+                    </label>
+                    <input type="text" id="userFirstName" class="vamosfesta-input" required 
+                           placeholder="e.g., Ramesh, Tony, Priya"
+                           oninput="generateUsername()" autocomplete="off" maxlength="20">
+                    <p class="text-xs text-gray-500 mt-1">No spaces. Use CamelCase if needed (e.g., TonyJr)</p>
+                </div>
+                
+                <!-- Auto-generated Username Preview -->
+                <div class="card bg-green-900/20 border-green-600/30">
+                    <label class="block text-sm mb-2 text-green-400">
+                        <i class="fas fa-at mr-1"></i> Login Username (Auto-generated)
+                    </label>
+                    <div class="flex items-center gap-1 bg-black/30 rounded-lg px-4 py-3">
+                        <span id="usernamePrefix" class="text-yellow-400 font-mono text-xl font-bold">---</span>
+                        <span class="text-gray-400 text-xl">-</span>
+                        <span id="usernameValue" class="text-white font-mono text-xl font-bold">---</span>
+                    </div>
+                    <input type="hidden" id="userUsername">
+                    <p class="text-xs text-gray-500 mt-2">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        This will be the login username. <span class="text-yellow-400">Case-sensitive!</span>
+                    </p>
+                </div>
+                
+                <!-- Role Preview Card -->
+                <div id="rolePreviewCard" class="card border-2 hidden">
+                    <div class="flex items-center gap-3">
+                        <div id="rolePreviewIcon" class="text-4xl">👤</div>
+                        <div class="flex-1">
+                            <div id="rolePreviewTitle" class="font-bold text-lg"></div>
+                            <div id="rolePreviewDesc" class="text-sm text-gray-400"></div>
+                        </div>
+                    </div>
+                    <div id="rolePreviewPermissions" class="mt-3 pt-3 border-t border-gray-700 text-xs">
+                        <span class="text-gray-500">Reports to:</span>
+                        <span id="roleReportsTo" class="text-yellow-400 ml-1 font-semibold"></span>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm mb-1">Full Name (for display) *</label>
+                    <input type="text" id="userFullName" class="vamosfesta-input" required
+                           placeholder="e.g., Ramesh Kumar, Tony Fernandes">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm mb-1">Password *</label>
+                        <div class="relative">
+                            <input type="password" id="userPassword" class="vamosfesta-input pr-10" 
+                                   placeholder="Min 6 chars" minlength="6">
+                            <button type="button" onclick="togglePasswordVisibility('userPassword')" 
+                                    class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-1">Mobile Number *</label>
+                        <input type="tel" id="userMobile" class="vamosfesta-input" pattern="[0-9]{10}" required 
+                               placeholder="10 digits" maxlength="10">
+                    </div>
+                </div>
+                
+                <div class="card bg-yellow-900/20 border-yellow-600/30">
+                    <h4 class="text-sm font-semibold text-yellow-400 mb-3">
+                        <i class="fas fa-users mr-1"></i> 41'ers Club Info (Optional)
+                    </h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs mb-1 text-gray-400">Club Name</label>
+                            <input type="text" id="userClubName" class="vamosfesta-input text-sm" placeholder="Club of Kochi">
+                        </div>
+                        <div>
+                            <label class="block text-xs mb-1 text-gray-400">Club Number</label>
+                            <input type="text" id="userClubNumber" class="vamosfesta-input text-sm" placeholder="12345">
+                        </div>
                     </div>
                 </div>
                 
                 <div class="flex gap-3 pt-4">
                     <button type="submit" class="vamosfesta-button flex-1">
-                        <i class="fas fa-save mr-2"></i>Save
+                        <i class="fas fa-user-plus mr-2"></i>Create User
                     </button>
                     <button type="button" onclick="closeModal('userModal')" class="vamosfesta-button secondary flex-1">
                         Cancel
@@ -2349,6 +2898,172 @@
         </div>
     </div>
 
+    <!-- Barman Order Detail Modal -->
+    <div id="orderDetailModal" class="modal">
+        <div class="modal-content max-w-lg">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-purple-400">
+                    <i class="fas fa-receipt mr-2"></i>Order Details
+                </h3>
+                <button onclick="closeModal('orderDetailModal')" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <!-- Order Header -->
+            <div class="bg-gray-800/50 rounded-xl p-4 mb-4">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-xs text-gray-500 uppercase">Order Number</p>
+                        <p class="font-mono text-lg text-white" id="orderDetailNumber">-</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold" id="orderDetailStatus">-</span>
+                        <p class="text-xs text-gray-500 mt-1" id="orderDetailTime">-</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Guest Info -->
+            <div class="bg-yellow-900/20 border border-yellow-600/30 rounded-xl p-4 mb-4">
+                <p class="text-xs text-yellow-400 uppercase tracking-wider mb-1">Guest</p>
+                <p class="text-lg font-bold text-white" id="orderDetailGuestName">-</p>
+                <p class="text-sm text-gray-400" id="orderDetailGuestPhone">-</p>
+            </div>
+            
+            <!-- Order Items -->
+            <div class="mb-4">
+                <p class="text-sm text-gray-400 mb-2">Order Items</p>
+                <div id="orderDetailItems" class="space-y-2">
+                    <!-- Items will be inserted here -->
+                </div>
+            </div>
+            
+            <!-- Total -->
+            <div class="bg-purple-900/30 rounded-xl p-4 mb-4 flex justify-between items-center">
+                <span class="text-purple-400 font-medium">Total Tokens</span>
+                <span class="text-2xl font-bold text-white" id="orderDetailTotal">0</span>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div id="orderDetailActions" class="flex gap-3">
+                <!-- Buttons inserted dynamically based on order status -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Counter QR Display Modal -->
+    <div id="counterQRModal" class="modal">
+        <div class="modal-content max-w-sm text-center">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-purple-400">
+                    <i class="fas fa-qrcode mr-2"></i>Counter QR Code
+                </h3>
+                <button onclick="closeModal('counterQRModal')" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <p class="text-gray-400 text-sm mb-4">Guests scan this to order from your counter</p>
+            
+            <div class="bg-white p-4 rounded-xl inline-block mb-4">
+                <div id="counterQRCode"></div>
+            </div>
+            
+            <div class="bg-purple-900/30 rounded-xl p-3">
+                <p class="text-xs text-gray-400">Counter</p>
+                <p class="text-xl font-bold text-white" id="counterQRName">-</p>
+                <p class="font-mono text-purple-400" id="counterQRCodeText">-</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reject Order Modal -->
+    <div id="rejectOrderModal" class="modal">
+        <div class="modal-content max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-red-400">
+                    <i class="fas fa-times-circle mr-2"></i>Reject Order
+                </h3>
+                <button onclick="closeModal('rejectOrderModal')" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <input type="hidden" id="rejectOrderId">
+            
+            <p class="text-gray-300 mb-4">Please select a reason for rejecting this order:</p>
+            
+            <div class="space-y-2 mb-4">
+                <label class="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-800">
+                    <input type="radio" name="rejectReason" value="item_unavailable" class="text-red-500">
+                    <span>Item(s) unavailable</span>
+                </label>
+                <label class="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-800">
+                    <input type="radio" name="rejectReason" value="counter_closed" class="text-red-500">
+                    <span>Counter closing</span>
+                </label>
+                <label class="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-800">
+                    <input type="radio" name="rejectReason" value="too_busy" class="text-red-500">
+                    <span>Too busy - try another counter</span>
+                </label>
+                <label class="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-800">
+                    <input type="radio" name="rejectReason" value="other" class="text-red-500">
+                    <span>Other reason</span>
+                </label>
+            </div>
+            
+            <textarea id="rejectReasonOther" class="vamosfesta-input w-full hidden" rows="2" placeholder="Enter reason..."></textarea>
+            
+            <div class="flex gap-3 mt-4">
+                <button onclick="confirmRejectOrder()" class="vamosfesta-button flex-1 bg-red-600 hover:bg-red-500">
+                    <i class="fas fa-times mr-2"></i>Reject Order
+                </button>
+                <button onclick="closeModal('rejectOrderModal')" class="vamosfesta-button secondary flex-1">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Badge Scan for Accept Modal -->
+    <div id="badgeScanModal" class="modal">
+        <div class="modal-content max-w-sm text-center">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-green-400">
+                    <i class="fas fa-id-badge mr-2"></i>Scan Your Badge
+                </h3>
+                <button onclick="closeModal('badgeScanModal')" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <input type="hidden" id="badgeScanOrderId">
+            <input type="hidden" id="badgeScanAction">
+            
+            <p class="text-gray-400 text-sm mb-4">Scan your staff badge to confirm this action</p>
+            
+            <div class="bg-gray-800 rounded-xl p-4 mb-4">
+                <div id="badgeScanPreview" class="w-full h-48 bg-black rounded-lg flex items-center justify-center">
+                    <i class="fas fa-camera text-4xl text-gray-600"></i>
+                </div>
+            </div>
+            
+            <p class="text-xs text-gray-500 mb-4">Position your badge QR code in front of the camera</p>
+            
+            <!-- Manual Badge Entry (fallback) -->
+            <div class="border-t border-gray-700 pt-4">
+                <p class="text-xs text-gray-500 mb-2">Or enter badge code manually:</p>
+                <div class="flex gap-2">
+                    <input type="text" id="manualBadgeCode" class="vamosfesta-input flex-1" placeholder="VF-BM-2025-001">
+                    <button onclick="submitManualBadge()" class="vamosfesta-button">
+                        <i class="fas fa-check"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Success/Error Toast -->
     <div id="toast" class="fixed bottom-4 right-4 p-4 rounded-lg shadow-lg transform translate-y-full opacity-0 transition-all duration-300 z-50">
         <div class="flex items-center gap-3">
@@ -2357,298 +3072,7 @@
         </div>
     </div>
 
-    <!-- SIPTOKEN UI COMPONENTS -->
-    <script type="module" src="/main.js"></script>
-<!-- =====================================================
-     SIPTOKEN UI COMPONENTS
-     Complete beverage sales system interfaces
-     ===================================================== -->
-
-<!-- Token Purchase Modal (for Sales Staff/Guests) -->
-<div id="tokenPurchaseModal" class="modal">
-    <div class="modal-content max-w-md">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-xl font-bold vamosfesta-header">
-                <i class="fas fa-coins mr-2"></i>Purchase Tokens
-            </h3>
-            <button onclick="closeModal('tokenPurchaseModal')" class="text-gray-400 hover:text-white">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-        </div>
-        
-        <div class="card bg-blue-900/20 border-blue-600/30 mb-4">
-            <h4 class="font-bold" id="tokenWalletGuest">Guest Name</h4>
-            <p class="text-2xl text-yellow-500 mt-2">
-                <i class="fas fa-wallet mr-2"></i>
-                <span id="tokenWalletBalance">0</span> Tokens
-            </p>
-            <p class="text-xs text-gray-500 mt-1" id="tokenRate">₹10 = 1 Token</p>
-        </div>
-        
-        <div class="space-y-4">
-            <div>
-                <label class="block text-sm mb-1">Tokens to Purchase</label>
-                <input type="number" id="tokensToPurchase" class="vamosfesta-input" min="1" placeholder="Enter number of tokens">
-            </div>
-            
-            <div>
-                <label class="block text-sm mb-1">Payment Method</label>
-                <select id="tokenPaymentMethod" class="vamosfesta-input">
-                    <option value="cash">Cash</option>
-                    <option value="upi">UPI</option>
-                    <option value="online">Online</option>
-                </select>
-            </div>
-            
-            <button onclick="purchaseTokens()" class="vamosfesta-button w-full py-3">
-                <i class="fas fa-shopping-cart mr-2"></i>Purchase Tokens
-            </button>
-            
-            <button onclick="closeModal('tokenPurchaseModal')" class="vamosfesta-button secondary w-full">
-                Cancel
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- Generate Token Payment QR Modal (for Guests ordering drinks) -->
-<div id="tokenPaymentQRModal" class="modal">
-    <div class="modal-content max-w-md text-center">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-xl font-bold vamosfesta-header">
-                <i class="fas fa-qrcode mr-2"></i>Payment QR Code
-            </h3>
-            <button onclick="closeModal('tokenPaymentQRModal')" class="text-gray-400 hover:text-white">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-        </div>
-        
-        <div id="tokenPaymentQRInfo" class="mb-4">
-            <!-- QR info will be inserted here -->
-        </div>
-        
-        <div id="tokenPaymentQRDisplay" class="bg-white p-4 rounded-lg inline-block">
-            <!-- QR code will be rendered here -->
-        </div>
-        
-        <p class="text-sm text-gray-400 mt-4">
-            <i class="fas fa-info-circle mr-1"></i> Show this QR code to the barman to place your order
-        </p>
-        
-        <button onclick="closeModal('tokenPaymentQRModal')" class="vamosfesta-button w-full mt-4">
-            Close
-        </button>
-    </div>
-</div>
-
-<!-- Token Order Generation Form (shown after purchase or from guest interface) -->
-<div id="tokenOrderGeneratorModal" class="modal">
-    <div class="modal-content max-w-md">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-xl font-bold vamosfesta-header">
-                <i class="fas fa-cocktail mr-2"></i>Create Beverage Order
-            </h3>
-            <button onclick="closeModal('tokenOrderGeneratorModal')" class="text-gray-400 hover:text-white">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-        </div>
-        
-        <div class="space-y-4">
-            <div>
-                <label class="block text-sm mb-1">Tokens for This Order</label>
-                <input type="number" id="tokensForOrder" class="vamosfesta-input" min="1" placeholder="How many tokens?">
-                <p class="text-xs text-gray-500 mt-1">Your balance will be checked before generating QR</p>
-            </div>
-            
-            <button onclick="generateTokenPaymentQR()" class="vamosfesta-button w-full py-3">
-                <i class="fas fa-qrcode mr-2"></i>Generate Payment QR
-            </button>
-            
-            <button onclick="closeModal('tokenOrderGeneratorModal')" class="vamosfesta-button secondary w-full">
-                Cancel
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- Barman QR Scanner Modal -->
-<div id="barmanScannerModal" class="modal">
-    <div class="modal-content max-w-lg">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-xl font-bold vamosfesta-header">
-                <i class="fas fa-qrcode mr-2"></i>Scan Token Payment
-            </h3>
-            <button onclick="stopBarmanScanner()" class="text-gray-400 hover:text-white">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-        </div>
-        
-        <div class="bg-black rounded-lg overflow-hidden aspect-square mb-3">
-            <video id="barmanQrVideo" class="w-full h-full object-cover"></video>
-        </div>
-        
-        <div class="card bg-orange-900/20 border-orange-600/30">
-            <p class="text-center text-sm text-gray-300">
-                <i class="fas fa-mobile-alt mr-1 text-orange-400"></i> 
-                Point camera at guest's payment QR code
-            </p>
-        </div>
-    </div>
-</div>
-
-<!-- Barman Order Entry Modal (shown after scanning) -->
-<div id="barmanOrderModal" class="modal">
-    <div class="modal-content max-w-md">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-xl font-bold vamosfesta-header">
-                <i class="fas fa-cocktail mr-2"></i>Process Order
-            </h3>
-            <button onclick="closeModal('barmanOrderModal')" class="text-gray-400 hover:text-white">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-        </div>
-        
-        <div id="barmanOrderGuestInfo">
-            <!-- Guest info will be inserted here -->
-        </div>
-        
-        <div class="space-y-4">
-            <div>
-                <label class="block text-sm mb-1">Order Items</label>
-                <textarea id="barmanOrderItems" class="vamosfesta-input" rows="3" placeholder="e.g., 2x Beer, 1x Mojito"></textarea>
-            </div>
-            
-            <div>
-                <label class="block text-sm mb-1">Tokens to Use</label>
-                <input type="number" id="orderTokensUsed" class="vamosfesta-input" min="1">
-                <p class="text-xs text-gray-500 mt-1">Maximum tokens from scanned QR</p>
-            </div>
-            
-            <button onclick="processBarmanOrder()" class="vamosfesta-button success w-full py-3">
-                <i class="fas fa-check mr-2"></i>Complete Order
-            </button>
-            
-            <button onclick="closeModal('barmanOrderModal')" class="vamosfesta-button secondary w-full">
-                Cancel
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- Overseer Clock-In Modal -->
-<div id="overseerClockInModal" class="modal">
-    <div class="modal-content max-w-md">
-        <div class="flex justify-between items-center mb-4">
-            <h3 id="clockInModalTitle" class="text-xl font-bold vamosfesta-header">
-                <i class="fas fa-clock mr-2"></i>Clock In Staff
-            </h3>
-            <button onclick="closeModal('overseerClockInModal')" class="text-gray-400 hover:text-white">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-        </div>
-        
-        <form onsubmit="event.preventDefault(); clockInStaff();" class="space-y-4">
-            <input type="hidden" id="clockInStaffRole">
-            
-            <div>
-                <label class="block text-sm mb-1">Select Staff Member</label>
-                <select id="clockInStaffSelect" class="vamosfesta-input" required>
-                    <option value="">Choose staff...</option>
-                </select>
-            </div>
-            
-            <div>
-                <label class="block text-sm mb-1">Counter/Station Name</label>
-                <input type="text" id="clockInCounter" class="vamosfesta-input" required placeholder="e.g., Token Counter 1, Bar Station A">
-            </div>
-            
-            <div id="clockInOpeningCashDiv">
-                <label class="block text-sm mb-1">Opening Cash (₹) - For Sales Staff</label>
-                <input type="number" id="clockInOpeningCash" class="vamosfesta-input" min="0" step="0.01" placeholder="0.00">
-            </div>
-            
-            <button type="submit" class="vamosfesta-button success w-full py-3">
-                <i class="fas fa-sign-in-alt mr-2"></i>Clock In Staff
-            </button>
-            
-            <button type="button" onclick="closeModal('overseerClockInModal')" class="vamosfesta-button secondary w-full">
-                Cancel
-            </button>
-        </form>
-    </div>
-</div>
-
-<!-- Overseer Clock-Out & Reconciliation Modal -->
-<div id="overseerClockOutModal" class="modal">
-    <div class="modal-content max-w-lg">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-xl font-bold vamosfesta-header">
-                <i class="fas fa-clock mr-2"></i>Clock Out & Reconcile
-            </h3>
-            <button onclick="closeModal('overseerClockOutModal')" class="text-gray-400 hover:text-white">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-        </div>
-        
-        <div id="clockOutStaffInfo" class="mb-4">
-            <!-- Staff info will be inserted here -->
-        </div>
-        
-        <!-- Token Sales Staff Reconciliation -->
-        <div id="tokenSalesReconciliation" class="space-y-4">
-            <h4 class="font-bold text-yellow-500">
-                <i class="fas fa-coins mr-2"></i>Sales Reconciliation
-            </h4>
-            
-            <div class="card bg-gray-800/50">
-                <p class="text-sm">Opening Cash: <span id="clockOutOpeningCash" class="font-bold">₹0.00</span></p>
-            </div>
-            
-            <div>
-                <label class="block text-sm mb-1">Tokens Sold</label>
-                <input type="number" id="clockOutTokensSold" class="vamosfesta-input" min="0" required>
-            </div>
-            
-            <div>
-                <label class="block text-sm mb-1">Total Cash Collected (₹)</label>
-                <input type="number" id="clockOutCashCollected" class="vamosfesta-input" min="0" step="0.01" required>
-            </div>
-        </div>
-        
-        <!-- Barman Reconciliation -->
-        <div id="barmanReconciliation" class="space-y-4">
-            <h4 class="font-bold text-blue-500">
-                <i class="fas fa-cocktail mr-2"></i>Service Reconciliation
-            </h4>
-            
-            <div>
-                <label class="block text-sm mb-1">Orders Served</label>
-                <input type="number" id="clockOutOrdersServed" class="vamosfesta-input" min="0" required>
-            </div>
-            
-            <div>
-                <label class="block text-sm mb-1">Tokens Processed</label>
-                <input type="number" id="clockOutTokensProcessed" class="vamosfesta-input" min="0" required>
-            </div>
-        </div>
-        
-        <!-- Common Fields -->
-        <div class="space-y-4 mt-4">
-            <div>
-                <label class="block text-sm mb-1">Notes (Optional)</label>
-                <textarea id="clockOutNotes" class="vamosfesta-input" rows="2" placeholder="Any issues or notes..."></textarea>
-            </div>
-            
-            <button onclick="clockOutStaff()" class="vamosfesta-button danger w-full py-3">
-                <i class="fas fa-sign-out-alt mr-2"></i>Clock Out Staff
-            </button>
-            
-            <button onclick="closeModal('overseerClockOutModal')" class="vamosfesta-button secondary w-full">
-                Cancel
-            </button>
-        </div>
-    </div>
-</div>
-
+    <!-- Main JavaScript -->
+    <script src="/main.js"></script>
 </body>
 </html>

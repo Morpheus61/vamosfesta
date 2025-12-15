@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Vamos Festa - Payment</title>
+    <link rel="icon" type="image/png" href="/icons/icon-192.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #1A1A2E 0%, #16213E 50%, #0F3460 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            max-width: 420px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 20px 0;
+        }
+        
+        .logo {
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #D4A853, #F5D799);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .subtitle {
+            color: #888;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+        
+        /* Invoice Card */
+        .invoice-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 25px;
+            margin: 20px 0;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .invoice-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px dashed rgba(255,255,255,0.2);
+        }
+        
+        .invoice-number {
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: #D4A853;
+        }
+        
+        .invoice-status {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-pending { background: #FFC107; color: #000; }
+        .status-confirmed { background: #28A745; color: #fff; }
+        .status-expired { background: #DC3545; color: #fff; }
+        
+        .invoice-detail {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .invoice-detail:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            color: #888;
+            font-size: 0.9rem;
+        }
+        
+        .detail-value {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+        
+        .total-row {
+            background: rgba(212, 168, 83, 0.15);
+            margin: 15px -25px -25px;
+            padding: 20px 25px;
+            border-radius: 0 0 20px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .total-label {
+            font-size: 1.1rem;
+            color: #D4A853;
+        }
+        
+        .total-value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #fff;
+        }
+        
+        /* Payment Options */
+        .payment-section {
+            flex: 1;
+        }
+        
+        .section-title {
+            font-size: 1rem;
+            color: #888;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .payment-option {
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .payment-option:hover {
+            border-color: rgba(212, 168, 83, 0.5);
+            background: rgba(255,255,255,0.08);
+        }
+        
+        .payment-option.selected {
+            border-color: #D4A853;
+            background: rgba(212, 168, 83, 0.15);
+        }
+        
+        .payment-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        
+        .payment-icon.cash { background: linear-gradient(135deg, #28A745, #1e7e34); }
+        .payment-icon.upi { background: linear-gradient(135deg, #007bff, #0056b3); }
+        
+        .payment-info h4 {
+            font-size: 1.1rem;
+            margin-bottom: 3px;
+        }
+        
+        .payment-info p {
+            font-size: 0.8rem;
+            color: #888;
+        }
+        
+        .radio-circle {
+            width: 24px;
+            height: 24px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .payment-option.selected .radio-circle {
+            border-color: #D4A853;
+            background: #D4A853;
+        }
+        
+        .payment-option.selected .radio-circle::after {
+            content: '✓';
+            color: #1A1A2E;
+            font-weight: bold;
+        }
+        
+        /* Submit Button */
+        .submit-btn {
+            width: 100%;
+            padding: 18px;
+            border: none;
+            border-radius: 14px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s;
+        }
+        
+        .submit-btn.ready {
+            background: linear-gradient(135deg, #D4A853, #b8944a);
+            color: #1A1A2E;
+        }
+        
+        .submit-btn.ready:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(212, 168, 83, 0.3);
+        }
+        
+        .submit-btn:disabled {
+            background: rgba(255,255,255,0.1);
+            color: #666;
+            cursor: not-allowed;
+        }
+        
+        /* Messages */
+        .message-card {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        
+        .message-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+        
+        .message-icon.success { color: #28A745; }
+        .message-icon.error { color: #DC3545; }
+        .message-icon.warning { color: #FFC107; }
+        
+        .message-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        
+        .message-text {
+            color: #888;
+            line-height: 1.6;
+        }
+        
+        /* Timer */
+        .timer {
+            text-align: center;
+            margin: 15px 0;
+            padding: 10px;
+            background: rgba(255, 193, 7, 0.1);
+            border-radius: 10px;
+        }
+        
+        .timer-label {
+            font-size: 0.8rem;
+            color: #888;
+        }
+        
+        .timer-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #FFC107;
+        }
+        
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #555;
+            font-size: 0.75rem;
+        }
+        
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(212, 168, 83, 0.2);
+            border-top-color: #D4A853;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">Vamos Festa!</div>
+            <div class="subtitle">🎉 Token Payment</div>
+        </div>
+        
+        <!-- Loading State -->
+        <div id="loadingState" class="loading">
+            <div class="spinner"></div>
+            <p>Loading invoice...</p>
+        </div>
+        
+        <!-- Invoice Details -->
+        <div id="invoiceContent" style="display: none;">
+            <div class="invoice-card">
+                <div class="invoice-header">
+                    <span class="invoice-number" id="invoiceNumber">INV-XXXXXXXX-XXXX</span>
+                    <span class="invoice-status status-pending" id="invoiceStatus">PENDING</span>
+                </div>
+                
+                <div class="invoice-detail">
+                    <span class="detail-label">Guest Name</span>
+                    <span class="detail-value" id="guestName">-</span>
+                </div>
+                
+                <div class="invoice-detail">
+                    <span class="detail-label">Tokens</span>
+                    <span class="detail-value" id="tokenCount">0 tokens</span>
+                </div>
+                
+                <div class="invoice-detail">
+                    <span class="detail-label">Rate</span>
+                    <span class="detail-value" id="tokenRate">₹10/token</span>
+                </div>
+                
+                <div class="total-row">
+                    <span class="total-label">Total Amount</span>
+                    <span class="total-value" id="totalAmount">₹0</span>
+                </div>
+            </div>
+            
+            <!-- Timer -->
+            <div class="timer" id="timerSection">
+                <div class="timer-label">Invoice expires in</div>
+                <div class="timer-value" id="timerValue">30:00</div>
+            </div>
+            
+            <!-- Payment Options -->
+            <div class="payment-section" id="paymentSection">
+                <div class="section-title">Select Payment Method</div>
+                
+                <div class="payment-option" onclick="selectPayment('cash')" id="optionCash">
+                    <div class="payment-icon cash">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <div class="payment-info">
+                        <h4>Cash Payment</h4>
+                        <p>Pay cash to the counter staff</p>
+                    </div>
+                    <div class="radio-circle"></div>
+                </div>
+                
+                <div class="payment-option" onclick="selectPayment('upi')" id="optionUpi">
+                    <div class="payment-icon upi">
+                        <i class="fas fa-mobile-alt"></i>
+                    </div>
+                    <div class="payment-info">
+                        <h4>UPI Payment</h4>
+                        <p>Pay via GPay, PhonePe, Paytm, etc.</p>
+                    </div>
+                    <div class="radio-circle"></div>
+                </div>
+                
+                <button class="submit-btn" id="submitBtn" disabled onclick="submitPaymentChoice()">
+                    Select a payment method
+                </button>
+            </div>
+        </div>
+        
+        <!-- Success Message -->
+        <div id="successMessage" style="display: none;">
+            <div class="message-card">
+                <div class="message-icon success">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="message-title">Payment Choice Sent!</div>
+                <div class="message-text">
+                    Please complete your <strong id="chosenMethod">-</strong> payment at the counter.<br><br>
+                    The seller will confirm once payment is received and your tokens will be credited.
+                </div>
+            </div>
+        </div>
+        
+        <!-- Error Messages -->
+        <div id="errorMessage" style="display: none;">
+            <div class="message-card">
+                <div class="message-icon error">
+                    <i class="fas fa-times-circle"></i>
+                </div>
+                <div class="message-title" id="errorTitle">Error</div>
+                <div class="message-text" id="errorText">Something went wrong.</div>
+            </div>
+        </div>
+        
+        <!-- Expired Message -->
+        <div id="expiredMessage" style="display: none;">
+            <div class="message-card">
+                <div class="message-icon warning">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="message-title">Invoice Expired</div>
+                <div class="message-text">
+                    This invoice has expired.<br>
+                    Please request a new invoice from the token sales counter.
+                </div>
+            </div>
+        </div>
+        
+        <!-- Already Paid Message -->
+        <div id="paidMessage" style="display: none;">
+            <div class="message-card">
+                <div class="message-icon success">
+                    <i class="fas fa-check-double"></i>
+                </div>
+                <div class="message-title">Already Confirmed!</div>
+                <div class="message-text">
+                    This invoice has already been paid and tokens credited to your wallet.<br><br>
+                    <a href="/guest.html" style="color: #D4A853; text-decoration: underline;">Go to Guest Portal →</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            41'ers Clubs of India • Area 8<br>
+            Vamos Festa Event Management
+        </div>
+    </div>
+
+    <script>
+        // Supabase config
+        const supabaseUrl = 'https://nybbovgdsvbwabuqthbd.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55YmJvdmdkc3Zid2FidXF0aGJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ3NTU5NTIsImV4cCI6MjA4MDMzMTk1Mn0.g-1eRhGpiiOICp0tTPjsvAcuIUYur1NIqw1AOt1tugw';
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        
+        let invoiceData = null;
+        let selectedPayment = null;
+        let timerInterval = null;
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            const params = new URLSearchParams(window.location.search);
+            const invoiceId = params.get('inv');
+            
+            if (!invoiceId) {
+                showError('Invalid Link', 'No invoice ID provided. Please use the link from WhatsApp.');
+                return;
+            }
+            
+            await loadInvoice(invoiceId);
+        });
+        
+        async function loadInvoice(invoiceId) {
+            try {
+                const { data: invoice, error } = await supabase
+                    .from('siptoken_invoices')
+                    .select('*, guests(name, phone)')
+                    .eq('id', invoiceId)
+                    .single();
+                
+                if (error || !invoice) {
+                    showError('Invoice Not Found', 'This invoice does not exist or has been removed.');
+                    return;
+                }
+                
+                invoiceData = invoice;
+                
+                // Check status
+                if (invoice.status === 'confirmed') {
+                    showPaid();
+                    return;
+                }
+                
+                if (invoice.status === 'cancelled') {
+                    showError('Invoice Cancelled', 'This invoice has been cancelled.');
+                    return;
+                }
+                
+                // Check expiry
+                const expiresAt = new Date(invoice.expires_at);
+                if (expiresAt < new Date()) {
+                    showExpired();
+                    return;
+                }
+                
+                // Show invoice
+                displayInvoice(invoice);
+                startTimer(expiresAt);
+                
+            } catch (error) {
+                console.error('Error loading invoice:', error);
+                showError('Error', 'Failed to load invoice. Please try again.');
+            }
+        }
+        
+        function displayInvoice(invoice) {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('invoiceContent').style.display = 'block';
+            
+            document.getElementById('invoiceNumber').textContent = invoice.invoice_number;
+            document.getElementById('guestName').textContent = invoice.guests?.name || 'Guest';
+            document.getElementById('tokenCount').textContent = `${invoice.tokens_requested} tokens`;
+            document.getElementById('tokenRate').textContent = `₹${invoice.token_rate}/token`;
+            document.getElementById('totalAmount').textContent = `₹${invoice.amount}`;
+        }
+        
+        function startTimer(expiresAt) {
+            function updateTimer() {
+                const now = new Date();
+                const diff = expiresAt - now;
+                
+                if (diff <= 0) {
+                    clearInterval(timerInterval);
+                    showExpired();
+                    return;
+                }
+                
+                const minutes = Math.floor(diff / 60000);
+                const seconds = Math.floor((diff % 60000) / 1000);
+                document.getElementById('timerValue').textContent = 
+                    `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }
+            
+            updateTimer();
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+        
+        function selectPayment(method) {
+            selectedPayment = method;
+            
+            // Update UI
+            document.getElementById('optionCash').classList.remove('selected');
+            document.getElementById('optionUpi').classList.remove('selected');
+            document.getElementById(`option${method.charAt(0).toUpperCase() + method.slice(1)}`).classList.add('selected');
+            
+            // Enable button
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = false;
+            btn.classList.add('ready');
+            btn.textContent = `Confirm ${method.toUpperCase()} Payment`;
+        }
+        
+        async function submitPaymentChoice() {
+            if (!selectedPayment || !invoiceData) return;
+            
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.textContent = 'Submitting...';
+            
+            try {
+                // Update invoice with guest's payment choice
+                const { error } = await supabase
+                    .from('siptoken_invoices')
+                    .update({
+                        guest_payment_response: {
+                            method: selectedPayment,
+                            submitted_at: new Date().toISOString()
+                        }
+                    })
+                    .eq('id', invoiceData.id);
+                
+                if (error) throw error;
+                
+                // Show success
+                document.getElementById('invoiceContent').style.display = 'none';
+                document.getElementById('successMessage').style.display = 'block';
+                document.getElementById('chosenMethod').textContent = selectedPayment.toUpperCase();
+                
+                clearInterval(timerInterval);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                btn.disabled = false;
+                btn.textContent = `Confirm ${selectedPayment.toUpperCase()} Payment`;
+                alert('Failed to submit. Please try again.');
+            }
+        }
+        
+        function showError(title, text) {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'block';
+            document.getElementById('errorTitle').textContent = title;
+            document.getElementById('errorText').textContent = text;
+        }
+        
+        function showExpired() {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('invoiceContent').style.display = 'none';
+            document.getElementById('expiredMessage').style.display = 'block';
+        }
+        
+        function showPaid() {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('paidMessage').style.display = 'block';
+        }
+    </script>
+</body>
+</html>

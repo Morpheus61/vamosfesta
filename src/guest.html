@@ -4,239 +4,300 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Vamos Festa - Guest Portal</title>
-    
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" href="/icons/favicon-32x32.png">
-    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1A1A2E">
+    <link rel="icon" type="image/png" href="/favicon.png">
     
     <!-- Fonts & Icons -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- QR Code Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- QR Scanner -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     
     <style>
+        :root {
+            --gold: #D4A853;
+            --gold-dark: #b8944a;
+            --dark-bg: #1A1A2E;
+            --dark-secondary: #16213E;
+            --dark-card: #252542;
+            --success: #28A745;
+            --danger: #DC3545;
+            --info: #17A2B8;
+            --warning: #FFC107;
+            --purple: #6F42C1;
+            --orange: #FF6B35;
+        }
+        
         * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
         
         body {
-            font-family: 'Poppins', sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--dark-bg) 0%, var(--dark-secondary) 50%, var(--dark-bg) 100%);
             min-height: 100vh;
             color: #fff;
         }
         
         /* Header */
         .header {
-            background: rgba(0, 0, 0, 0.5);
-            padding: 1rem;
+            background: rgba(26, 26, 46, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 15px 20px;
             position: sticky;
             top: 0;
             z-index: 100;
-            border-bottom: 2px solid rgba(255, 107, 53, 0.3);
+            border-bottom: 1px solid rgba(212, 168, 83, 0.3);
         }
         
         .header-content {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            max-width: 500px;
+            max-width: 600px;
             margin: 0 auto;
         }
         
         .logo {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--gold);
+            letter-spacing: 2px;
         }
         
-        .logo img {
-            width: 40px;
-            height: 40px;
-            object-fit: contain;
-        }
-        
-        .logo-text {
-            font-size: 1.2rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, #FF6B35, #FFD60A);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .balance-display {
-            background: linear-gradient(135deg, #FF6B35, #FFD60A);
-            color: #1a1a2e;
-            padding: 0.5rem 1rem;
-            border-radius: 2rem;
+        .balance-badge {
+            background: var(--gold);
+            color: var(--dark-bg);
+            padding: 8px 15px;
+            border-radius: 20px;
             font-weight: 700;
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 8px;
         }
         
-        /* Main Container */
-        .container {
-            max-width: 500px;
+        /* Tab Navigation */
+        .tab-nav {
+            display: flex;
+            max-width: 600px;
             margin: 0 auto;
-            padding: 1rem;
-            padding-bottom: 100px;
+            background: var(--dark-card);
+            border-radius: 12px;
+            padding: 5px;
+            margin-top: 15px;
+            margin-left: 15px;
+            margin-right: 15px;
         }
         
-        /* Welcome Card */
-        .welcome-card {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 1rem;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-            border: 1px solid rgba(255, 107, 53, 0.3);
-        }
-        
-        .guest-name {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #FFD60A;
-        }
-        
-        .guest-phone {
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 0.9rem;
-        }
-        
-        /* Tabs */
-        .tabs {
-            display: flex;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 1rem;
-            padding: 0.25rem;
-            margin-bottom: 1rem;
-        }
-        
-        .tab {
+        .tab-btn {
             flex: 1;
-            padding: 0.75rem;
-            text-align: center;
-            border-radius: 0.75rem;
-            cursor: pointer;
-            transition: all 0.3s;
+            padding: 12px;
+            border: none;
+            background: transparent;
+            color: #888;
+            font-size: 0.95rem;
             font-weight: 600;
-            font-size: 0.85rem;
+            cursor: pointer;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
         
-        .tab.active {
-            background: linear-gradient(135deg, #FF6B35, #FFD60A);
-            color: #1a1a2e;
+        .tab-btn.active {
+            background: var(--gold);
+            color: var(--dark-bg);
         }
         
-        .tab:not(.active) {
-            color: rgba(255, 255, 255, 0.7);
+        /* Main Content */
+        .main-content {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px 15px;
         }
         
-        /* Tab Content */
         .tab-content {
             display: none;
         }
         
         .tab-content.active {
             display: block;
+            animation: fadeIn 0.3s ease;
         }
         
-        /* Category Section */
-        .category-section {
-            margin-bottom: 1.5rem;
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         
-        .category-title {
-            font-size: 1rem;
-            font-weight: 700;
-            color: #FFD60A;
-            margin-bottom: 0.75rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+        /* Cards */
+        .card {
+            background: var(--dark-card);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border: 1px solid rgba(255,255,255,0.1);
         }
         
-        /* Menu Items */
-        .menu-grid {
-            display: grid;
-            gap: 0.75rem;
-        }
-        
-        .menu-item {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 0.75rem;
-            padding: 1rem;
+        .card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border: 1px solid transparent;
-            transition: all 0.3s;
+            margin-bottom: 15px;
         }
         
-        .menu-item.selected {
-            border-color: #FFD60A;
-            background: rgba(255, 214, 10, 0.1);
-        }
-        
-        .menu-item.unavailable {
-            opacity: 0.5;
-            pointer-events: none;
-        }
-        
-        .item-info {
-            flex: 1;
-        }
-        
-        .item-name {
+        .card-title {
+            font-size: 1.1rem;
             font-weight: 600;
-            font-size: 0.95rem;
+            color: var(--gold);
         }
         
-        .item-desc {
-            font-size: 0.75rem;
-            color: rgba(255, 255, 255, 0.6);
-        }
-        
-        .item-price {
-            background: rgba(255, 107, 53, 0.2);
-            color: #FF6B35;
-            padding: 0.25rem 0.75rem;
-            border-radius: 1rem;
-            font-weight: 700;
-            font-size: 0.85rem;
-            margin-right: 0.75rem;
-        }
-        
-        .item-price.free {
-            background: rgba(76, 175, 80, 0.2);
-            color: #4CAF50;
-        }
-        
-        /* Quantity Controls */
-        .quantity-controls {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .qty-btn {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
+        /* Scan Counter Button */
+        .scan-counter-btn {
+            width: 100%;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--purple), var(--gold-dark));
             border: none;
-            background: linear-gradient(135deg, #FF6B35, #FFD60A);
-            color: #1a1a2e;
-            font-size: 1rem;
-            font-weight: 700;
+            border-radius: 16px;
+            color: #fff;
+            font-size: 1.1rem;
+            font-weight: 600;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .scan-counter-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .scan-counter-btn i {
+            font-size: 1.5rem;
+        }
+        
+        .counter-badge {
+            background: var(--success);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .counter-badge .counter-name {
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        
+        .counter-badge .counter-hint {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            margin-top: 3px;
+        }
+        
+        /* Menu Categories */
+        .category-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+        }
+        
+        .category-tab {
+            padding: 8px 16px;
+            background: var(--dark-card);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            color: #888;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .category-tab.active {
+            background: var(--gold);
+            color: var(--dark-bg);
+            border-color: var(--gold);
+        }
+        
+        /* Menu Items */
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            margin-bottom: 10px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .menu-item.unavailable {
+            opacity: 0.4;
+            pointer-events: none;
+        }
+        
+        .menu-item-icon {
+            font-size: 2rem;
+            margin-right: 15px;
+        }
+        
+        .menu-item-info {
+            flex: 1;
+        }
+        
+        .menu-item-name {
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+        
+        .menu-item-measure {
+            font-size: 0.8rem;
+            color: #888;
+        }
+        
+        .menu-item-price {
+            color: var(--gold);
+            font-weight: 700;
+            margin-right: 15px;
+            white-space: nowrap;
+        }
+        
+        .quantity-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .qty-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 2px solid var(--gold);
+            background: transparent;
+            color: var(--gold);
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .qty-btn:active {
+            background: var(--gold);
+            color: var(--dark-bg);
         }
         
         .qty-btn:disabled {
@@ -245,878 +306,793 @@
         }
         
         .qty-value {
-            width: 30px;
+            min-width: 24px;
             text-align: center;
             font-weight: 700;
+            font-size: 1.1rem;
         }
         
-        /* Cart Summary (Fixed at bottom) */
+        /* Cart Summary */
         .cart-summary {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            background: rgba(26, 26, 46, 0.98);
-            border-top: 2px solid #FF6B35;
-            padding: 1rem;
-            z-index: 100;
+            background: var(--dark-card);
+            border-top: 2px solid var(--gold);
+            padding: 15px 20px;
             display: none;
+            z-index: 90;
         }
         
         .cart-summary.visible {
             display: block;
+            animation: slideUp 0.3s ease;
         }
         
-        .cart-content {
-            max-width: 500px;
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        
+        .cart-summary-content {
+            max-width: 600px;
             margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         
         .cart-info {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.75rem;
+            flex-direction: column;
         }
         
         .cart-items-count {
-            font-size: 0.9rem;
-            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.85rem;
+            color: #888;
         }
         
         .cart-total {
-            font-size: 1.25rem;
+            font-size: 1.3rem;
             font-weight: 700;
-            color: #FFD60A;
+            color: var(--gold);
         }
         
-        .checkout-btn {
-            width: 100%;
-            padding: 1rem;
+        .submit-order-btn {
+            background: var(--gold);
+            color: var(--dark-bg);
+            padding: 12px 30px;
             border: none;
-            border-radius: 0.75rem;
-            background: linear-gradient(135deg, #FF6B35, #FFD60A);
-            color: #1a1a2e;
+            border-radius: 12px;
             font-size: 1rem;
             font-weight: 700;
             cursor: pointer;
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
+            gap: 8px;
         }
         
-        .checkout-btn:disabled {
+        .submit-order-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
         
-        /* Order Review Modal */
+        /* Wallet Tab */
+        .balance-card {
+            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            color: var(--dark-bg);
+        }
+        
+        .balance-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+        
+        .balance-value {
+            font-size: 3rem;
+            font-weight: 800;
+        }
+        
+        .balance-unit {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .buy-more-btn {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 10px 25px;
+            background: var(--dark-bg);
+            color: var(--gold);
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        /* Transaction List */
+        .transaction-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            margin-bottom: 10px;
+        }
+        
+        .transaction-icon {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-size: 1.2rem;
+        }
+        
+        .transaction-icon.credit {
+            background: rgba(40, 167, 69, 0.2);
+            color: var(--success);
+        }
+        
+        .transaction-icon.debit {
+            background: rgba(220, 53, 69, 0.2);
+            color: var(--danger);
+        }
+        
+        .transaction-info {
+            flex: 1;
+        }
+        
+        .transaction-title {
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+        
+        .transaction-date {
+            font-size: 0.8rem;
+            color: #888;
+        }
+        
+        .transaction-amount {
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        
+        .transaction-amount.credit {
+            color: var(--success);
+        }
+        
+        .transaction-amount.debit {
+            color: var(--danger);
+        }
+        
+        /* Order Status */
+        .active-order {
+            background: linear-gradient(135deg, rgba(111, 66, 193, 0.2), rgba(212, 168, 83, 0.1));
+            border: 2px solid var(--purple);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .order-status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .order-status-badge.pending {
+            background: var(--warning);
+            color: var(--dark-bg);
+        }
+        
+        .order-status-badge.accepted {
+            background: var(--info);
+            color: #fff;
+        }
+        
+        .order-status-badge.preparing {
+            background: var(--purple);
+            color: #fff;
+        }
+        
+        .order-status-badge.served {
+            background: var(--success);
+            color: #fff;
+        }
+        
+        /* Modal */
         .modal {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.9);
+            inset: 0;
+            background: rgba(0,0,0,0.8);
             z-index: 200;
             align-items: center;
             justify-content: center;
-            padding: 1rem;
+            padding: 20px;
         }
         
-        .modal.visible {
+        .modal.active {
             display: flex;
         }
         
         .modal-content {
-            background: linear-gradient(135deg, #1a1a2e, #16213e);
-            border-radius: 1rem;
+            background: var(--dark-card);
+            border-radius: 20px;
             width: 100%;
             max-width: 400px;
             max-height: 90vh;
             overflow-y: auto;
-            border: 2px solid rgba(255, 107, 53, 0.5);
         }
         
         .modal-header {
-            padding: 1.25rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
         
         .modal-title {
-            font-size: 1.25rem;
+            font-size: 1.2rem;
             font-weight: 700;
-            color: #FFD60A;
+            color: var(--gold);
         }
         
         .modal-close {
             background: none;
             border: none;
-            color: #fff;
+            color: #888;
             font-size: 1.5rem;
             cursor: pointer;
-            padding: 0.5rem;
         }
         
         .modal-body {
-            padding: 1.25rem;
+            padding: 20px;
         }
         
-        /* Order Items List */
-        .order-items-list {
-            margin-bottom: 1rem;
-        }
-        
-        .order-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.75rem 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .order-item:last-child {
-            border-bottom: none;
-        }
-        
-        .order-item-name {
-            font-weight: 500;
-        }
-        
-        .order-item-qty {
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 0.85rem;
-        }
-        
-        .order-item-tokens {
-            color: #FFD60A;
-            font-weight: 700;
-        }
-        
-        /* Order Total */
-        .order-total {
-            background: rgba(255, 214, 10, 0.1);
-            border-radius: 0.75rem;
-            padding: 1rem;
-            margin-bottom: 1rem;
-        }
-        
-        .total-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 0.5rem;
-        }
-        
-        .total-row.final {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: #FFD60A;
-            border-top: 1px solid rgba(255, 255, 255, 0.2);
-            padding-top: 0.5rem;
-            margin-top: 0.5rem;
-        }
-        
-        /* QR Display */
-        .qr-display {
-            text-align: center;
-            padding: 1.5rem;
-        }
-        
-        .qr-code-container {
-            background: #fff;
-            padding: 1rem;
-            border-radius: 1rem;
-            display: inline-block;
-            margin-bottom: 1rem;
-        }
-        
-        .qr-timer {
-            font-size: 2rem;
-            font-weight: 700;
-            color: #FF6B35;
-            margin-bottom: 0.5rem;
-        }
-        
-        .qr-timer.expiring {
-            color: #ff4444;
-            animation: pulse 1s infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        
-        .qr-instruction {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 0.9rem;
-        }
-        
-        .order-number {
-            background: rgba(255, 107, 53, 0.2);
-            color: #FF6B35;
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            font-weight: 700;
-            display: inline-block;
-            margin-bottom: 1rem;
-        }
-        
-        /* Action Buttons */
-        .action-btn {
+        /* QR Scanner */
+        #qr-reader {
             width: 100%;
-            padding: 1rem;
-            border: none;
-            border-radius: 0.75rem;
-            font-size: 1rem;
-            font-weight: 700;
-            cursor: pointer;
-            margin-bottom: 0.75rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
+            border-radius: 12px;
+            overflow: hidden;
         }
         
-        .action-btn.primary {
-            background: linear-gradient(135deg, #FF6B35, #FFD60A);
-            color: #1a1a2e;
-        }
-        
-        .action-btn.secondary {
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-        
-        .action-btn.danger {
-            background: rgba(244, 67, 54, 0.2);
-            color: #f44336;
-            border: 1px solid rgba(244, 67, 54, 0.5);
-        }
-        
-        /* Orders History */
-        .orders-list {
-            display: grid;
-            gap: 0.75rem;
-        }
-        
-        .order-card {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 0.75rem;
-            padding: 1rem;
-            border-left: 4px solid #FF6B35;
-        }
-        
-        .order-card.pending {
-            border-left-color: #FFD60A;
-        }
-        
-        .order-card.served {
-            border-left-color: #4CAF50;
-        }
-        
-        .order-card.cancelled, .order-card.rejected, .order-card.expired {
-            border-left-color: #f44336;
-        }
-        
-        .order-card.refunded {
-            border-left-color: #9C27B0;
-        }
-        
-        .order-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.5rem;
-        }
-        
-        .order-card-number {
-            font-weight: 700;
-            color: #FFD60A;
-        }
-        
-        .order-card-status {
-            font-size: 0.75rem;
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.25rem;
-            font-weight: 600;
-        }
-        
-        .status-pending { background: rgba(255, 214, 10, 0.2); color: #FFD60A; }
-        .status-served { background: rgba(76, 175, 80, 0.2); color: #4CAF50; }
-        .status-cancelled, .status-rejected, .status-expired { background: rgba(244, 67, 54, 0.2); color: #f44336; }
-        .status-refunded { background: rgba(156, 39, 176, 0.2); color: #9C27B0; }
-        
-        .order-card-items {
-            font-size: 0.85rem;
-            color: rgba(255, 255, 255, 0.8);
-            margin-bottom: 0.5rem;
-        }
-        
-        .order-card-footer {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.8rem;
-            color: rgba(255, 255, 255, 0.6);
-        }
-        
-        /* Login Screen - Full Background */
-        .login-screen {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-end;
-            padding: 2rem;
-            background-image: url('/vamos_festa_logo.png');
-            background-size: cover;
-            background-position: center top;
-            background-repeat: no-repeat;
-            position: relative;
-        }
-        
-        .login-screen::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(
-                to bottom,
-                transparent 0%,
-                transparent 40%,
-                rgba(26, 26, 46, 0.7) 60%,
-                rgba(26, 26, 46, 0.95) 80%,
-                rgba(26, 26, 46, 1) 100%
-            );
-            z-index: 1;
-        }
-        
-        .login-content {
-            position: relative;
-            z-index: 2;
-            width: 100%;
-            max-width: 350px;
-            padding-bottom: 2rem;
-        }
-        
-        .login-title {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #FFD60A;
-            margin-bottom: 0.5rem;
-            text-align: center;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-        }
-        
-        .login-subtitle {
-            color: rgba(255, 255, 255, 0.9);
-            margin-bottom: 1.5rem;
-            text-align: center;
-            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
-        }
-        
-        .login-form {
-            width: 100%;
-        }
-        
-        .input-group {
-            margin-bottom: 1rem;
-        }
-        
-        .input-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-size: 0.9rem;
-            color: rgba(255, 255, 255, 0.8);
-        }
-        
-        .input-group input {
-            width: 100%;
-            padding: 1rem;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 0.75rem;
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
-            font-size: 1rem;
-            font-family: inherit;
-        }
-        
-        .input-group input:focus {
-            outline: none;
-            border-color: #FF6B35;
-        }
-        
-        .input-group input::placeholder {
-            color: rgba(255, 255, 255, 0.5);
-        }
-        
-        /* Loading Spinner */
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-top-color: #FF6B35;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 2rem auto;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 3rem 1rem;
-            color: rgba(255, 255, 255, 0.6);
-        }
-        
-        .empty-state i {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            color: rgba(255, 107, 53, 0.5);
+        #qr-reader video {
+            border-radius: 12px;
         }
         
         /* Toast */
         .toast {
             position: fixed;
-            top: 1rem;
+            bottom: 100px;
             left: 50%;
             transform: translateX(-50%);
-            background: #1a1a2e;
-            color: #fff;
-            padding: 1rem 1.5rem;
-            border-radius: 0.75rem;
-            z-index: 300;
+            background: var(--dark-card);
+            padding: 15px 25px;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
             display: none;
-            border: 1px solid rgba(255, 107, 53, 0.5);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            z-index: 300;
+            max-width: 90%;
+            text-align: center;
         }
         
-        .toast.visible {
+        .toast.show {
             display: block;
-            animation: slideDown 0.3s ease;
+            animation: toastIn 0.3s ease;
         }
         
-        @keyframes slideDown {
-            from { transform: translateX(-50%) translateY(-100%); }
-            to { transform: translateX(-50%) translateY(0); }
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
         }
         
-        .toast.success { border-color: #4CAF50; }
-        .toast.error { border-color: #f44336; }
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #888;
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+        
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+        
+        .loading i {
+            font-size: 2rem;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Footer spacing for cart */
+        .footer-spacer {
+            height: 100px;
+        }
     </style>
 </head>
 <body>
-    <!-- Toast Notification -->
-    <div id="toast" class="toast"></div>
-    
-    <!-- Login Screen -->
-    <div id="loginScreen" class="login-screen">
-        <!-- Spacer to push content below mustache -->
-        <div style="flex: 1; min-height: 62vh;"></div>
-        
-        <div class="login-content">
-            <h1 class="login-title">🍹 Guest Portal</h1>
-            <p class="login-subtitle">Enter your phone number to view your tokens and order drinks</p>
-            
-            <form class="login-form" onsubmit="handleLogin(event)">
-                <div class="input-group">
-                    <label for="phoneInput">Phone Number</label>
-                    <input type="tel" id="phoneInput" placeholder="Enter 10-digit mobile number" 
-                           pattern="[0-9]{10}" maxlength="10" required>
-                </div>
-                <button type="submit" class="action-btn primary">
-                    <i class="fas fa-sign-in-alt"></i> Access My Tokens
-                </button>
-            </form>
-            
-            <p style="text-align: center; margin-top: 1.5rem; font-size: 0.8rem; color: rgba(255,255,255,0.6);">
-                •Viva la Fiesta• Area 8 •
-            </p>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">VAMOS FESTA</div>
+            <div class="balance-badge">
+                <i class="fas fa-coins"></i>
+                <span id="headerBalance">0</span>
+            </div>
         </div>
-    </div>
-    
-    <!-- Main Portal (Hidden initially) -->
-    <div id="mainPortal" style="display: none;">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-content">
-                <div class="logo">
-                    <img src="/vamos_festa_logo.png" alt="Vamos Festa">
-                    <span class="logo-text">VAMOS FESTA</span>
-                </div>
-                <div class="balance-display">
-                    <i class="fas fa-coins"></i>
-                    <span id="tokenBalance">0</span>
-                </div>
-            </div>
-        </header>
+    </header>
+
+    <!-- Tab Navigation -->
+    <nav class="tab-nav">
+        <button class="tab-btn active" data-tab="menu">
+            <i class="fas fa-glass-martini-alt"></i>
+            <span>Menu</span>
+        </button>
+        <button class="tab-btn" data-tab="wallet">
+            <i class="fas fa-wallet"></i>
+            <span>My Wallet</span>
+        </button>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
         
-        <!-- Main Container -->
-        <div class="container">
-            <!-- Welcome Card -->
-            <div class="welcome-card">
-                <div class="guest-name" id="guestName">Welcome!</div>
-                <div class="guest-phone" id="guestPhone"></div>
+        <!-- Menu Tab -->
+        <div id="menuTab" class="tab-content active">
+            
+            <!-- Scan Counter Button (shown when no counter selected) -->
+            <div id="scanCounterSection">
+                <button class="scan-counter-btn" onclick="openCounterScanner()">
+                    <i class="fas fa-qrcode"></i>
+                    <span>Scan Bar Counter to Order</span>
+                </button>
+                <p style="text-align: center; color: #888; font-size: 0.9rem;">
+                    Scan the QR code at any bar counter to start ordering
+                </p>
             </div>
             
-            <!-- Tabs -->
-            <div class="tabs">
-                <div class="tab active" onclick="showTab('menu')">
-                    <i class="fas fa-utensils"></i> Menu
+            <!-- Counter Selected (hidden initially) -->
+            <div id="counterSelectedSection" style="display: none;">
+                <div class="counter-badge">
+                    <div class="counter-name" id="selectedCounterName">Main Bar</div>
+                    <div class="counter-hint">Your order will be sent here</div>
                 </div>
-                <div class="tab" onclick="showTab('orders')">
-                    <i class="fas fa-receipt"></i> Orders
+                
+                <!-- Category Tabs -->
+                <div class="category-tabs">
+                    <button class="category-tab active" data-category="all">All</button>
+                    <button class="category-tab" data-category="alcoholic">🍺 Alcoholic</button>
+                    <button class="category-tab" data-category="non_alcoholic">🥤 Non-Alcoholic</button>
+                    <button class="category-tab" data-category="snacks">🍿 Snacks</button>
                 </div>
-                <div class="tab" onclick="showTab('history')">
-                    <i class="fas fa-history"></i> History
+                
+                <!-- Menu Items -->
+                <div id="menuItems">
+                    <div class="loading">
+                        <i class="fas fa-spinner"></i>
+                        <p>Loading menu...</p>
+                    </div>
+                </div>
+                
+                <!-- Change Counter -->
+                <div style="text-align: center; margin-top: 20px;">
+                    <button onclick="changeCounter()" style="background: none; border: none; color: var(--gold); font-size: 0.9rem; cursor: pointer;">
+                        <i class="fas fa-sync-alt"></i> Change Counter
+                    </button>
                 </div>
             </div>
             
-            <!-- Menu Tab -->
-            <div id="menuTab" class="tab-content active">
-                <div id="menuContainer">
-                    <div class="spinner"></div>
+            <!-- Active Order Status -->
+            <div id="activeOrderSection" style="display: none;">
+                <div class="active-order">
+                    <span class="order-status-badge" id="activeOrderStatus">Pending</span>
+                    <h3 style="margin-bottom: 10px;">Order #<span id="activeOrderNumber">---</span></h3>
+                    <div id="activeOrderItems"></div>
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Total:</span>
+                            <span style="color: var(--gold); font-weight: 700;" id="activeOrderTotal">0 tokens</span>
+                        </div>
+                    </div>
+                    <p style="font-size: 0.8rem; color: #888; margin-top: 10px;" id="activeOrderMessage">
+                        Waiting for barman to accept...
+                    </p>
                 </div>
             </div>
             
-            <!-- Active Orders Tab -->
-            <div id="ordersTab" class="tab-content">
-                <div id="activeOrdersContainer">
-                    <div class="empty-state">
-                        <i class="fas fa-glass-cheers"></i>
-                        <p>No pending orders</p>
-                        <p style="font-size: 0.85rem;">Order from the menu to get started!</p>
+            <div class="footer-spacer"></div>
+        </div>
+        
+        <!-- Wallet Tab -->
+        <div id="walletTab" class="tab-content">
+            
+            <!-- Balance Card -->
+            <div class="balance-card">
+                <div class="balance-label">Current Balance</div>
+                <div class="balance-value" id="walletBalance">0</div>
+                <div class="balance-unit">tokens</div>
+                <a href="#" class="buy-more-btn" id="buyMoreBtn">
+                    <i class="fas fa-plus"></i> Buy More Tokens
+                </a>
+            </div>
+            
+            <!-- Transaction History -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-history"></i> Transaction History
+                    </h3>
+                </div>
+                <div id="transactionList">
+                    <div class="loading">
+                        <i class="fas fa-spinner"></i>
+                        <p>Loading transactions...</p>
                     </div>
                 </div>
             </div>
             
-            <!-- History Tab -->
-            <div id="historyTab" class="tab-content">
-                <div id="orderHistoryContainer">
-                    <div class="empty-state">
-                        <i class="fas fa-clock"></i>
-                        <p>No order history yet</p>
-                    </div>
-                </div>
-            </div>
         </div>
         
-        <!-- Cart Summary (Fixed at bottom) -->
-        <div id="cartSummary" class="cart-summary">
-            <div class="cart-content">
-                <div class="cart-info">
-                    <span class="cart-items-count"><span id="cartItemCount">0</span> items</span>
-                    <span class="cart-total"><span id="cartTotal">0</span> tokens</span>
-                </div>
-                <button class="checkout-btn" onclick="showOrderReview()">
-                    <i class="fas fa-shopping-cart"></i> Review Order
-                </button>
+    </main>
+
+    <!-- Cart Summary (Fixed Bottom) -->
+    <div class="cart-summary" id="cartSummary">
+        <div class="cart-summary-content">
+            <div class="cart-info">
+                <span class="cart-items-count"><span id="cartItemCount">0</span> items</span>
+                <span class="cart-total"><span id="cartTotal">0</span> tokens</span>
             </div>
+            <button class="submit-order-btn" id="submitOrderBtn" onclick="submitOrder()">
+                <i class="fas fa-paper-plane"></i>
+                Submit Order
+            </button>
         </div>
     </div>
-    
-    <!-- Order Review Modal -->
-    <div id="orderReviewModal" class="modal">
+
+    <!-- Counter Scanner Modal -->
+    <div class="modal" id="scannerModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 class="modal-title"><i class="fas fa-shopping-cart"></i> Review Order</h2>
-                <button class="modal-close" onclick="closeModal('orderReviewModal')">&times;</button>
+                <h3 class="modal-title">Scan Counter QR</h3>
+                <button class="modal-close" onclick="closeScannerModal()">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
             <div class="modal-body">
-                <div id="orderReviewItems" class="order-items-list"></div>
-                
-                <div class="order-total">
-                    <div class="total-row">
-                        <span>Current Balance</span>
-                        <span id="reviewCurrentBalance">0 tokens</span>
-                    </div>
-                    <div class="total-row">
-                        <span>Order Total</span>
-                        <span id="reviewOrderTotal">0 tokens</span>
-                    </div>
-                    <div class="total-row final">
-                        <span>Balance After</span>
-                        <span id="reviewBalanceAfter">0 tokens</span>
-                    </div>
-                </div>
-                
-                <button class="action-btn primary" onclick="confirmOrder()">
-                    <i class="fas fa-check"></i> Confirm & Get QR Code
-                </button>
-                <button class="action-btn secondary" onclick="closeModal('orderReviewModal')">
-                    <i class="fas fa-edit"></i> Edit Order
-                </button>
+                <div id="qr-reader"></div>
+                <p style="text-align: center; margin-top: 15px; color: #888; font-size: 0.9rem;">
+                    Point your camera at the bar counter's QR code
+                </p>
             </div>
         </div>
     </div>
-    
-    <!-- Order QR Modal -->
-    <div id="orderQRModal" class="modal">
+
+    <!-- Order Confirmation Modal -->
+    <div class="modal" id="orderConfirmModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 class="modal-title"><i class="fas fa-qrcode"></i> Order Ready!</h2>
-                <button class="modal-close" onclick="closeModal('orderQRModal')">&times;</button>
+                <h3 class="modal-title">Confirm Order</h3>
+                <button class="modal-close" onclick="closeOrderConfirmModal()">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
             <div class="modal-body">
-                <div class="qr-display">
-                    <div class="order-number" id="qrOrderNumber">#VF-0000</div>
-                    
-                    <div class="qr-code-container">
-                        <div id="qrCodeDisplay"></div>
+                <div id="orderConfirmItems"></div>
+                <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                        <span style="color: #888;">Counter:</span>
+                        <span id="orderConfirmCounter">Main Bar</span>
                     </div>
-                    
-                    <div class="qr-timer" id="qrTimer">5:00</div>
-                    <p class="qr-instruction">Show this QR code to the Barman</p>
-                    
-                    <div id="qrOrderSummary" style="margin-top: 1rem; font-size: 0.85rem; color: rgba(255,255,255,0.7);"></div>
+                    <div style="display: flex; justify-content: space-between; font-size: 1.2rem;">
+                        <span>Total:</span>
+                        <span style="color: var(--gold); font-weight: 700;" id="orderConfirmTotal">0 tokens</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 0.9rem;">
+                        <span style="color: #888;">Balance after:</span>
+                        <span id="orderConfirmBalanceAfter">0 tokens</span>
+                    </div>
                 </div>
-                
-                <button class="action-btn danger" onclick="cancelOrder()">
-                    <i class="fas fa-times"></i> Cancel Order
+                <button class="submit-order-btn" style="width: 100%; margin-top: 20px;" onclick="confirmOrder()">
+                    <i class="fas fa-check"></i>
+                    Confirm Order
                 </button>
             </div>
         </div>
     </div>
-    
-    <!-- Supabase -->
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Supabase SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <script>
         // =====================================================
-        // GUEST PORTAL - VAMOS FESTA
+        // CONFIGURATION
         // =====================================================
         
-        // Supabase Configuration
         const SUPABASE_URL = 'https://bruwwqxeevqnbhunrhia.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJydXd3cXhlZXZxbmJodW5yaGlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MzIwMjksImV4cCI6MjA4MTEwODAyOX0.dhmkH6aUudxm3eUZblRe9Iah1RWEr5fz8PzcPNqh4tw';
         
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
-        // Global State
-        let currentGuest = null;
-        let currentWallet = null;
+        // =====================================================
+        // GLOBAL STATE
+        // =====================================================
+        
+        let guestId = null;
+        let walletId = null;
+        let tokenBalance = 0;
+        let selectedCounter = null;
         let menuItems = [];
-        let cart = {}; // { itemId: quantity }
-        let currentOrder = null;
-        let qrTimerInterval = null;
+        let cart = {};  // { itemId: quantity }
+        let activeOrder = null;
+        let qrScanner = null;
         
         // =====================================================
         // INITIALIZATION
         // =====================================================
         
-        document.addEventListener('DOMContentLoaded', () => {
-            // Check for auto-login token in URL
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Get guest ID from URL
             const urlParams = new URLSearchParams(window.location.search);
-            const authToken = urlParams.get('token');
-            const phone = urlParams.get('phone');
+            guestId = urlParams.get('guest') || urlParams.get('g');
             
-            if (authToken) {
-                autoLoginWithToken(authToken);
-            } else if (phone) {
-                document.getElementById('phoneInput').value = phone;
-                handleLogin({ preventDefault: () => {} });
-            }
-        });
-        
-        // =====================================================
-        // AUTHENTICATION
-        // =====================================================
-        
-        async function autoLoginWithToken(token) {
-            try {
-                const { data: authData, error } = await supabase
-                    .from('guest_auth_tokens')
-                    .select('*, guests(*)')
-                    .eq('auth_token', token)
-                    .gt('expires_at', new Date().toISOString())
-                    .single();
-                
-                if (error || !authData) {
-                    showToast('Session expired. Please enter your phone number.', 'error');
-                    return;
-                }
-                
-                await loginGuest(authData.guest_phone);
-                
-            } catch (error) {
-                console.error('Auto-login error:', error);
-            }
-        }
-        
-        async function handleLogin(event) {
-            event.preventDefault();
-            
-            const phone = document.getElementById('phoneInput').value.trim();
-            if (!phone || phone.length !== 10) {
-                showToast('Please enter a valid 10-digit phone number', 'error');
+            if (!guestId) {
+                showToast('Invalid access link. Please use the link sent to you.', 'error');
                 return;
             }
             
-            await loginGuest(phone);
-        }
+            // Initialize
+            await loadGuestData();
+            await loadMenu();
+            setupTabs();
+            setupCategoryTabs();
+            
+            // Check for active order
+            await checkActiveOrder();
+            
+            // Setup real-time updates
+            setupRealtimeUpdates();
+        });
         
-        async function loginGuest(phone) {
+        // =====================================================
+        // DATA LOADING
+        // =====================================================
+        
+        async function loadGuestData() {
             try {
-                // Find guest
-                const { data: guest, error: guestError } = await supabase
-                    .from('guests')
+                // Get wallet
+                const { data: wallet, error } = await supabase
+                    .from('token_wallets')
                     .select('*')
-                    .eq('phone', phone)
+                    .eq('guest_id', guestId)
                     .single();
                 
-                if (guestError || !guest) {
-                    showToast('Guest not found. Please register at the event counter.', 'error');
+                if (error || !wallet) {
+                    showToast('Wallet not found. Please purchase tokens first.', 'error');
                     return;
                 }
                 
-                currentGuest = guest;
+                walletId = wallet.id;
+                tokenBalance = wallet.token_balance || 0;
                 
-                // Find or create wallet
-                let { data: wallet, error: walletError } = await supabase
-                    .from('token_wallets')
-                    .select('*')
-                    .eq('guest_phone', phone)
-                    .single();
-                
-                if (!wallet) {
-                    const { data: newWallet } = await supabase
-                        .from('token_wallets')
-                        .insert({
-                            guest_id: guest.id,
-                            guest_name: guest.guest_name,
-                            guest_phone: phone,
-                            token_balance: 0
-                        })
-                        .select()
-                        .single();
-                    
-                    wallet = newWallet;
-                }
-                
-                currentWallet = wallet;
-                
-                // Update UI
-                document.getElementById('loginScreen').style.display = 'none';
-                document.getElementById('mainPortal').style.display = 'block';
-                
-                document.getElementById('guestName').textContent = `Welcome, ${guest.guest_name}!`;
-                document.getElementById('guestPhone').textContent = phone;
                 updateBalanceDisplay();
-                
-                // Load data
-                await loadMenu();
-                await loadOrders();
+                await loadTransactions();
                 
             } catch (error) {
-                console.error('Login error:', error);
-                showToast('Error logging in. Please try again.', 'error');
+                console.error('Error loading guest data:', error);
+                showToast('Error loading your data', 'error');
             }
         }
         
-        function updateBalanceDisplay() {
-            document.getElementById('tokenBalance').textContent = currentWallet?.token_balance || 0;
+        async function loadTransactions() {
+            try {
+                // Get purchases
+                const { data: purchases } = await supabase
+                    .from('token_purchases')
+                    .select('*')
+                    .eq('wallet_id', walletId)
+                    .order('created_at', { ascending: false })
+                    .limit(20);
+                
+                // Get orders
+                const { data: orders } = await supabase
+                    .from('token_orders')
+                    .select('*')
+                    .eq('wallet_id', walletId)
+                    .eq('status', 'served')
+                    .order('created_at', { ascending: false })
+                    .limit(20);
+                
+                // Combine and sort
+                const transactions = [];
+                
+                (purchases || []).forEach(p => {
+                    transactions.push({
+                        type: 'credit',
+                        title: 'Tokens Purchased',
+                        amount: p.tokens_purchased,
+                        date: new Date(p.created_at)
+                    });
+                });
+                
+                (orders || []).forEach(o => {
+                    transactions.push({
+                        type: 'debit',
+                        title: `Order #${o.order_number || o.id.slice(0,8)}`,
+                        amount: o.total_tokens,
+                        date: new Date(o.served_at || o.created_at)
+                    });
+                });
+                
+                // Sort by date
+                transactions.sort((a, b) => b.date - a.date);
+                
+                renderTransactions(transactions);
+                
+            } catch (error) {
+                console.error('Error loading transactions:', error);
+            }
         }
-        
-        // =====================================================
-        // MENU
-        // =====================================================
         
         async function loadMenu() {
             try {
-                const { data: items, error } = await supabase
+                const { data, error } = await supabase
                     .from('beverage_menu')
                     .select('*')
                     .eq('is_available', true)
-                    .order('display_order');
+                    .order('category')
+                    .order('name');
                 
                 if (error) throw error;
                 
-                menuItems = items || [];
-                renderMenu();
+                menuItems = data || [];
                 
             } catch (error) {
                 console.error('Error loading menu:', error);
-                document.getElementById('menuContainer').innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-exclamation-circle"></i>
-                        <p>Error loading menu</p>
-                    </div>
-                `;
+                showToast('Error loading menu', 'error');
             }
         }
         
-        function renderMenu() {
-            const container = document.getElementById('menuContainer');
+        // =====================================================
+        // UI RENDERING
+        // =====================================================
+        
+        function updateBalanceDisplay() {
+            document.getElementById('headerBalance').textContent = tokenBalance;
+            document.getElementById('walletBalance').textContent = tokenBalance;
+        }
+        
+        function renderTransactions(transactions) {
+            const container = document.getElementById('transactionList');
             
-            // Group by category
-            const categories = {
-                'alcoholic': { title: '🍺 Alcoholic Beverages', items: [] },
-                'non_alcoholic': { title: '🥤 Non-Alcoholic', items: [] },
-                'snacks': { title: '🍿 Snacks', items: [] }
+            if (!transactions || transactions.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-receipt"></i>
+                        <p>No transactions yet</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = transactions.map(t => `
+                <div class="transaction-item">
+                    <div class="transaction-icon ${t.type}">
+                        <i class="fas fa-${t.type === 'credit' ? 'plus' : 'minus'}"></i>
+                    </div>
+                    <div class="transaction-info">
+                        <div class="transaction-title">${t.title}</div>
+                        <div class="transaction-date">${formatDate(t.date)}</div>
+                    </div>
+                    <div class="transaction-amount ${t.type}">
+                        ${t.type === 'credit' ? '+' : '-'}${t.amount}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function renderMenu(category = 'all') {
+            const container = document.getElementById('menuItems');
+            
+            let items = menuItems;
+            if (category !== 'all') {
+                items = menuItems.filter(item => item.category === category);
+            }
+            
+            if (items.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-glass-martini-alt"></i>
+                        <p>No items in this category</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const categoryIcons = {
+                'alcoholic': '🍺',
+                'non_alcoholic': '🥤',
+                'snacks': '🍿'
             };
             
-            menuItems.forEach(item => {
-                const cat = categories[item.category] || categories['snacks'];
-                cat.items.push(item);
-            });
-            
-            let html = '';
-            
-            Object.entries(categories).forEach(([key, category]) => {
-                if (category.items.length === 0) return;
-                
-                html += `
-                    <div class="category-section">
-                        <h3 class="category-title">${category.title}</h3>
-                        <div class="menu-grid">
-                            ${category.items.map(item => renderMenuItem(item)).join('')}
+            container.innerHTML = items.map(item => {
+                const qty = cart[item.id] || 0;
+                return `
+                    <div class="menu-item" data-item-id="${item.id}">
+                        <div class="menu-item-icon">${categoryIcons[item.category] || '🍽️'}</div>
+                        <div class="menu-item-info">
+                            <div class="menu-item-name">${escapeHtml(item.name)}</div>
+                            ${item.measure ? `<div class="menu-item-measure">${escapeHtml(item.measure)}</div>` : ''}
+                        </div>
+                        <div class="menu-item-price">${item.token_price} <small>tokens</small></div>
+                        <div class="quantity-control">
+                            <button class="qty-btn" onclick="updateCart('${item.id}', -1)" ${qty === 0 ? 'disabled' : ''}>
+                                <i class="fas fa-minus"></i>
+                            </button>
+                            <span class="qty-value">${qty}</span>
+                            <button class="qty-btn" onclick="updateCart('${item.id}', 1)">
+                                <i class="fas fa-plus"></i>
+                            </button>
                         </div>
                     </div>
                 `;
-            });
-            
-            container.innerHTML = html || `
-                <div class="empty-state">
-                    <i class="fas fa-utensils"></i>
-                    <p>Menu not available</p>
-                </div>
-            `;
+            }).join('');
         }
         
-        function renderMenuItem(item) {
-            const qty = cart[item.id] || 0;
-            const priceClass = item.token_price === 0 ? 'free' : '';
-            const priceText = item.token_price === 0 ? 'FREE' : `${item.token_price} 🪙`;
+        function updateCartSummary() {
+            const totalItems = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
+            const totalTokens = Object.entries(cart).reduce((sum, [itemId, qty]) => {
+                const item = menuItems.find(i => i.id === itemId);
+                return sum + (item ? item.token_price * qty : 0);
+            }, 0);
             
-            return `
-                <div class="menu-item ${qty > 0 ? 'selected' : ''}" id="menu-item-${item.id}">
-                    <div class="item-info">
-                        <div class="item-name">${item.name}</div>
-                        ${item.description ? `<div class="item-desc">${item.description}</div>` : ''}
-                    </div>
-                    <span class="item-price ${priceClass}">${priceText}</span>
-                    <div class="quantity-controls">
-                        <button class="qty-btn" onclick="updateCart('${item.id}', -1)" ${qty === 0 ? 'disabled' : ''}>
-                            <i class="fas fa-minus"></i>
-                        </button>
-                        <span class="qty-value">${qty}</span>
-                        <button class="qty-btn" onclick="updateCart('${item.id}', 1)">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
+            document.getElementById('cartItemCount').textContent = totalItems;
+            document.getElementById('cartTotal').textContent = totalTokens;
+            
+            const cartSummary = document.getElementById('cartSummary');
+            if (totalItems > 0) {
+                cartSummary.classList.add('visible');
+            } else {
+                cartSummary.classList.remove('visible');
+            }
+            
+            // Disable submit if not enough tokens
+            const submitBtn = document.getElementById('submitOrderBtn');
+            submitBtn.disabled = totalTokens > tokenBalance;
         }
+        
+        // =====================================================
+        // CART MANAGEMENT
+        // =====================================================
         
         function updateCart(itemId, delta) {
             const currentQty = cart[itemId] || 0;
@@ -1128,457 +1104,411 @@
                 cart[itemId] = newQty;
             }
             
-            // Update UI
-            const itemEl = document.getElementById(`menu-item-${itemId}`);
-            if (itemEl) {
-                itemEl.classList.toggle('selected', newQty > 0);
-                itemEl.querySelector('.qty-value').textContent = newQty;
-                itemEl.querySelector('.qty-btn').disabled = newQty === 0;
+            // Re-render the specific item
+            const itemElement = document.querySelector(`[data-item-id="${itemId}"]`);
+            if (itemElement) {
+                const qtyValue = itemElement.querySelector('.qty-value');
+                const minusBtn = itemElement.querySelector('.qty-btn');
+                qtyValue.textContent = newQty;
+                minusBtn.disabled = newQty === 0;
             }
             
             updateCartSummary();
         }
         
-        function updateCartSummary() {
-            const cartItems = Object.entries(cart);
-            const itemCount = cartItems.reduce((sum, [_, qty]) => sum + qty, 0);
-            const totalTokens = cartItems.reduce((sum, [itemId, qty]) => {
+        function clearCart() {
+            cart = {};
+            renderMenu();
+            updateCartSummary();
+        }
+        
+        // =====================================================
+        // COUNTER SCANNING
+        // =====================================================
+        
+        function openCounterScanner() {
+            const modal = document.getElementById('scannerModal');
+            modal.classList.add('active');
+            
+            const html5QrCode = new Html5Qrcode("qr-reader");
+            qrScanner = html5QrCode;
+            
+            html5QrCode.start(
+                { facingMode: "environment" },
+                {
+                    fps: 10,
+                    qrbox: { width: 250, height: 250 }
+                },
+                onCounterQRScanned,
+                (errorMessage) => {
+                    // Ignore scan errors
+                }
+            ).catch((err) => {
+                console.error('Camera error:', err);
+                showToast('Unable to access camera', 'error');
+                closeScannerModal();
+            });
+        }
+        
+        function closeScannerModal() {
+            const modal = document.getElementById('scannerModal');
+            modal.classList.remove('active');
+            
+            if (qrScanner) {
+                qrScanner.stop().catch(err => console.log('Scanner stop error:', err));
+                qrScanner = null;
+            }
+        }
+        
+        async function onCounterQRScanned(decodedText) {
+            closeScannerModal();
+            
+            try {
+                const qrData = JSON.parse(decodedText);
+                
+                if (qrData.type !== 'bar_counter' || !qrData.counter_id) {
+                    showToast('Invalid counter QR code', 'error');
+                    return;
+                }
+                
+                // Verify counter exists
+                const { data: counter, error } = await supabase
+                    .from('bar_counters')
+                    .select('*')
+                    .eq('id', qrData.counter_id)
+                    .eq('is_active', true)
+                    .single();
+                
+                if (error || !counter) {
+                    showToast('Counter not found or inactive', 'error');
+                    return;
+                }
+                
+                selectedCounter = counter;
+                
+                // Show menu section
+                document.getElementById('scanCounterSection').style.display = 'none';
+                document.getElementById('counterSelectedSection').style.display = 'block';
+                document.getElementById('selectedCounterName').textContent = counter.counter_name;
+                
+                // Render menu
+                renderMenu();
+                
+                showToast(`Connected to ${counter.counter_name}`, 'success');
+                
+            } catch (e) {
+                console.error('QR parse error:', e);
+                showToast('Invalid QR code format', 'error');
+            }
+        }
+        
+        function changeCounter() {
+            selectedCounter = null;
+            clearCart();
+            document.getElementById('scanCounterSection').style.display = 'block';
+            document.getElementById('counterSelectedSection').style.display = 'none';
+        }
+        
+        // =====================================================
+        // ORDER SUBMISSION
+        // =====================================================
+        
+        function submitOrder() {
+            const totalTokens = Object.entries(cart).reduce((sum, [itemId, qty]) => {
                 const item = menuItems.find(i => i.id === itemId);
                 return sum + (item ? item.token_price * qty : 0);
             }, 0);
             
-            document.getElementById('cartItemCount').textContent = itemCount;
-            document.getElementById('cartTotal').textContent = totalTokens;
+            if (totalTokens > tokenBalance) {
+                showToast('Not enough tokens!', 'error');
+                return;
+            }
             
-            const cartSummary = document.getElementById('cartSummary');
-            cartSummary.classList.toggle('visible', itemCount > 0);
-        }
-        
-        // =====================================================
-        // ORDER MANAGEMENT
-        // =====================================================
-        
-        function showOrderReview() {
-            const cartItems = Object.entries(cart);
-            if (cartItems.length === 0) return;
+            // Show confirmation modal
+            const confirmModal = document.getElementById('orderConfirmModal');
             
-            let itemsHtml = '';
-            let totalTokens = 0;
-            
-            cartItems.forEach(([itemId, qty]) => {
+            // Render order items
+            const itemsHtml = Object.entries(cart).map(([itemId, qty]) => {
                 const item = menuItems.find(i => i.id === itemId);
-                if (!item) return;
-                
-                const itemTotal = item.token_price * qty;
-                totalTokens += itemTotal;
-                
-                itemsHtml += `
-                    <div class="order-item">
-                        <div>
-                            <div class="order-item-name">${item.name}</div>
-                            <div class="order-item-qty">Qty: ${qty} × ${item.token_price} tokens</div>
-                        </div>
-                        <div class="order-item-tokens">${itemTotal} 🪙</div>
+                if (!item) return '';
+                return `
+                    <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <span>${item.name} × ${qty}</span>
+                        <span style="color: var(--gold);">${item.token_price * qty} tokens</span>
                     </div>
                 `;
-            });
+            }).join('');
             
-            document.getElementById('orderReviewItems').innerHTML = itemsHtml;
-            document.getElementById('reviewCurrentBalance').textContent = `${currentWallet.token_balance} tokens`;
-            document.getElementById('reviewOrderTotal').textContent = `${totalTokens} tokens`;
+            document.getElementById('orderConfirmItems').innerHTML = itemsHtml;
+            document.getElementById('orderConfirmCounter').textContent = selectedCounter.counter_name;
+            document.getElementById('orderConfirmTotal').textContent = totalTokens + ' tokens';
+            document.getElementById('orderConfirmBalanceAfter').textContent = (tokenBalance - totalTokens) + ' tokens';
             
-            const balanceAfter = currentWallet.token_balance - totalTokens;
-            document.getElementById('reviewBalanceAfter').textContent = `${balanceAfter} tokens`;
-            document.getElementById('reviewBalanceAfter').style.color = balanceAfter < 0 ? '#f44336' : '#4CAF50';
-            
-            openModal('orderReviewModal');
+            confirmModal.classList.add('active');
+        }
+        
+        function closeOrderConfirmModal() {
+            document.getElementById('orderConfirmModal').classList.remove('active');
         }
         
         async function confirmOrder() {
-            const cartItems = Object.entries(cart);
-            if (cartItems.length === 0) return;
+            closeOrderConfirmModal();
             
-            // Calculate total
-            let totalTokens = 0;
-            const orderItems = [];
-            
-            cartItems.forEach(([itemId, qty]) => {
+            const totalTokens = Object.entries(cart).reduce((sum, [itemId, qty]) => {
                 const item = menuItems.find(i => i.id === itemId);
-                if (!item) return;
-                
-                const itemTotal = item.token_price * qty;
-                totalTokens += itemTotal;
-                
-                orderItems.push({
-                    menu_item_id: item.id,
-                    item_name: item.name,
-                    quantity: qty,
-                    token_price: item.token_price,
-                    total_tokens: itemTotal
-                });
-            });
-            
-            // Check balance (soft check - no restriction)
-            if (totalTokens > currentWallet.token_balance) {
-                if (!confirm(`Warning: This order costs ${totalTokens} tokens but you only have ${currentWallet.token_balance}. Continue anyway?`)) {
-                    return;
-                }
-            }
+                return sum + (item ? item.token_price * qty : 0);
+            }, 0);
             
             try {
-                // Create order
-                const qrExpiresAt = new Date();
-                qrExpiresAt.setMinutes(qrExpiresAt.getMinutes() + 5);
+                // Generate order number
+                const orderNumber = 'ORD-' + Date.now().toString(36).toUpperCase();
                 
+                // Create order
                 const { data: order, error: orderError } = await supabase
-                    .from('beverage_orders_v2')
+                    .from('token_orders')
                     .insert({
-                        guest_id: currentGuest.id,
-                        guest_name: currentGuest.guest_name,
-                        guest_phone: currentGuest.phone,
-                        wallet_id: currentWallet.id,
+                        order_number: orderNumber,
+                        wallet_id: walletId,
+                        counter_id: selectedCounter.id,
                         total_tokens: totalTokens,
-                        status: 'pending',
-                        qr_expires_at: qrExpiresAt.toISOString()
+                        status: 'pending'
                     })
                     .select()
                     .single();
                 
                 if (orderError) throw orderError;
                 
-                // Add order items
-                const itemsToInsert = orderItems.map(item => ({
-                    order_id: order.id,
-                    ...item
-                }));
+                // Create order items
+                const orderItems = Object.entries(cart).map(([itemId, qty]) => {
+                    const item = menuItems.find(i => i.id === itemId);
+                    return {
+                        order_id: order.id,
+                        menu_item_id: itemId,
+                        quantity: qty,
+                        token_price: item.token_price
+                    };
+                });
                 
-                await supabase
-                    .from('order_items')
-                    .insert(itemsToInsert);
+                const { error: itemsError } = await supabase
+                    .from('token_order_items')
+                    .insert(orderItems);
                 
-                // Generate QR data
-                const qrData = {
-                    type: 'beverage_order',
-                    order_id: order.id,
-                    order_number: order.order_number,
-                    guest_name: currentGuest.guest_name,
-                    guest_phone: currentGuest.phone,
-                    total_tokens: totalTokens,
-                    items: orderItems.map(i => `${i.quantity}x ${i.item_name}`).join(', '),
-                    timestamp: new Date().toISOString()
-                };
+                if (itemsError) throw itemsError;
                 
-                // Update order with QR data
-                await supabase
-                    .from('beverage_orders_v2')
-                    .update({ qr_code_data: JSON.stringify(qrData) })
-                    .eq('id', order.id);
+                // Clear cart and show active order
+                activeOrder = order;
+                activeOrder.items = orderItems;
+                clearCart();
+                showActiveOrder();
                 
-                currentOrder = { ...order, qr_code_data: JSON.stringify(qrData) };
-                
-                // Clear cart
-                cart = {};
-                updateCartSummary();
-                renderMenu();
-                
-                // Show QR modal
-                closeModal('orderReviewModal');
-                showOrderQR(currentOrder, orderItems);
+                showToast('Order submitted! Waiting for barman...', 'success');
                 
             } catch (error) {
-                console.error('Error creating order:', error);
-                showToast('Error creating order. Please try again.', 'error');
-            }
-        }
-        
-        function showOrderQR(order, items) {
-            document.getElementById('qrOrderNumber').textContent = `#${order.order_number}`;
-            
-            // Generate QR code
-            const qrContainer = document.getElementById('qrCodeDisplay');
-            qrContainer.innerHTML = '';
-            
-            new QRCode(qrContainer, {
-                text: order.qr_code_data,
-                width: 200,
-                height: 200,
-                colorDark: '#1a1a2e',
-                colorLight: '#ffffff'
-            });
-            
-            // Show order summary
-            const summaryText = items ? items.map(i => `${i.quantity}x ${i.item_name}`).join(', ') : '';
-            document.getElementById('qrOrderSummary').textContent = summaryText;
-            
-            // Start countdown
-            startQRTimer(new Date(order.qr_expires_at));
-            
-            openModal('orderQRModal');
-        }
-        
-        function startQRTimer(expiresAt) {
-            if (qrTimerInterval) clearInterval(qrTimerInterval);
-            
-            const timerEl = document.getElementById('qrTimer');
-            
-            qrTimerInterval = setInterval(() => {
-                const now = new Date();
-                const remaining = Math.max(0, expiresAt - now);
-                
-                if (remaining <= 0) {
-                    clearInterval(qrTimerInterval);
-                    timerEl.textContent = 'EXPIRED';
-                    timerEl.classList.add('expiring');
-                    
-                    // Mark order as expired
-                    if (currentOrder) {
-                        supabase
-                            .from('beverage_orders_v2')
-                            .update({ status: 'expired' })
-                            .eq('id', currentOrder.id);
-                    }
-                    
-                    setTimeout(() => {
-                        closeModal('orderQRModal');
-                        loadOrders();
-                    }, 2000);
-                    
-                    return;
-                }
-                
-                const minutes = Math.floor(remaining / 60000);
-                const seconds = Math.floor((remaining % 60000) / 1000);
-                timerEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-                
-                // Warn when less than 1 minute
-                timerEl.classList.toggle('expiring', remaining < 60000);
-                
-            }, 1000);
-        }
-        
-        async function cancelOrder() {
-            if (!currentOrder) return;
-            
-            if (!confirm('Are you sure you want to cancel this order?')) return;
-            
-            try {
-                await supabase
-                    .from('beverage_orders_v2')
-                    .update({ status: 'cancelled' })
-                    .eq('id', currentOrder.id);
-                
-                showToast('Order cancelled', 'success');
-                closeModal('orderQRModal');
-                
-                if (qrTimerInterval) clearInterval(qrTimerInterval);
-                currentOrder = null;
-                
-                await loadOrders();
-                
-            } catch (error) {
-                console.error('Error cancelling order:', error);
-                showToast('Error cancelling order', 'error');
+                console.error('Order error:', error);
+                showToast('Failed to submit order', 'error');
             }
         }
         
         // =====================================================
-        // ORDERS DISPLAY
+        // ACTIVE ORDER TRACKING
         // =====================================================
         
-        async function loadOrders() {
-            if (!currentGuest) return;
-            
+        async function checkActiveOrder() {
             try {
                 const { data: orders, error } = await supabase
-                    .from('beverage_orders_v2')
-                    .select('*, order_items(*)')
-                    .eq('guest_id', currentGuest.id)
-                    .order('created_at', { ascending: false });
+                    .from('token_orders')
+                    .select('*, bar_counters(counter_name)')
+                    .eq('wallet_id', walletId)
+                    .in('status', ['pending', 'accepted', 'preparing'])
+                    .order('created_at', { ascending: false })
+                    .limit(1);
                 
-                if (error) throw error;
-                
-                // Refresh wallet balance
-                const { data: wallet } = await supabase
-                    .from('token_wallets')
-                    .select('*')
-                    .eq('id', currentWallet.id)
-                    .single();
-                
-                if (wallet) {
-                    currentWallet = wallet;
-                    updateBalanceDisplay();
+                if (orders && orders.length > 0) {
+                    activeOrder = orders[0];
+                    
+                    // Get order items
+                    const { data: items } = await supabase
+                        .from('token_order_items')
+                        .select('*, beverage_menu(name)')
+                        .eq('order_id', activeOrder.id);
+                    
+                    activeOrder.items = items || [];
+                    
+                    // Set the counter
+                    if (activeOrder.bar_counters) {
+                        selectedCounter = { 
+                            id: activeOrder.counter_id,
+                            counter_name: activeOrder.bar_counters.counter_name 
+                        };
+                    }
+                    
+                    showActiveOrder();
                 }
                 
-                // Split into active and history
-                const activeOrders = orders?.filter(o => ['pending', 'scanned'].includes(o.status)) || [];
-                const historyOrders = orders?.filter(o => !['pending', 'scanned'].includes(o.status)) || [];
-                
-                renderActiveOrders(activeOrders);
-                renderOrderHistory(historyOrders);
-                
             } catch (error) {
-                console.error('Error loading orders:', error);
+                console.error('Error checking active order:', error);
             }
         }
         
-        function renderActiveOrders(orders) {
-            const container = document.getElementById('activeOrdersContainer');
+        function showActiveOrder() {
+            if (!activeOrder) return;
             
-            if (!orders || orders.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-glass-cheers"></i>
-                        <p>No pending orders</p>
-                        <p style="font-size: 0.85rem;">Order from the menu to get started!</p>
+            document.getElementById('scanCounterSection').style.display = 'none';
+            document.getElementById('counterSelectedSection').style.display = 'none';
+            document.getElementById('activeOrderSection').style.display = 'block';
+            
+            // Update order info
+            document.getElementById('activeOrderNumber').textContent = activeOrder.order_number || activeOrder.id.slice(0,8);
+            document.getElementById('activeOrderTotal').textContent = activeOrder.total_tokens + ' tokens';
+            
+            // Update status badge
+            const statusBadge = document.getElementById('activeOrderStatus');
+            statusBadge.textContent = activeOrder.status.charAt(0).toUpperCase() + activeOrder.status.slice(1);
+            statusBadge.className = 'order-status-badge ' + activeOrder.status;
+            
+            // Update items
+            if (activeOrder.items && activeOrder.items.length > 0) {
+                document.getElementById('activeOrderItems').innerHTML = activeOrder.items.map(item => `
+                    <div style="display: flex; justify-content: space-between; padding: 5px 0;">
+                        <span>${item.beverage_menu?.name || 'Item'} × ${item.quantity}</span>
+                        <span style="color: var(--gold);">${item.token_price * item.quantity}</span>
                     </div>
-                `;
-                return;
+                `).join('');
             }
             
-            container.innerHTML = `
-                <div class="orders-list">
-                    ${orders.map(order => renderOrderCard(order, true)).join('')}
-                </div>
-            `;
-        }
-        
-        function renderOrderHistory(orders) {
-            const container = document.getElementById('orderHistoryContainer');
-            
-            if (!orders || orders.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-clock"></i>
-                        <p>No order history yet</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            container.innerHTML = `
-                <div class="orders-list">
-                    ${orders.map(order => renderOrderCard(order, false)).join('')}
-                </div>
-            `;
-        }
-        
-        function renderOrderCard(order, isActive) {
-            const items = order.order_items?.map(i => `${i.quantity}x ${i.item_name}`).join(', ') || '';
-            const date = new Date(order.created_at).toLocaleString();
-            
-            const statusLabels = {
-                'pending': 'Pending',
-                'scanned': 'Being Prepared',
-                'served': 'Served',
-                'rejected': 'Rejected',
-                'cancelled': 'Cancelled',
-                'expired': 'Expired',
-                'refunded': 'Refunded'
+            // Update message
+            const messages = {
+                'pending': 'Waiting for barman to accept...',
+                'accepted': 'Order accepted! Being prepared...',
+                'preparing': 'Your drinks are being prepared...',
+                'served': 'Order complete! Enjoy!'
             };
-            
-            return `
-                <div class="order-card ${order.status}">
-                    <div class="order-card-header">
-                        <span class="order-card-number">#${order.order_number}</span>
-                        <span class="order-card-status status-${order.status}">${statusLabels[order.status] || order.status}</span>
-                    </div>
-                    <div class="order-card-items">${items}</div>
-                    <div class="order-card-footer">
-                        <span>${order.total_tokens} tokens</span>
-                        <span>${date}</span>
-                    </div>
-                    ${isActive && order.status === 'pending' ? `
-                        <button class="action-btn secondary" style="margin-top: 0.75rem; padding: 0.75rem;" onclick="viewOrderQR('${order.id}')">
-                            <i class="fas fa-qrcode"></i> Show QR Code
-                        </button>
-                    ` : ''}
-                </div>
-            `;
+            document.getElementById('activeOrderMessage').textContent = messages[activeOrder.status] || '';
         }
         
-        async function viewOrderQR(orderId) {
-            try {
-                const { data: order, error } = await supabase
-                    .from('beverage_orders_v2')
-                    .select('*, order_items(*)')
-                    .eq('id', orderId)
-                    .single();
-                
-                if (error || !order) {
-                    showToast('Order not found', 'error');
-                    return;
-                }
-                
-                // Check if expired
-                if (new Date(order.qr_expires_at) < new Date()) {
-                    showToast('QR code has expired. Please create a new order.', 'error');
-                    await supabase
-                        .from('beverage_orders_v2')
-                        .update({ status: 'expired' })
-                        .eq('id', orderId);
-                    await loadOrders();
-                    return;
-                }
-                
-                currentOrder = order;
-                showOrderQR(order, order.order_items);
-                
-            } catch (error) {
-                console.error('Error loading order:', error);
+        function hideActiveOrder() {
+            document.getElementById('activeOrderSection').style.display = 'none';
+            document.getElementById('scanCounterSection').style.display = 'block';
+            activeOrder = null;
+        }
+        
+        // =====================================================
+        // REAL-TIME UPDATES
+        // =====================================================
+        
+        function setupRealtimeUpdates() {
+            // Subscribe to wallet changes
+            supabase
+                .channel('wallet-changes')
+                .on('postgres_changes', {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'token_wallets',
+                    filter: `id=eq.${walletId}`
+                }, (payload) => {
+                    tokenBalance = payload.new.token_balance;
+                    updateBalanceDisplay();
+                })
+                .subscribe();
+            
+            // Subscribe to order changes
+            if (walletId) {
+                supabase
+                    .channel('order-changes')
+                    .on('postgres_changes', {
+                        event: 'UPDATE',
+                        schema: 'public',
+                        table: 'token_orders',
+                        filter: `wallet_id=eq.${walletId}`
+                    }, (payload) => {
+                        if (activeOrder && payload.new.id === activeOrder.id) {
+                            activeOrder.status = payload.new.status;
+                            
+                            if (payload.new.status === 'served') {
+                                showToast('Order served! Enjoy your drinks!', 'success');
+                                loadGuestData();  // Refresh balance
+                                setTimeout(hideActiveOrder, 3000);
+                            } else if (payload.new.status === 'accepted') {
+                                showToast('Order accepted by barman!', 'success');
+                            } else if (payload.new.status === 'rejected') {
+                                showToast('Order was rejected. Tokens not deducted.', 'error');
+                                hideActiveOrder();
+                            }
+                            
+                            showActiveOrder();
+                        }
+                    })
+                    .subscribe();
             }
         }
         
         // =====================================================
-        // UI HELPERS
+        // TAB NAVIGATION
         // =====================================================
         
-        function showTab(tabName) {
-            // Update tab buttons
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.classList.remove('active');
+        function setupTabs() {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const tabId = btn.dataset.tab;
+                    
+                    // Update buttons
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    
+                    // Update content
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    document.getElementById(tabId + 'Tab').classList.add('active');
+                });
             });
-            event.target.closest('.tab').classList.add('active');
-            
-            // Update tab content
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.remove('active');
-            });
-            document.getElementById(`${tabName}Tab`).classList.add('active');
-            
-            // Refresh data
-            if (tabName === 'orders' || tabName === 'history') {
-                loadOrders();
-            }
         }
         
-        function openModal(modalId) {
-            document.getElementById(modalId).classList.add('visible');
+        function setupCategoryTabs() {
+            document.querySelectorAll('.category-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    renderMenu(tab.dataset.category);
+                });
+            });
         }
         
-        function closeModal(modalId) {
-            document.getElementById(modalId).classList.remove('visible');
-            
-            if (modalId === 'orderQRModal' && qrTimerInterval) {
-                clearInterval(qrTimerInterval);
-            }
-        }
+        // =====================================================
+        // UTILITIES
+        // =====================================================
         
         function showToast(message, type = 'info') {
             const toast = document.getElementById('toast');
             toast.textContent = message;
-            toast.className = `toast visible ${type}`;
+            toast.style.background = type === 'error' ? 'var(--danger)' : 
+                                     type === 'success' ? 'var(--success)' : 'var(--dark-card)';
+            toast.classList.add('show');
             
             setTimeout(() => {
-                toast.classList.remove('visible');
+                toast.classList.remove('show');
             }, 3000);
         }
         
-        // Refresh orders periodically
-        setInterval(() => {
-            if (currentGuest && document.visibilityState === 'visible') {
-                loadOrders();
-            }
-        }, 30000);
+        function formatDate(date) {
+            const now = new Date();
+            const diff = now - date;
+            
+            if (diff < 60000) return 'Just now';
+            if (diff < 3600000) return Math.floor(diff / 60000) + ' min ago';
+            if (diff < 86400000) return Math.floor(diff / 3600000) + ' hours ago';
+            
+            return date.toLocaleDateString('en-IN', { 
+                day: 'numeric', 
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
     </script>
 </body>
 </html>

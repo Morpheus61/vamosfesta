@@ -91,7 +91,7 @@ In your Supabase SQL Editor, run:
 
 ✅ Database header says "VAMOS FESTA"
 ✅ Event name is "Vamos Festa"
-✅ Event tagline is "¡Viva la Fiesta!"
+✅ Event tagline is "Viva la Fiesta!"
 ✅ Event date is "February 7, 2026"
 ✅ Event venue is "AREA 8 MTM"
 ✅ Super Admin password is "VamosFesta@2026"

@@ -68,10 +68,26 @@ async function initializeApp() {
     await loadSettings();
     
     // Update UI for role
-    let bodyClass = `vamosfesta-bg role-${currentUser.role}`;
+    // SipToken staff get special role class to hide seller tabs
+    let bodyClass = `vamosfesta-bg`;
+    
+    if (currentUser.is_siptoken_sales && !currentUser.is_barman) {
+        bodyClass += ' role-token-sales';
+    } else if (currentUser.is_barman && !currentUser.is_siptoken_sales) {
+        bodyClass += ' role-barman';
+    } else if (currentUser.is_siptoken_sales && currentUser.is_barman) {
+        bodyClass += ' role-siptoken-staff';
+    } else {
+        bodyClass += ` role-${currentUser.role}`;
+    }
+    
     if (currentUser.is_gate_overseer) {
         bodyClass += ' overseer';
     }
+    if (currentUser.is_siptoken_overseer) {
+        bodyClass += ' siptoken-overseer';
+    }
+    
     document.body.className = bodyClass;
     document.getElementById('loginScreen').classList.add('hidden');
     document.getElementById('mainApp').classList.remove('hidden');
@@ -84,9 +100,24 @@ async function initializeApp() {
         siptokenMobileItems.forEach(item => item.style.display = 'flex');
     }
     
+    // Hide seller tabs for SipToken-only staff
+    if ((currentUser.is_siptoken_sales || currentUser.is_barman) && currentUser.role === 'seller') {
+        // Hide seller tabs - they should only see SipToken
+        document.querySelectorAll('.nav-tab.seller-only').forEach(tab => {
+            tab.style.display = 'none';
+        });
+    }
+    
     // Update user display
     document.getElementById('userName').textContent = currentUser.full_name || currentUser.username;
-    document.getElementById('userRoleBadge').textContent = formatRole(currentUser.role);
+    
+    // Show proper role badge
+    let roleBadgeText = formatRole(currentUser.role);
+    if (currentUser.is_siptoken_sales) roleBadgeText = 'Token Sales';
+    if (currentUser.is_barman) roleBadgeText = 'Barman';
+    if (currentUser.is_siptoken_overseer) roleBadgeText += ' (Overseer)';
+    
+    document.getElementById('userRoleBadge').textContent = roleBadgeText;
     document.getElementById('userRoleBadge').className = `role-badge role-${currentUser.role}`;
     
     // Show first appropriate tab
@@ -110,6 +141,15 @@ function formatRole(role) {
 
 function showDefaultTab() {
     let defaultTab;
+    
+    // SipToken staff get SipToken tab by default
+    if (currentUser.is_siptoken_sales || currentUser.is_barman) {
+        defaultTab = 'siptokenTab';
+        showTab(defaultTab);
+        showSipTokenRoleContent();
+        return;
+    }
+    
     switch(currentUser.role) {
         case 'seller':
             defaultTab = 'register';
@@ -1421,21 +1461,177 @@ async function loadSellers() {
     }
 }
 
+// =====================================================
+// USERNAME NAMING PROTOCOL
+// =====================================================
+
+const ROLE_CONFIG = {
+    'super_admin': { 
+        prefix: 'SuperAdmin', 
+        icon: '👑', 
+        desc: 'Full system access, back office',
+        reportsTo: 'Organization',
+        color: 'border-yellow-500',
+        dbRole: 'super_admin'
+    },
+    'admin': { 
+        prefix: 'Admin', 
+        icon: '📊', 
+        desc: 'Read-only access to reports',
+        reportsTo: 'Super Admin',
+        color: 'border-blue-500',
+        dbRole: 'admin'
+    },
+    'gate_overseer': { 
+        prefix: 'GateOverseer', 
+        icon: '🚪', 
+        desc: 'Manages marshalls & venue sellers',
+        reportsTo: 'Super Admin',
+        color: 'border-cyan-500',
+        dbRole: 'admin',
+        flags: { is_gate_overseer: true }
+    },
+    'presales_seller': { 
+        prefix: 'PreSales', 
+        icon: '🎫', 
+        desc: 'Pre-event ticket sales (off-site)',
+        reportsTo: 'Super Admin',
+        color: 'border-green-500',
+        dbRole: 'seller'
+    },
+    'event_seller': { 
+        prefix: 'EventSales', 
+        icon: '🎟️', 
+        desc: 'Venue ticket sales',
+        reportsTo: 'Gate Overseer',
+        color: 'border-green-400',
+        dbRole: 'seller'
+    },
+    'entry_marshall': { 
+        prefix: 'Marshall', 
+        icon: '🚧', 
+        desc: 'Scans guest passes at gates',
+        reportsTo: 'Gate Overseer',
+        color: 'border-yellow-400',
+        dbRole: 'entry_marshall'
+    },
+    'siptoken_overseer': { 
+        prefix: 'TokenOverseer', 
+        icon: '👔', 
+        desc: 'Manages token sales & barmen',
+        reportsTo: 'Super Admin',
+        color: 'border-purple-500',
+        dbRole: 'admin',
+        flags: { is_siptoken_overseer: true }
+    },
+    'token_sales': { 
+        prefix: 'TokenSales', 
+        icon: '💰', 
+        desc: 'Sells SipTokens to guests',
+        reportsTo: 'SipToken Overseer',
+        color: 'border-orange-500',
+        dbRole: 'seller',
+        flags: { is_siptoken_sales: true }
+    },
+    'barman': { 
+        prefix: 'BevServe', 
+        icon: '🍹', 
+        desc: 'Serves drinks, scans order QR',
+        reportsTo: 'SipToken Overseer',
+        color: 'border-purple-400',
+        dbRole: 'seller',
+        flags: { is_barman: true }
+    }
+};
+
+// Update role selection - show preview and update username
+window.updateRoleSelection = function() {
+    const select = document.getElementById('userRoleSelect');
+    const role = select.value;
+    const previewCard = document.getElementById('rolePreviewCard');
+    
+    if (!role) {
+        previewCard.classList.add('hidden');
+        document.getElementById('usernamePrefix').textContent = '---';
+        document.getElementById('usernameValue').textContent = '---';
+        return;
+    }
+    
+    const config = ROLE_CONFIG[role];
+    if (!config) return;
+    
+    // Update preview card
+    previewCard.classList.remove('hidden');
+    previewCard.className = `card border-2 ${config.color}`;
+    document.getElementById('rolePreviewIcon').textContent = config.icon;
+    document.getElementById('rolePreviewTitle').textContent = select.options[select.selectedIndex].text;
+    document.getElementById('rolePreviewDesc').textContent = config.desc;
+    document.getElementById('roleReportsTo').textContent = config.reportsTo;
+    
+    // Update username prefix
+    document.getElementById('usernamePrefix').textContent = config.prefix;
+    
+    // Regenerate username
+    generateUsername();
+};
+
+// Generate username from prefix + first name
+window.generateUsername = function() {
+    const roleSelect = document.getElementById('userRoleSelect');
+    const firstNameInput = document.getElementById('userFirstName');
+    const role = roleSelect?.value;
+    const firstName = firstNameInput?.value?.trim();
+    
+    if (!role || !firstName) {
+        document.getElementById('usernameValue').textContent = firstName || '---';
+        document.getElementById('userUsername').value = '';
+        return;
+    }
+    
+    const config = ROLE_CONFIG[role];
+    if (!config) return;
+    
+    // Clean first name - remove spaces, keep camelCase
+    const cleanName = firstName.replace(/\s+/g, '');
+    
+    // Generate full username
+    const username = `${config.prefix}-${cleanName}`;
+    
+    document.getElementById('usernameValue').textContent = cleanName;
+    document.getElementById('userUsername').value = username;
+};
+
+// Toggle password visibility
+window.togglePasswordVisibility = function(inputId) {
+    const input = document.getElementById(inputId);
+    const icon = input.nextElementSibling.querySelector('i');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+};
+
 window.showAddUserModal = function() {
-    document.getElementById('userModalTitle').textContent = 'Add User';
+    document.getElementById('userModalTitle').textContent = 'Add New Staff';
     document.getElementById('userForm').reset();
     document.getElementById('editUserId').value = '';
     document.getElementById('userPassword').required = true;
     document.getElementById('userFullName').required = true;
     document.getElementById('userMobile').required = true;
-    document.getElementById('passwordHint').textContent = 'Min 6 characters';
     
-    // Reset SipToken Overseer checkbox
-    const siptokenOverseerCheckbox = document.getElementById('userIsSiptokenOverseer');
-    if (siptokenOverseerCheckbox) siptokenOverseerCheckbox.checked = false;
+    // Reset username display
+    document.getElementById('usernamePrefix').textContent = '---';
+    document.getElementById('usernameValue').textContent = '---';
+    document.getElementById('userUsername').value = '';
     
-    // Update Overseer visibility based on default role
-    updateSipTokenOverseerVisibility();
+    // Hide role preview
+    document.getElementById('rolePreviewCard').classList.add('hidden');
     
     openModal('userModal');
 };
@@ -1478,32 +1674,44 @@ window.editUser = async function(userId) {
         
         document.getElementById('userModalTitle').textContent = 'Edit User';
         document.getElementById('editUserId').value = userId;
-        document.getElementById('userUsername').value = user.username;
         document.getElementById('userPassword').value = '';
         document.getElementById('userPassword').required = false;
         document.getElementById('userFullName').required = true;
         document.getElementById('userMobile').required = true;
-        document.getElementById('passwordHint').textContent = 'Leave blank to keep current';
         document.getElementById('userFullName').value = user.full_name || '';
         document.getElementById('userMobile').value = user.mobile_number || '';
         document.getElementById('userClubName').value = user.club_name || '';
         document.getElementById('userClubNumber').value = user.club_number || '';
         
+        // Parse username to get prefix and name
+        const usernameParts = user.username.split('-');
+        const prefix = usernameParts[0] || '';
+        const name = usernameParts.slice(1).join('-') || user.username;
+        
+        document.getElementById('usernamePrefix').textContent = prefix;
+        document.getElementById('usernameValue').textContent = name;
+        document.getElementById('userUsername').value = user.username;
+        document.getElementById('userFirstName').value = name;
+        
         // Determine role to select in dropdown
         let roleToSelect = user.role;
-        if (user.is_siptoken_sales) {
+        if (user.is_gate_overseer) {
+            roleToSelect = 'gate_overseer';
+        } else if (user.is_siptoken_overseer) {
+            roleToSelect = 'siptoken_overseer';
+        } else if (user.is_siptoken_sales) {
             roleToSelect = 'token_sales';
         } else if (user.is_barman) {
             roleToSelect = 'barman';
+        } else if (user.role === 'seller') {
+            // Determine seller type from username prefix
+            if (prefix === 'PreSales') roleToSelect = 'presales_seller';
+            else if (prefix === 'EventSales') roleToSelect = 'event_seller';
         }
         document.getElementById('userRoleSelect').value = roleToSelect;
         
-        // SipToken Overseer checkbox
-        const siptokenOverseerCheckbox = document.getElementById('userIsSiptokenOverseer');
-        if (siptokenOverseerCheckbox) siptokenOverseerCheckbox.checked = user.is_siptoken_overseer || false;
-        
-        // Update Overseer visibility
-        updateSipTokenOverseerVisibility();
+        // Update role preview
+        updateRoleSelection();
         
         openModal('userModal');
         
@@ -1522,6 +1730,18 @@ async function handleUserForm(e) {
     // Validate required fields
     const fullName = document.getElementById('userFullName').value.trim();
     const mobileNumber = document.getElementById('userMobile').value.trim();
+    const selectedRole = document.getElementById('userRoleSelect').value;
+    const username = document.getElementById('userUsername').value.trim();
+    
+    if (!selectedRole) {
+        showToast('Please select a role', 'error');
+        return;
+    }
+    
+    if (!username) {
+        showToast('Username not generated. Please enter a first name.', 'error');
+        return;
+    }
     
     if (!fullName) {
         showToast('Full Name is required', 'error');
@@ -1533,28 +1753,31 @@ async function handleUserForm(e) {
         return;
     }
     
-    const selectedRole = document.getElementById('userRoleSelect').value;
+    // Get role configuration
+    const roleConfig = ROLE_CONFIG[selectedRole];
+    if (!roleConfig) {
+        showToast('Invalid role selected', 'error');
+        return;
+    }
     
-    // Map SipToken roles to appropriate flags
-    const isSipTokenRole = ['token_sales', 'barman'].includes(selectedRole);
-    
+    // Build user data from role config
     const userData = {
-        username: document.getElementById('userUsername').value.trim(),
+        username: username,
         full_name: fullName,
         mobile_number: mobileNumber,
         club_name: document.getElementById('userClubName').value.trim() || null,
         club_number: document.getElementById('userClubNumber').value.trim() || null,
-        role: isSipTokenRole ? 'seller' : selectedRole, // SipToken staff are sellers by base role
-        // SipToken roles based on selection
-        is_siptoken_overseer: document.getElementById('userIsSiptokenOverseer')?.checked || false,
-        is_siptoken_sales: selectedRole === 'token_sales',
-        is_barman: selectedRole === 'barman'
+        role: roleConfig.dbRole,
+        // Reset all flags first
+        is_gate_overseer: false,
+        is_siptoken_overseer: false,
+        is_siptoken_sales: false,
+        is_barman: false
     };
     
-    // Validate role is selected
-    if (!userData.role) {
-        showToast('Please select a role', 'error');
-        return;
+    // Apply flags from role config
+    if (roleConfig.flags) {
+        Object.assign(userData, roleConfig.flags);
     }
     
     const password = document.getElementById('userPassword').value;
@@ -1567,6 +1790,20 @@ async function handleUserForm(e) {
     }
     
     try {
+        // Check username uniqueness (for new users)
+        if (!isEdit) {
+            const { data: existing } = await supabase
+                .from('users')
+                .select('id')
+                .eq('username', username)
+                .single();
+            
+            if (existing) {
+                showToast('Username already exists! Use a different name.', 'error');
+                return;
+            }
+        }
+        
         if (isEdit) {
             const { error } = await supabase
                 .from('users')
@@ -1588,7 +1825,7 @@ async function handleUserForm(e) {
                 .insert([userData]);
             
             if (error) throw error;
-            showToast('User created successfully!', 'success');
+            showToast(`User created: ${username}`, 'success');
         }
         
         closeModal('userModal');
@@ -4282,25 +4519,43 @@ window.loadOverseerGates = loadOverseerGates;
 // SIPTOKEN MODULE INTEGRATION
 // =====================================================
 
-// Import SipToken functionality
-import { initializeSipToken as initializeSipTokenModule, tokenSettings } from './siptoken.js';
+// SipToken Initialization
+window.siptokenRate = 10; // Default rate
 
-// Initialize SipToken on app load
 async function initializeSipToken() {
-    await initializeSipTokenModule();
-    console.log('✅ SipToken module initialized');
+    console.log('🔄 Initializing SipToken...');
+    
+    // Load token rate from settings
+    try {
+        const { data, error } = await supabase
+            .from('settings')
+            .select('value')
+            .eq('key', 'token_rate')
+            .single();
+        
+        if (data && data.value) {
+            window.siptokenRate = parseInt(data.value) || 10;
+        }
+    } catch (e) {
+        console.warn('Could not load token rate, using default:', e);
+    }
+    
+    console.log('✅ SipToken initialized with rate: ₹' + window.siptokenRate);
 }
 
 // Search guest for token purchase
 window.searchGuestForTokens = async function() {
-    const phone = document.getElementById('guestPhoneSearch').value.trim();
+    const phone = document.getElementById('guestPhoneSearch')?.value?.trim();
     
-    if (!phone) {
-        showToast('Enter phone number', 'error');
+    if (!phone || phone.length < 10) {
+        showToast('Please enter a valid 10-digit phone number', 'error');
         return;
     }
     
+    showToast('Searching...', 'info');
+    
     try {
+        // Find guest by phone
         const { data: guest, error } = await supabase
             .from('guests')
             .select('*')
@@ -4308,16 +4563,467 @@ window.searchGuestForTokens = async function() {
             .single();
         
         if (error || !guest) {
-            showToast('Guest not found', 'error');
+            showToast('Guest not found with this phone number', 'error');
             return;
         }
         
-        // Show token purchase modal
-        window.showTokenPurchaseModal(phone);
+        // Check if guest is verified
+        if (!['verified', 'pass_sent', 'checked_in'].includes(guest.status)) {
+            showToast('Guest pass not verified yet. Cannot sell tokens.', 'error');
+            return;
+        }
+        
+        // Find or create wallet
+        let { data: wallet } = await supabase
+            .from('token_wallets')
+            .select('*')
+            .eq('guest_phone', phone)
+            .single();
+        
+        if (!wallet) {
+            const { data: newWallet, error: walletError } = await supabase
+                .from('token_wallets')
+                .insert({
+                    guest_id: guest.id,
+                    guest_name: guest.guest_name,
+                    guest_phone: phone,
+                    token_balance: 0
+                })
+                .select()
+                .single();
+            
+            if (walletError) throw walletError;
+            wallet = newWallet;
+        }
+        
+        // Store globally
+        window.currentTokenWallet = wallet;
+        window.currentTokenGuest = guest;
+        
+        // Show purchase modal
+        showTokenPurchaseModal(guest, wallet);
         
     } catch (error) {
         console.error('Guest search error:', error);
         showToast('Failed to search guest', 'error');
+    }
+};
+
+// Show token purchase modal
+function showTokenPurchaseModal(guest, wallet) {
+    document.getElementById('purchaseGuestName').textContent = guest.guest_name;
+    document.getElementById('purchaseGuestPhone').textContent = guest.phone;
+    document.getElementById('purchaseCurrentBalance').textContent = wallet.token_balance || 0;
+    document.getElementById('purchaseTokenRate').textContent = '₹' + (window.siptokenRate || 10);
+    document.getElementById('purchaseTokenAmount').value = '';
+    document.getElementById('purchaseTotalAmount').textContent = '₹0';
+    document.getElementById('purchasePaymentMethod').value = 'cash';
+    
+    openModal('tokenPurchaseModal');
+}
+
+// Calculate purchase amount
+window.calculatePurchaseAmount = function() {
+    const tokens = parseInt(document.getElementById('purchaseTokenAmount').value) || 0;
+    const rate = window.siptokenRate || 10;
+    const amount = tokens * rate;
+    document.getElementById('purchaseTotalAmount').textContent = '₹' + amount;
+};
+
+// Process token purchase
+window.processTokenPurchase = async function() {
+    const tokens = parseInt(document.getElementById('purchaseTokenAmount').value);
+    const paymentMethod = document.getElementById('purchasePaymentMethod').value;
+    
+    if (!tokens || tokens < 1) {
+        showToast('Please enter a valid token amount', 'error');
+        return;
+    }
+    
+    if (!window.currentTokenWallet) {
+        showToast('No guest selected', 'error');
+        return;
+    }
+    
+    const rate = window.siptokenRate || 10;
+    const amount = tokens * rate;
+    
+    try {
+        // Record purchase
+        const { data: purchase, error } = await supabase
+            .from('token_purchases')
+            .insert({
+                wallet_id: window.currentTokenWallet.id,
+                seller_id: currentUser.id,
+                tokens_purchased: tokens,
+                amount_paid: amount,
+                payment_method: paymentMethod,
+                transaction_status: 'completed'
+            })
+            .select()
+            .single();
+        
+        if (error) throw error;
+        
+        // Update wallet balance
+        const newBalance = (window.currentTokenWallet.token_balance || 0) + tokens;
+        
+        const { error: walletError } = await supabase
+            .from('token_wallets')
+            .update({ token_balance: newBalance })
+            .eq('id', window.currentTokenWallet.id);
+        
+        if (walletError) throw walletError;
+        
+        showToast(`✅ ${tokens} tokens sold successfully! New balance: ${newBalance}`, 'success');
+        closeModal('tokenPurchaseModal');
+        
+        // Clear search
+        document.getElementById('guestPhoneSearch').value = '';
+        
+        // Refresh stats
+        await loadSalesStaffStats();
+        
+    } catch (error) {
+        console.error('Purchase error:', error);
+        showToast('Failed to process purchase: ' + error.message, 'error');
+    }
+};
+
+// =====================================================
+// SIPTOKEN QR SCANNERS
+// =====================================================
+
+let siptokenScanner = null;
+
+// Start Guest QR Scanner
+window.startGuestQRScanner = async function() {
+    const modal = document.getElementById('guestQRScannerModal');
+    const video = document.getElementById('guestScanVideo');
+    
+    if (!modal || !video) {
+        showToast('Scanner not available', 'error');
+        return;
+    }
+    
+    openModal('guestQRScannerModal');
+    
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' }
+        });
+        
+        video.srcObject = stream;
+        await video.play();
+        
+        // Start scanning loop
+        siptokenScanner = setInterval(() => {
+            scanGuestQR(video);
+        }, 500);
+        
+    } catch (error) {
+        console.error('Camera error:', error);
+        showToast('Unable to access camera. Please check permissions.', 'error');
+        closeModal('guestQRScannerModal');
+    }
+};
+
+// Stop Guest QR Scanner
+window.stopGuestQRScanner = function() {
+    const video = document.getElementById('guestScanVideo');
+    
+    if (siptokenScanner) {
+        clearInterval(siptokenScanner);
+        siptokenScanner = null;
+    }
+    
+    if (video && video.srcObject) {
+        video.srcObject.getTracks().forEach(track => track.stop());
+        video.srcObject = null;
+    }
+    
+    closeModal('guestQRScannerModal');
+};
+
+// Scan Guest QR Code
+async function scanGuestQR(video) {
+    if (!window.jsQR) return;
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height);
+    
+    if (code) {
+        stopGuestQRScanner();
+        
+        try {
+            const qrData = JSON.parse(code.data);
+            
+            if (qrData.type === 'guest_pass' && qrData.guest_id) {
+                // Found guest pass
+                const { data: guest, error } = await supabase
+                    .from('guests')
+                    .select('*')
+                    .eq('id', qrData.guest_id)
+                    .single();
+                
+                if (guest) {
+                    // Find or create wallet
+                    let { data: wallet } = await supabase
+                        .from('token_wallets')
+                        .select('*')
+                        .eq('guest_id', guest.id)
+                        .single();
+                    
+                    if (!wallet) {
+                        const { data: newWallet } = await supabase
+                            .from('token_wallets')
+                            .insert({
+                                guest_id: guest.id,
+                                guest_name: guest.guest_name,
+                                guest_phone: guest.phone,
+                                token_balance: 0
+                            })
+                            .select()
+                            .single();
+                        wallet = newWallet;
+                    }
+                    
+                    window.currentTokenWallet = wallet;
+                    window.currentTokenGuest = guest;
+                    
+                    showTokenPurchaseModal(guest, wallet);
+                } else {
+                    showToast('Guest not found', 'error');
+                }
+            } else {
+                showToast('Invalid guest pass QR code', 'error');
+            }
+        } catch (e) {
+            showToast('Invalid QR code format', 'error');
+        }
+    }
+}
+
+// Start Barman Scanner
+window.startBarmanScanner = async function() {
+    const modal = document.getElementById('barmanScannerModal');
+    const video = document.getElementById('barmanScanVideo');
+    
+    if (!modal || !video) {
+        showToast('Scanner not available', 'error');
+        return;
+    }
+    
+    openModal('barmanScannerModal');
+    
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' }
+        });
+        
+        video.srcObject = stream;
+        await video.play();
+        
+        // Start scanning loop
+        siptokenScanner = setInterval(() => {
+            scanOrderQR(video);
+        }, 500);
+        
+    } catch (error) {
+        console.error('Camera error:', error);
+        showToast('Unable to access camera', 'error');
+        closeModal('barmanScannerModal');
+    }
+};
+
+// Stop Barman Scanner
+window.stopBarmanScanner = function() {
+    const video = document.getElementById('barmanScanVideo');
+    
+    if (siptokenScanner) {
+        clearInterval(siptokenScanner);
+        siptokenScanner = null;
+    }
+    
+    if (video && video.srcObject) {
+        video.srcObject.getTracks().forEach(track => track.stop());
+        video.srcObject = null;
+    }
+    
+    closeModal('barmanScannerModal');
+};
+
+// Scan Order QR Code
+async function scanOrderQR(video) {
+    if (!window.jsQR) return;
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height);
+    
+    if (code) {
+        stopBarmanScanner();
+        
+        try {
+            const qrData = JSON.parse(code.data);
+            
+            if (qrData.type === 'token_order' && qrData.order_id) {
+                // Load order details
+                const { data: order, error } = await supabase
+                    .from('token_orders')
+                    .select('*, token_wallets(guest_name, guest_phone, token_balance), order_items:token_order_items(*, beverage_menu(name))')
+                    .eq('id', qrData.order_id)
+                    .single();
+                
+                if (error || !order) {
+                    showToast('Order not found', 'error');
+                    return;
+                }
+                
+                // Check if expired (5 minutes)
+                const orderTime = new Date(order.created_at);
+                const now = new Date();
+                const diffSeconds = (now - orderTime) / 1000;
+                
+                if (diffSeconds > 300) {
+                    showToast('Order QR has expired. Ask guest to create new order.', 'error');
+                    return;
+                }
+                
+                if (order.status !== 'pending') {
+                    showToast(`Order already ${order.status}`, 'error');
+                    return;
+                }
+                
+                // Show order confirmation modal
+                showOrderConfirmationModal(order);
+                
+            } else {
+                showToast('Invalid order QR code', 'error');
+            }
+        } catch (e) {
+            showToast('Invalid QR code format', 'error');
+        }
+    }
+}
+
+// Show Order Confirmation Modal
+function showOrderConfirmationModal(order) {
+    document.getElementById('orderGuestName').textContent = order.token_wallets?.guest_name || 'Unknown';
+    document.getElementById('orderTotalTokens').textContent = order.total_tokens || 0;
+    
+    // Show items
+    const itemsContainer = document.getElementById('orderItemsList');
+    if (order.order_items && order.order_items.length > 0) {
+        itemsContainer.innerHTML = order.order_items.map(item => `
+            <div class="flex justify-between py-2 border-b border-gray-700">
+                <span>${item.beverage_menu?.name || 'Item'} × ${item.quantity}</span>
+                <span class="text-yellow-400">${(item.token_price || 0) * item.quantity} tokens</span>
+            </div>
+        `).join('');
+    } else {
+        itemsContainer.innerHTML = '<p class="text-gray-500">No items listed</p>';
+    }
+    
+    // Store order info
+    document.getElementById('currentOrderId').value = order.id;
+    document.getElementById('currentWalletId').value = order.wallet_id;
+    
+    openModal('orderConfirmationModal');
+}
+
+// Serve Order
+window.serveOrder = async function() {
+    const orderId = document.getElementById('currentOrderId').value;
+    const walletId = document.getElementById('currentWalletId').value;
+    
+    if (!orderId) return;
+    
+    try {
+        // Get order details
+        const { data: order } = await supabase
+            .from('token_orders')
+            .select('total_tokens')
+            .eq('id', orderId)
+            .single();
+        
+        // Get wallet
+        const { data: wallet } = await supabase
+            .from('token_wallets')
+            .select('token_balance')
+            .eq('id', walletId)
+            .single();
+        
+        // Calculate new balance
+        const newBalance = (wallet?.token_balance || 0) - (order?.total_tokens || 0);
+        
+        // Update wallet
+        await supabase
+            .from('token_wallets')
+            .update({ token_balance: Math.max(0, newBalance) })
+            .eq('id', walletId);
+        
+        // Update order status
+        await supabase
+            .from('token_orders')
+            .update({ 
+                status: 'served',
+                barman_id: currentUser.id,
+                served_at: new Date().toISOString()
+            })
+            .eq('id', orderId);
+        
+        showToast('✅ Order served! Tokens deducted.', 'success');
+        closeModal('orderConfirmationModal');
+        
+        // Refresh stats
+        loadBarmanStats();
+        
+    } catch (error) {
+        console.error('Serve error:', error);
+        showToast('Failed to process order', 'error');
+    }
+};
+
+// Reject Order
+window.rejectOrder = async function() {
+    const orderId = document.getElementById('currentOrderId').value;
+    
+    if (!orderId) return;
+    
+    const reason = prompt('Reason for rejection (optional):');
+    
+    try {
+        await supabase
+            .from('token_orders')
+            .update({ 
+                status: 'rejected',
+                barman_id: currentUser.id,
+                rejection_reason: reason || 'No reason provided'
+            })
+            .eq('id', orderId);
+        
+        showToast('Order rejected. No tokens deducted.', 'info');
+        closeModal('orderConfirmationModal');
+        
+        loadBarmanStats();
+        
+    } catch (error) {
+        console.error('Reject error:', error);
+        showToast('Failed to reject order', 'error');
     }
 };
 
@@ -4551,8 +5257,1981 @@ function showTabWithSipToken(tabName) {
     if (tabName === 'siptokenTab') {
         showSipTokenRoleContent();
     }
+    
+    // Load menu when settings tab is shown (for Super Admin)
+    if (tabName === 'settings' && currentUser?.role === 'super_admin') {
+        loadMenuItems();
+        loadTokenRate();
+    }
 }
 
 showTab = showTabWithSipToken;
 
 console.log('✅ SipToken integration loaded');
+
+// =====================================================
+// SIPTOKEN MENU MANAGEMENT (Super Admin Settings)
+// =====================================================
+
+let menuItemsCache = [];
+let currentMenuFilter = 'all';
+
+// Load token rate
+async function loadTokenRate() {
+    try {
+        const { data, error } = await supabase
+            .from('settings')
+            .select('value')
+            .eq('key', 'token_rate')
+            .single();
+        
+        if (data) {
+            document.getElementById('settingTokenRate').value = data.value;
+        }
+    } catch (error) {
+        console.error('Error loading token rate:', error);
+    }
+}
+
+// Save token rate
+window.saveTokenRate = async function() {
+    const rate = parseInt(document.getElementById('settingTokenRate').value);
+    
+    if (!rate || rate < 1) {
+        showToast('Please enter a valid token rate', 'error');
+        return;
+    }
+    
+    try {
+        const { error } = await supabase
+            .from('settings')
+            .upsert({ key: 'token_rate', value: rate.toString() }, { onConflict: 'key' });
+        
+        if (error) throw error;
+        showToast('Token rate saved: ₹' + rate + ' per token', 'success');
+    } catch (error) {
+        console.error('Error saving token rate:', error);
+        showToast('Failed to save token rate', 'error');
+    }
+};
+
+// Load menu items
+async function loadMenuItems() {
+    try {
+        const { data, error } = await supabase
+            .from('beverage_menu')
+            .select('*')
+            .order('category')
+            .order('name');
+        
+        if (error) throw error;
+        
+        menuItemsCache = data || [];
+        renderMenuItems();
+    } catch (error) {
+        console.error('Error loading menu items:', error);
+        document.getElementById('menuItemsList').innerHTML = 
+            '<p class="text-red-400 text-sm text-center py-4">Failed to load menu</p>';
+    }
+}
+
+// Filter menu by category
+window.filterMenuCategory = function(category) {
+    currentMenuFilter = category;
+    
+    // Update button styles
+    document.querySelectorAll('.menu-cat-btn').forEach(btn => {
+        btn.classList.remove('bg-gray-700');
+        btn.classList.add('bg-gray-800');
+    });
+    document.querySelector(`.menu-cat-btn[data-cat="${category}"]`)?.classList.remove('bg-gray-800');
+    document.querySelector(`.menu-cat-btn[data-cat="${category}"]`)?.classList.add('bg-gray-700');
+    
+    renderMenuItems();
+};
+
+// Render menu items
+function renderMenuItems() {
+    const container = document.getElementById('menuItemsList');
+    
+    let items = menuItemsCache;
+    if (currentMenuFilter !== 'all') {
+        items = items.filter(item => item.category === currentMenuFilter);
+    }
+    
+    if (items.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No items in this category</p>';
+        return;
+    }
+    
+    const categoryIcons = {
+        'alcoholic': '🍺',
+        'non_alcoholic': '🥤',
+        'snacks': '🍿'
+    };
+    
+    container.innerHTML = items.map(item => `
+        <div class="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg ${!item.is_available ? 'opacity-50' : ''}">
+            <div class="flex-1">
+                <div class="flex items-center gap-2">
+                    <span>${categoryIcons[item.category] || '🍽️'}</span>
+                    <span class="font-semibold">${escapeHtml(item.name)}</span>
+                    ${item.measure ? `<span class="text-xs text-gray-400">(${escapeHtml(item.measure)})</span>` : ''}
+                </div>
+                <div class="text-sm text-yellow-400 mt-1">
+                    <i class="fas fa-coins mr-1"></i>${item.token_price} tokens
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="toggleMenuItemAvailability('${item.id}', ${item.is_available})" 
+                        class="px-2 py-1 rounded text-xs ${item.is_available ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'}">
+                    ${item.is_available ? '✓ Available' : '✗ Unavailable'}
+                </button>
+                <button onclick="editMenuItem('${item.id}')" class="text-blue-400 hover:text-blue-300 p-1">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button onclick="deleteMenuItem('${item.id}', '${escapeHtml(item.name)}')" class="text-red-400 hover:text-red-300 p-1">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Open modal to add new item
+window.openMenuItemModal = function() {
+    document.getElementById('menuItemModalTitle').textContent = 'Add Menu Item';
+    document.getElementById('menuItemForm').reset();
+    document.getElementById('editMenuItemId').value = '';
+    document.getElementById('menuItemAvailable').checked = true;
+    openModal('menuItemModal');
+};
+
+// Edit existing item
+window.editMenuItem = async function(itemId) {
+    const item = menuItemsCache.find(i => i.id === itemId);
+    if (!item) return;
+    
+    document.getElementById('menuItemModalTitle').textContent = 'Edit Menu Item';
+    document.getElementById('editMenuItemId').value = itemId;
+    document.getElementById('menuItemCategory').value = item.category;
+    document.getElementById('menuItemName').value = item.name;
+    document.getElementById('menuItemMeasure').value = item.measure || '';
+    document.getElementById('menuItemTokens').value = item.token_price;
+    document.getElementById('menuItemAvailable').checked = item.is_available;
+    
+    openModal('menuItemModal');
+};
+
+// Save menu item (add or update)
+window.saveMenuItem = async function(event) {
+    event.preventDefault();
+    
+    const itemId = document.getElementById('editMenuItemId').value;
+    const isEdit = !!itemId;
+    
+    const itemData = {
+        category: document.getElementById('menuItemCategory').value,
+        name: document.getElementById('menuItemName').value.trim(),
+        measure: document.getElementById('menuItemMeasure').value.trim() || null,
+        token_price: parseInt(document.getElementById('menuItemTokens').value),
+        is_available: document.getElementById('menuItemAvailable').checked
+    };
+    
+    if (!itemData.name) {
+        showToast('Please enter item name', 'error');
+        return;
+    }
+    
+    if (!itemData.token_price || itemData.token_price < 0) {
+        showToast('Please enter valid token price', 'error');
+        return;
+    }
+    
+    try {
+        if (isEdit) {
+            const { error } = await supabase
+                .from('beverage_menu')
+                .update(itemData)
+                .eq('id', itemId);
+            
+            if (error) throw error;
+            showToast('Menu item updated!', 'success');
+        } else {
+            const { error } = await supabase
+                .from('beverage_menu')
+                .insert([itemData]);
+            
+            if (error) throw error;
+            showToast('Menu item added!', 'success');
+        }
+        
+        closeModal('menuItemModal');
+        await loadMenuItems();
+    } catch (error) {
+        console.error('Error saving menu item:', error);
+        showToast('Failed to save menu item', 'error');
+    }
+};
+
+// Toggle item availability
+window.toggleMenuItemAvailability = async function(itemId, currentStatus) {
+    try {
+        const { error } = await supabase
+            .from('beverage_menu')
+            .update({ is_available: !currentStatus })
+            .eq('id', itemId);
+        
+        if (error) throw error;
+        
+        showToast(currentStatus ? 'Item marked unavailable' : 'Item marked available', 'success');
+        await loadMenuItems();
+    } catch (error) {
+        console.error('Error toggling availability:', error);
+        showToast('Failed to update item', 'error');
+    }
+};
+
+// Delete menu item
+window.deleteMenuItem = async function(itemId, itemName) {
+    if (!confirm(`Delete "${itemName}" from the menu?`)) return;
+    
+    try {
+        const { error } = await supabase
+            .from('beverage_menu')
+            .delete()
+            .eq('id', itemId);
+        
+        if (error) throw error;
+        
+        showToast('Menu item deleted', 'success');
+        await loadMenuItems();
+    } catch (error) {
+        console.error('Error deleting menu item:', error);
+        showToast('Failed to delete item', 'error');
+    }
+};
+
+console.log('✅ SipToken Menu Management loaded');
+
+// =====================================================
+// USERNAME NAMING PROTOCOL SYSTEM
+// =====================================================
+
+// Role prefix mapping
+const ROLE_PREFIXES = {
+    'super_admin': 'Admin',
+    'admin': 'Viewer',
+    'gate_overseer': 'GateOvr',
+    'siptoken_overseer': 'TokenOvr',
+    'presales_seller': 'PreSales',
+    'event_seller': 'EventSales',
+    'seller': 'EventSales',  // Legacy support
+    'entry_marshall': 'Marshall',
+    'token_sales': 'TokenSales',
+    'barman': 'BevServe'
+};
+
+// Role metadata for preview
+const ROLE_METADATA = {
+    'super_admin': {
+        icon: '👑',
+        title: 'Super Admin',
+        desc: 'Full system access, back office operations',
+        reportsTo: 'Event Committee',
+        color: 'border-yellow-500'
+    },
+    'admin': {
+        icon: '📊',
+        title: 'Admin (Read-Only)',
+        desc: 'View reports and statistics only',
+        reportsTo: 'Super Admin',
+        color: 'border-blue-500'
+    },
+    'gate_overseer': {
+        icon: '🚪',
+        title: 'Gate Overseer',
+        desc: 'Manages Entry Marshalls & Venue Sellers',
+        reportsTo: 'Super Admin',
+        color: 'border-cyan-500'
+    },
+    'siptoken_overseer': {
+        icon: '👔',
+        title: 'SipToken Overseer',
+        desc: 'Manages Token Sales & Barmen',
+        reportsTo: 'Super Admin',
+        color: 'border-purple-500'
+    },
+    'presales_seller': {
+        icon: '🎫',
+        title: 'Pre-Event Sales',
+        desc: 'Off-site ticket sales before event',
+        reportsTo: 'Super Admin',
+        color: 'border-green-500'
+    },
+    'event_seller': {
+        icon: '🎟️',
+        title: 'Event Sales (Venue)',
+        desc: 'On-site ticket sales at venue entrance',
+        reportsTo: 'Gate Overseer',
+        color: 'border-green-500'
+    },
+    'seller': {
+        icon: '🎟️',
+        title: 'Event Sales',
+        desc: 'Guest registration and ticket sales',
+        reportsTo: 'Gate Overseer',
+        color: 'border-green-500'
+    },
+    'entry_marshall': {
+        icon: '🚧',
+        title: 'Entry Marshall',
+        desc: 'Scans guest passes at gates',
+        reportsTo: 'Gate Overseer',
+        color: 'border-yellow-500'
+    },
+    'token_sales': {
+        icon: '💰',
+        title: 'Token Sales Staff',
+        desc: 'Sells SipTokens to guests',
+        reportsTo: 'SipToken Overseer',
+        color: 'border-orange-500'
+    },
+    'barman': {
+        icon: '🍹',
+        title: 'Barman (Bev Service)',
+        desc: 'Serves drinks, scans order QR codes',
+        reportsTo: 'SipToken Overseer',
+        color: 'border-purple-500'
+    }
+};
+
+// Update role selection - shows preview and updates username
+window.updateRoleSelection = function() {
+    const roleSelect = document.getElementById('userRoleSelect');
+    const selectedRole = roleSelect.value;
+    const previewCard = document.getElementById('rolePreviewCard');
+    const prefixSpan = document.getElementById('usernamePrefix');
+    
+    if (!selectedRole) {
+        previewCard?.classList.add('hidden');
+        if (prefixSpan) prefixSpan.textContent = '---';
+        return;
+    }
+    
+    const metadata = ROLE_METADATA[selectedRole];
+    const prefix = ROLE_PREFIXES[selectedRole] || 'User';
+    
+    // Update prefix display
+    if (prefixSpan) {
+        prefixSpan.textContent = prefix;
+    }
+    
+    // Update preview card
+    if (previewCard && metadata) {
+        previewCard.classList.remove('hidden');
+        previewCard.className = `card border-2 ${metadata.color}`;
+        
+        document.getElementById('rolePreviewIcon').textContent = metadata.icon;
+        document.getElementById('rolePreviewTitle').textContent = metadata.title;
+        document.getElementById('rolePreviewDesc').textContent = metadata.desc;
+        document.getElementById('roleReportsTo').textContent = metadata.reportsTo;
+    }
+    
+    // Regenerate username
+    generateUsername();
+};
+
+// Generate username from role prefix + first name
+window.generateUsername = function() {
+    const roleSelect = document.getElementById('userRoleSelect');
+    const firstNameInput = document.getElementById('userFirstName');
+    const usernameValueSpan = document.getElementById('usernameValue');
+    const usernameHidden = document.getElementById('userUsername');
+    
+    const selectedRole = roleSelect?.value;
+    const firstName = firstNameInput?.value?.trim().replace(/\s+/g, '');
+    
+    if (!selectedRole || !firstName) {
+        if (usernameValueSpan) usernameValueSpan.textContent = '---';
+        if (usernameHidden) usernameHidden.value = '';
+        return;
+    }
+    
+    const prefix = ROLE_PREFIXES[selectedRole] || 'User';
+    
+    // Sanitize first name - remove special characters, capitalize first letter
+    const sanitizedName = firstName
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .replace(/^./, c => c.toUpperCase());
+    
+    const username = `${prefix}-${sanitizedName}`;
+    
+    if (usernameValueSpan) usernameValueSpan.textContent = sanitizedName || '---';
+    if (usernameHidden) usernameHidden.value = username;
+    
+    return username;
+};
+
+// Toggle password visibility
+window.togglePasswordVisibility = function(inputId) {
+    const input = document.getElementById(inputId);
+    const icon = input?.nextElementSibling?.querySelector('i');
+    
+    if (input) {
+        if (input.type === 'password') {
+            input.type = 'text';
+            if (icon) icon.className = 'fas fa-eye-slash';
+        } else {
+            input.type = 'password';
+            if (icon) icon.className = 'fas fa-eye';
+        }
+    }
+};
+
+// Check username availability
+async function checkUsernameAvailability(username) {
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .select('id')
+            .eq('username', username)
+            .single();
+        
+        return !data; // Available if no user found
+    } catch (e) {
+        return true; // Assume available on error
+    }
+}
+
+// Handle user form submission with new naming protocol
+document.getElementById('userForm')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const userId = document.getElementById('editUserId')?.value;
+    const role = document.getElementById('userRoleSelect').value;
+    const firstName = document.getElementById('userFirstName').value.trim();
+    const username = document.getElementById('userUsername').value;
+    const fullName = document.getElementById('userFullName').value.trim();
+    const password = document.getElementById('userPassword').value;
+    const mobile = document.getElementById('userMobile').value.trim();
+    const clubName = document.getElementById('userClubName')?.value?.trim() || null;
+    const clubNumber = document.getElementById('userClubNumber')?.value?.trim() || null;
+    
+    // Validation
+    if (!role) {
+        showToast('Please select a role', 'error');
+        return;
+    }
+    
+    if (!firstName || firstName.length < 2) {
+        showToast('Please enter a valid first name (min 2 characters)', 'error');
+        return;
+    }
+    
+    if (!username) {
+        showToast('Username not generated. Please select role and enter name.', 'error');
+        return;
+    }
+    
+    if (!fullName) {
+        showToast('Please enter full name', 'error');
+        return;
+    }
+    
+    if (!userId && (!password || password.length < 6)) {
+        showToast('Password must be at least 6 characters', 'error');
+        return;
+    }
+    
+    if (!mobile || mobile.length !== 10) {
+        showToast('Please enter valid 10-digit mobile number', 'error');
+        return;
+    }
+    
+    // Check username availability (for new users)
+    if (!userId) {
+        const isAvailable = await checkUsernameAvailability(username);
+        if (!isAvailable) {
+            showToast(`Username "${username}" already exists. Try a different name.`, 'error');
+            return;
+        }
+    }
+    
+    // Map role to database fields
+    const userData = {
+        username: username,
+        full_name: fullName,
+        phone: mobile,
+        club_name: clubName,
+        club_number: clubNumber,
+        // Base role (for legacy compatibility)
+        role: mapRoleToBaseRole(role),
+        // Specific role flags
+        is_gate_overseer: role === 'gate_overseer',
+        is_siptoken_overseer: role === 'siptoken_overseer',
+        is_siptoken_sales: role === 'token_sales',
+        is_barman: role === 'barman',
+        is_entry_marshall: role === 'entry_marshall'
+    };
+    
+    if (!userId) {
+        userData.password = password;
+    }
+    
+    try {
+        if (userId) {
+            // Update existing user
+            const { error } = await supabase
+                .from('users')
+                .update(userData)
+                .eq('id', userId);
+            
+            if (error) throw error;
+            showToast('User updated successfully!', 'success');
+        } else {
+            // Create new user
+            const { data, error } = await supabase
+                .from('users')
+                .insert([userData])
+                .select()
+                .single();
+            
+            if (error) throw error;
+            showToast(`User "${username}" created successfully!`, 'success');
+            
+            // Optionally create staff badge
+            if (['entry_marshall', 'token_sales', 'barman', 'event_seller', 'gate_overseer', 'siptoken_overseer'].includes(role)) {
+                await createStaffBadge(data.id, fullName, role);
+            }
+        }
+        
+        closeModal('userModal');
+        document.getElementById('userForm').reset();
+        
+        // Refresh user lists
+        if (typeof loadSellers === 'function') await loadSellers();
+        if (typeof loadAdmins === 'function') await loadAdmins();
+        
+    } catch (error) {
+        console.error('Error saving user:', error);
+        showToast('Failed to save user: ' + error.message, 'error');
+    }
+});
+
+// Map new role system to legacy base roles
+function mapRoleToBaseRole(role) {
+    const roleMap = {
+        'super_admin': 'super_admin',
+        'admin': 'admin',
+        'gate_overseer': 'admin',  // Base as admin, flag determines overseer
+        'siptoken_overseer': 'admin',
+        'presales_seller': 'seller',
+        'event_seller': 'seller',
+        'seller': 'seller',
+        'entry_marshall': 'entry_marshall',
+        'token_sales': 'seller',  // Base as seller, flag determines token sales
+        'barman': 'seller'  // Base as seller, flag determines barman
+    };
+    return roleMap[role] || 'seller';
+}
+
+// Create staff badge for new user
+async function createStaffBadge(userId, fullName, designation) {
+    try {
+        const prefix = {
+            'guest_seller': 'VF-GS',
+            'event_seller': 'VF-ES',
+            'entry_marshall': 'VF-EM',
+            'token_sales': 'VF-TS',
+            'barman': 'VF-BM',
+            'gate_overseer': 'VF-GO',
+            'siptoken_overseer': 'VF-SO'
+        }[designation] || 'VF-XX';
+        
+        const year = new Date().getFullYear();
+        
+        // Get next badge number
+        const { data: existing } = await supabase
+            .from('staff_badges')
+            .select('badge_code')
+            .like('badge_code', `${prefix}-${year}-%`);
+        
+        const nextNum = (existing?.length || 0) + 1;
+        const badgeCode = `${prefix}-${year}-${String(nextNum).padStart(3, '0')}`;
+        
+        const qrData = JSON.stringify({
+            type: 'staff_badge',
+            badge_code: badgeCode,
+            user_id: userId,
+            designation: designation,
+            name: fullName
+        });
+        
+        await supabase.from('staff_badges').insert({
+            user_id: userId,
+            badge_code: badgeCode,
+            designation: designation,
+            qr_data: qrData,
+            created_by: currentUser?.id
+        });
+        
+        console.log(`✅ Badge ${badgeCode} created for ${fullName}`);
+        
+    } catch (error) {
+        console.error('Error creating badge:', error);
+    }
+}
+
+// Open user modal for adding new user
+window.openAddUserModal = function() {
+    document.getElementById('userForm').reset();
+    document.getElementById('editUserId').value = '';
+    document.getElementById('userModalTitle').textContent = 'Add New Staff Member';
+    document.getElementById('usernamePrefix').textContent = '---';
+    document.getElementById('usernameValue').textContent = '---';
+    document.getElementById('rolePreviewCard')?.classList.add('hidden');
+    openModal('userModal');
+};
+
+// Edit existing user
+window.editUser = async function(userId) {
+    try {
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', userId)
+            .single();
+        
+        if (error || !user) {
+            showToast('User not found', 'error');
+            return;
+        }
+        
+        document.getElementById('editUserId').value = userId;
+        document.getElementById('userModalTitle').textContent = 'Edit User';
+        
+        // Determine role from flags
+        let role = user.role;
+        if (user.is_siptoken_overseer) role = 'siptoken_overseer';
+        else if (user.is_gate_overseer) role = 'gate_overseer';
+        else if (user.is_barman) role = 'barman';
+        else if (user.is_siptoken_sales) role = 'token_sales';
+        else if (user.is_entry_marshall) role = 'entry_marshall';
+        
+        document.getElementById('userRoleSelect').value = role;
+        
+        // Extract first name from username
+        const namePart = user.username.split('-')[1] || '';
+        document.getElementById('userFirstName').value = namePart;
+        
+        document.getElementById('userFullName').value = user.full_name || '';
+        document.getElementById('userPassword').value = '';  // Don't show password
+        document.getElementById('userMobile').value = user.phone || '';
+        document.getElementById('userClubName').value = user.club_name || '';
+        document.getElementById('userClubNumber').value = user.club_number || '';
+        
+        updateRoleSelection();
+        
+        openModal('userModal');
+        
+    } catch (error) {
+        console.error('Error loading user:', error);
+        showToast('Failed to load user', 'error');
+    }
+};
+
+console.log('✅ Username Naming Protocol System loaded');
+
+// =====================================================
+// SELLER INVOICE FLOW - Token Sales Staff Dashboard
+// =====================================================
+
+// State for token sales
+let selectedGuestForTokens = null;
+let currentTokenRate = 10;
+let pendingInvoicesCache = [];
+
+// Initialize token sales dashboard
+async function initTokenSalesDashboard() {
+    await loadTokenRateForSales();
+    await loadPendingInvoices();
+    await loadSalesStaffStats();
+    await loadRecentConfirmedSales();
+}
+
+// Load token rate from settings
+async function loadTokenRateForSales() {
+    try {
+        const { data } = await supabase
+            .from('settings')
+            .select('value')
+            .eq('key', 'token_rate')
+            .single();
+        
+        if (data) {
+            currentTokenRate = parseInt(data.value) || 10;
+            const rateEl = document.getElementById('invoiceTokenRate');
+            if (rateEl) rateEl.textContent = currentTokenRate;
+            calculateInvoiceTotal();
+        }
+    } catch (error) {
+        console.log('Using default token rate:', currentTokenRate);
+    }
+}
+
+// Search guest by phone number
+window.searchGuestForTokens = async function() {
+    const phone = document.getElementById('guestPhoneSearch')?.value?.trim();
+    
+    if (!phone || phone.length !== 10) {
+        showToast('Please enter a valid 10-digit phone number', 'error');
+        return;
+    }
+    
+    try {
+        const { data: guest, error } = await supabase
+            .from('guests')
+            .select('*, token_wallets(*)')
+            .eq('phone', phone)
+            .single();
+        
+        if (error || !guest) {
+            showToast('Guest not found with this phone number', 'error');
+            return;
+        }
+        
+        // Check if guest has entry
+        if (guest.entry_status !== 'entered') {
+            showToast('Guest has not entered the venue yet', 'warning');
+        }
+        
+        selectGuestForTokenSale(guest);
+        
+    } catch (error) {
+        console.error('Error searching guest:', error);
+        showToast('Failed to search guest', 'error');
+    }
+};
+
+// Start QR scanner for guest pass
+window.startGuestQRScanner = function() {
+    openModal('qrScannerModal');
+    
+    // Initialize scanner if html5-qrcode is available
+    if (typeof Html5Qrcode !== 'undefined') {
+        const scanner = new Html5Qrcode('qrScannerPreview');
+        
+        scanner.start(
+            { facingMode: 'environment' },
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            async (decodedText) => {
+                scanner.stop();
+                closeModal('qrScannerModal');
+                
+                try {
+                    const qrData = JSON.parse(decodedText);
+                    
+                    if (qrData.type === 'guest_pass' && qrData.guest_id) {
+                        // Fetch guest by ID
+                        const { data: guest, error } = await supabase
+                            .from('guests')
+                            .select('*, token_wallets(*)')
+                            .eq('id', qrData.guest_id)
+                            .single();
+                        
+                        if (error || !guest) {
+                            showToast('Guest not found', 'error');
+                            return;
+                        }
+                        
+                        selectGuestForTokenSale(guest);
+                    } else {
+                        showToast('Invalid guest pass QR code', 'error');
+                    }
+                } catch (e) {
+                    showToast('Could not read QR code', 'error');
+                }
+            },
+            (error) => {
+                // Scan error - ignore
+            }
+        ).catch(err => {
+            console.error('Scanner error:', err);
+            showToast('Could not start camera', 'error');
+        });
+    } else {
+        // Fallback: Manual entry
+        const guestId = prompt('Enter Guest ID (QR scanner not available):');
+        if (guestId) {
+            searchGuestById(guestId);
+        }
+    }
+};
+
+// Search guest by ID (fallback)
+async function searchGuestById(guestId) {
+    try {
+        const { data: guest, error } = await supabase
+            .from('guests')
+            .select('*, token_wallets(*)')
+            .eq('id', guestId)
+            .single();
+        
+        if (error || !guest) {
+            showToast('Guest not found', 'error');
+            return;
+        }
+        
+        selectGuestForTokenSale(guest);
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Failed to find guest', 'error');
+    }
+}
+
+// Select guest for token sale
+function selectGuestForTokenSale(guest) {
+    selectedGuestForTokens = guest;
+    
+    // Get wallet balance
+    const wallet = guest.token_wallets?.[0] || guest.token_wallets;
+    const balance = wallet?.balance || 0;
+    
+    // Update UI
+    document.getElementById('invoiceGuestName').textContent = guest.name || 'Guest';
+    document.getElementById('invoiceGuestPhone').textContent = guest.phone || '-';
+    document.getElementById('invoiceGuestBalance').innerHTML = `${balance} <span class="text-sm">tokens</span>`;
+    
+    // Show step 2, keep step 1 visible but collapsed
+    document.getElementById('tokenSalesStep1').classList.add('opacity-50');
+    document.getElementById('tokenSalesStep2').classList.remove('hidden');
+    
+    // Reset token quantity
+    document.getElementById('invoiceTokenQty').value = 10;
+    calculateInvoiceTotal();
+    
+    showToast(`Guest found: ${guest.name}`, 'success');
+}
+
+// Clear selected guest
+window.clearSelectedGuest = function() {
+    selectedGuestForTokens = null;
+    document.getElementById('tokenSalesStep1').classList.remove('opacity-50');
+    document.getElementById('tokenSalesStep2').classList.add('hidden');
+    document.getElementById('guestPhoneSearch').value = '';
+};
+
+// Adjust token quantity
+window.adjustTokenQty = function(delta) {
+    const input = document.getElementById('invoiceTokenQty');
+    let qty = parseInt(input.value) || 0;
+    qty = Math.max(1, Math.min(500, qty + delta));
+    input.value = qty;
+    calculateInvoiceTotal();
+};
+
+// Set specific token quantity
+window.setTokenQty = function(qty) {
+    document.getElementById('invoiceTokenQty').value = qty;
+    calculateInvoiceTotal();
+};
+
+// Calculate invoice total
+window.calculateInvoiceTotal = function() {
+    const qty = parseInt(document.getElementById('invoiceTokenQty')?.value) || 0;
+    const total = qty * currentTokenRate;
+    const totalEl = document.getElementById('invoiceTotal');
+    if (totalEl) totalEl.textContent = total;
+};
+
+// Send invoice to guest via WhatsApp
+window.sendInvoiceToGuest = async function() {
+    if (!selectedGuestForTokens) {
+        showToast('Please select a guest first', 'error');
+        return;
+    }
+    
+    const tokenQty = parseInt(document.getElementById('invoiceTokenQty').value) || 0;
+    
+    if (tokenQty < 1) {
+        showToast('Please enter token quantity', 'error');
+        return;
+    }
+    
+    const totalAmount = tokenQty * currentTokenRate;
+    
+    try {
+        // Generate invoice number
+        const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const { count } = await supabase
+            .from('siptoken_invoices')
+            .select('*', { count: 'exact', head: true })
+            .gte('created_at', new Date().toISOString().slice(0, 10));
+        
+        const invoiceNumber = `INV-${today}-${String((count || 0) + 1).padStart(4, '0')}`;
+        
+        // Create invoice in database
+        const { data: invoice, error } = await supabase
+            .from('siptoken_invoices')
+            .insert({
+                invoice_number: invoiceNumber,
+                guest_id: selectedGuestForTokens.id,
+                seller_id: currentUser.id,
+                tokens_requested: tokenQty,
+                token_rate: currentTokenRate,
+                amount: totalAmount,
+                status: 'pending',
+                expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString() // 30 min expiry
+            })
+            .select()
+            .single();
+        
+        if (error) throw error;
+        
+        // Generate WhatsApp message with payment link
+        const guestPhone = selectedGuestForTokens.phone;
+        const guestName = selectedGuestForTokens.name;
+        
+        // Payment link (will be a page where guest selects Cash/UPI)
+        const paymentLink = `${window.location.origin}/payment.html?inv=${invoice.id}`;
+        
+        const message = `🎉 *Vamos Festa - Token Invoice*
+
+Hi ${guestName}!
+
+Invoice: *${invoiceNumber}*
+Tokens: *${tokenQty}*
+Amount: *₹${totalAmount}*
+
+💳 Select your payment method:
+${paymentLink}
+
+⏰ Valid for 30 minutes
+
+_41'ers Clubs of India - Area 8_`;
+
+        // Open WhatsApp
+        const whatsappUrl = `https://wa.me/91${guestPhone}?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
+        
+        showToast(`Invoice ${invoiceNumber} sent to ${guestName}`, 'success');
+        
+        // Clear and refresh
+        clearSelectedGuest();
+        loadPendingInvoices();
+        loadSalesStaffStats();
+        
+    } catch (error) {
+        console.error('Error creating invoice:', error);
+        showToast('Failed to create invoice: ' + error.message, 'error');
+    }
+};
+
+// Load pending invoices for this seller
+window.loadPendingInvoices = async function() {
+    if (!currentUser) return;
+    
+    try {
+        const { data: invoices, error } = await supabase
+            .from('siptoken_invoices')
+            .select('*, guests(name, phone)')
+            .eq('seller_id', currentUser.id)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        
+        pendingInvoicesCache = invoices || [];
+        
+        // Update pending count
+        document.getElementById('salesStaffPending').textContent = pendingInvoicesCache.length;
+        
+        const container = document.getElementById('pendingInvoicesList');
+        if (!container) return;
+        
+        if (pendingInvoicesCache.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No pending invoices</p>';
+            return;
+        }
+        
+        container.innerHTML = pendingInvoicesCache.map(inv => {
+            const guest = inv.guests;
+            const createdAt = new Date(inv.created_at);
+            const expiresAt = new Date(inv.expires_at);
+            const isExpired = expiresAt < new Date();
+            const timeAgo = getTimeAgo(createdAt);
+            
+            return `
+                <div class="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg mb-2 ${isExpired ? 'opacity-50' : ''}">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2">
+                            <span class="font-mono text-sm text-orange-400">${inv.invoice_number}</span>
+                            ${isExpired ? '<span class="text-xs bg-red-600 px-2 py-0.5 rounded">EXPIRED</span>' : ''}
+                        </div>
+                        <p class="text-white font-medium">${guest?.name || 'Guest'}</p>
+                        <p class="text-xs text-gray-400">${inv.tokens_requested} tokens • ₹${inv.amount} • ${timeAgo}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        ${!isExpired ? `
+                            <button onclick="confirmPayment('${inv.id}', 'cash')" class="px-3 py-2 bg-green-600 hover:bg-green-500 rounded text-sm font-medium">
+                                <i class="fas fa-money-bill-wave mr-1"></i>Cash
+                            </button>
+                            <button onclick="confirmPayment('${inv.id}', 'upi')" class="px-3 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-medium">
+                                <i class="fas fa-mobile-alt mr-1"></i>UPI
+                            </button>
+                        ` : `
+                            <button onclick="cancelInvoice('${inv.id}')" class="px-3 py-2 bg-gray-600 hover:bg-gray-500 rounded text-sm">
+                                <i class="fas fa-times mr-1"></i>Remove
+                            </button>
+                        `}
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+    } catch (error) {
+        console.error('Error loading pending invoices:', error);
+    }
+};
+
+// Confirm payment and credit tokens
+window.confirmPayment = async function(invoiceId, paymentMethod) {
+    if (!confirm(`Confirm ${paymentMethod.toUpperCase()} payment received?`)) return;
+    
+    try {
+        // Get invoice details
+        const { data: invoice, error: fetchError } = await supabase
+            .from('siptoken_invoices')
+            .select('*, guests(id, name, phone)')
+            .eq('id', invoiceId)
+            .single();
+        
+        if (fetchError || !invoice) throw new Error('Invoice not found');
+        
+        if (invoice.status !== 'pending') {
+            showToast('Invoice already processed', 'warning');
+            loadPendingInvoices();
+            return;
+        }
+        
+        // Update invoice status
+        const { error: updateError } = await supabase
+            .from('siptoken_invoices')
+            .update({
+                status: 'confirmed',
+                payment_method: paymentMethod,
+                confirmed_at: new Date().toISOString(),
+                confirmed_by: currentUser.id
+            })
+            .eq('id', invoiceId);
+        
+        if (updateError) throw updateError;
+        
+        // Get or create wallet for guest
+        let { data: wallet } = await supabase
+            .from('token_wallets')
+            .select('*')
+            .eq('guest_id', invoice.guest_id)
+            .single();
+        
+        if (!wallet) {
+            // Create wallet
+            const { data: newWallet, error: walletError } = await supabase
+                .from('token_wallets')
+                .insert({
+                    guest_id: invoice.guest_id,
+                    balance: 0
+                })
+                .select()
+                .single();
+            
+            if (walletError) throw walletError;
+            wallet = newWallet;
+        }
+        
+        // Credit tokens to wallet
+        const newBalance = (wallet.balance || 0) + invoice.tokens_requested;
+        
+        const { error: creditError } = await supabase
+            .from('token_wallets')
+            .update({ 
+                balance: newBalance,
+                last_purchase_at: new Date().toISOString()
+            })
+            .eq('id', wallet.id);
+        
+        if (creditError) throw creditError;
+        
+        // Record the purchase
+        await supabase.from('token_purchases').insert({
+            wallet_id: wallet.id,
+            invoice_id: invoiceId,
+            tokens: invoice.tokens_requested,
+            amount: invoice.amount,
+            payment_method: paymentMethod,
+            seller_id: currentUser.id
+        });
+        
+        // Send confirmation WhatsApp
+        const guestPhone = invoice.guests?.phone;
+        const guestName = invoice.guests?.name;
+        const portalLink = `${window.location.origin}/guest.html?guest=${invoice.guest_id}`;
+        
+        const confirmMsg = `✅ *Payment Confirmed!*
+
+Hi ${guestName}!
+
+${invoice.tokens_requested} tokens added to your wallet.
+💰 New Balance: *${newBalance} tokens*
+
+🍹 Order drinks here:
+${portalLink}
+
+Enjoy the party! 🎉
+_Vamos Festa_`;
+
+        const whatsappUrl = `https://wa.me/91${guestPhone}?text=${encodeURIComponent(confirmMsg)}`;
+        window.open(whatsappUrl, '_blank');
+        
+        showToast(`${invoice.tokens_requested} tokens credited to ${guestName}!`, 'success');
+        
+        // Refresh lists
+        loadPendingInvoices();
+        loadRecentConfirmedSales();
+        loadSalesStaffStats();
+        
+    } catch (error) {
+        console.error('Error confirming payment:', error);
+        showToast('Failed to confirm payment: ' + error.message, 'error');
+    }
+};
+
+// Cancel/remove expired invoice
+window.cancelInvoice = async function(invoiceId) {
+    try {
+        await supabase
+            .from('siptoken_invoices')
+            .update({ status: 'cancelled' })
+            .eq('id', invoiceId);
+        
+        showToast('Invoice removed', 'success');
+        loadPendingInvoices();
+        
+    } catch (error) {
+        console.error('Error:', error);
+    }
+};
+
+// Load sales staff statistics
+async function loadSalesStaffStats() {
+    if (!currentUser) return;
+    
+    try {
+        const today = new Date().toISOString().slice(0, 10);
+        
+        // Get today's confirmed invoices
+        const { data: sales } = await supabase
+            .from('siptoken_invoices')
+            .select('tokens_requested, amount')
+            .eq('seller_id', currentUser.id)
+            .eq('status', 'confirmed')
+            .gte('created_at', today);
+        
+        const totalTokens = sales?.reduce((sum, s) => sum + s.tokens_requested, 0) || 0;
+        const totalRevenue = sales?.reduce((sum, s) => sum + s.amount, 0) || 0;
+        const totalTransactions = sales?.length || 0;
+        
+        document.getElementById('salesStaffTokensSold').textContent = totalTokens;
+        document.getElementById('salesStaffRevenue').textContent = `₹${totalRevenue}`;
+        document.getElementById('salesStaffTransactions').textContent = totalTransactions;
+        
+    } catch (error) {
+        console.error('Error loading stats:', error);
+    }
+}
+
+// Load recent confirmed sales
+async function loadRecentConfirmedSales() {
+    if (!currentUser) return;
+    
+    try {
+        const { data: sales } = await supabase
+            .from('siptoken_invoices')
+            .select('*, guests(name, phone)')
+            .eq('seller_id', currentUser.id)
+            .eq('status', 'confirmed')
+            .order('confirmed_at', { ascending: false })
+            .limit(10);
+        
+        const container = document.getElementById('salesStaffRecentSales');
+        if (!container) return;
+        
+        if (!sales || sales.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No confirmed sales yet</p>';
+            return;
+        }
+        
+        container.innerHTML = sales.map(sale => {
+            const guest = sale.guests;
+            const timeAgo = getTimeAgo(new Date(sale.confirmed_at));
+            
+            return `
+                <div class="flex items-center justify-between p-2 border-b border-gray-800 last:border-0">
+                    <div>
+                        <p class="text-white font-medium">${guest?.name || 'Guest'}</p>
+                        <p class="text-xs text-gray-500">${timeAgo} • ${sale.payment_method?.toUpperCase() || 'Cash'}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-green-400 font-bold">${sale.tokens_requested} tokens</p>
+                        <p class="text-xs text-gray-400">₹${sale.amount}</p>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+    } catch (error) {
+        console.error('Error loading recent sales:', error);
+    }
+}
+
+// Helper function for time ago
+function getTimeAgo(date) {
+    const seconds = Math.floor((new Date() - date) / 1000);
+    
+    if (seconds < 60) return 'Just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)} hr ago`;
+    return date.toLocaleDateString();
+}
+
+// Hook into role content display
+const originalShowSipTokenRoleContent = showSipTokenRoleContent;
+showSipTokenRoleContent = function() {
+    originalShowSipTokenRoleContent();
+    
+    // Initialize token sales dashboard when sales staff content is shown
+    if (currentUser?.is_siptoken_sales) {
+        initTokenSalesDashboard();
+    }
+    
+    // Initialize barman dashboard when barman content is shown
+    if (currentUser?.is_barman) {
+        initBarmanDashboard();
+    }
+};
+
+console.log('✅ Seller Invoice Flow loaded');
+
+// =====================================================
+// BARMAN ORDER QUEUE - Beverage Service Dashboard
+// =====================================================
+
+// State for barman dashboard
+let barmanCounterAssignment = null;
+let barmanOrdersCache = [];
+let barmanOrderSubscription = null;
+
+// Initialize barman dashboard
+async function initBarmanDashboard() {
+    await loadBarmanCounterAssignment();
+    await loadBarmanOrders();
+    await loadBarmanStats();
+    setupBarmanRealtime();
+}
+
+// Load barman's counter assignment
+async function loadBarmanCounterAssignment() {
+    if (!currentUser) return;
+    
+    try {
+        // Get active assignment for this barman
+        const { data: assignment, error } = await supabase
+            .from('counter_assignments')
+            .select('*, bar_counters(*)')
+            .eq('user_id', currentUser.id)
+            .is('ended_at', null)
+            .order('started_at', { ascending: false })
+            .limit(1)
+            .single();
+        
+        if (error && error.code !== 'PGRST116') { // PGRST116 = no rows
+            console.error('Error loading assignment:', error);
+        }
+        
+        barmanCounterAssignment = assignment;
+        
+        // Update UI
+        const counterName = document.getElementById('barmanCounterName');
+        const counterCode = document.getElementById('barmanCounterCode');
+        const banner = document.getElementById('barmanCounterBanner');
+        
+        if (assignment && assignment.bar_counters) {
+            counterName.textContent = assignment.bar_counters.counter_name;
+            counterCode.textContent = assignment.bar_counters.counter_code;
+            banner.classList.remove('border-red-600/50', 'bg-red-900/30');
+            banner.classList.add('border-purple-600/50', 'bg-purple-900/30');
+        } else {
+            counterName.textContent = 'Not Assigned';
+            counterCode.textContent = 'Contact Overseer';
+            banner.classList.remove('border-purple-600/50', 'bg-purple-900/30');
+            banner.classList.add('border-red-600/50', 'bg-red-900/30');
+        }
+        
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+// Load orders for this barman's counter
+window.loadBarmanOrders = async function() {
+    if (!currentUser || !barmanCounterAssignment?.bar_counters?.id) {
+        console.log('No counter assignment');
+        return;
+    }
+    
+    const counterId = barmanCounterAssignment.bar_counters.id;
+    
+    try {
+        // Load pending orders
+        const { data: pendingOrders } = await supabase
+            .from('token_orders')
+            .select(`
+                *,
+                token_wallets(guest_id, guests(name, phone)),
+                token_order_items(*, beverage_menu(name, emoji))
+            `)
+            .eq('counter_id', counterId)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: true });
+        
+        // Load accepted orders (being prepared)
+        const { data: acceptedOrders } = await supabase
+            .from('token_orders')
+            .select(`
+                *,
+                token_wallets(guest_id, guests(name, phone)),
+                token_order_items(*, beverage_menu(name, emoji))
+            `)
+            .eq('counter_id', counterId)
+            .eq('status', 'accepted')
+            .eq('accepted_by', currentUser.id)
+            .order('accepted_at', { ascending: true });
+        
+        // Load recently served (last 10)
+        const { data: servedOrders } = await supabase
+            .from('token_orders')
+            .select(`
+                *,
+                token_wallets(guest_id, guests(name, phone)),
+                token_order_items(*, beverage_menu(name, emoji))
+            `)
+            .eq('counter_id', counterId)
+            .eq('status', 'served')
+            .eq('served_by', currentUser.id)
+            .order('served_at', { ascending: false })
+            .limit(10);
+        
+        // Update UI
+        renderPendingOrders(pendingOrders || []);
+        renderAcceptedOrders(acceptedOrders || []);
+        renderServedOrders(servedOrders || []);
+        
+        // Update badges
+        document.getElementById('pendingOrdersBadge').textContent = pendingOrders?.length || 0;
+        document.getElementById('acceptedOrdersBadge').textContent = acceptedOrders?.length || 0;
+        document.getElementById('barmanPendingCount').textContent = pendingOrders?.length || 0;
+        document.getElementById('barmanAcceptedCount').textContent = acceptedOrders?.length || 0;
+        
+    } catch (error) {
+        console.error('Error loading orders:', error);
+    }
+};
+
+// Render pending orders
+function renderPendingOrders(orders) {
+    const container = document.getElementById('pendingOrdersList');
+    
+    if (!orders || orders.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-8 text-gray-500">
+                <i class="fas fa-inbox text-4xl mb-3 opacity-30"></i>
+                <p>No pending orders</p>
+                <p class="text-xs mt-1">New orders will appear here automatically</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = orders.map(order => {
+        const guest = order.token_wallets?.guests;
+        const items = order.token_order_items || [];
+        const itemSummary = items.map(i => `${i.beverage_menu?.emoji || '🍹'} ${i.quantity}x`).join(' ');
+        const timeAgo = getTimeAgo(new Date(order.created_at));
+        
+        return `
+            <div class="bg-orange-900/20 border border-orange-600/30 rounded-xl p-4 mb-3 animate-pulse-slow">
+                <div class="flex items-start justify-between mb-3">
+                    <div>
+                        <span class="font-mono text-sm text-orange-400">${order.order_number}</span>
+                        <p class="text-white font-bold">${guest?.name || 'Guest'}</p>
+                        <p class="text-xs text-gray-400">${timeAgo}</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="bg-orange-600 text-white text-xs px-2 py-1 rounded-full">PENDING</span>
+                        <p class="text-xl font-bold text-orange-400 mt-1">${order.total_tokens} <span class="text-xs">tokens</span></p>
+                    </div>
+                </div>
+                
+                <div class="bg-black/20 rounded-lg p-2 mb-3">
+                    <p class="text-sm">${itemSummary}</p>
+                    <p class="text-xs text-gray-500 mt-1">${items.length} item(s)</p>
+                </div>
+                
+                <div class="flex gap-2">
+                    <button onclick="acceptOrder('${order.id}')" class="flex-1 py-2 bg-green-600 hover:bg-green-500 rounded-lg font-medium text-sm">
+                        <i class="fas fa-check mr-1"></i> Accept
+                    </button>
+                    <button onclick="viewOrderDetails('${order.id}')" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button onclick="openRejectModal('${order.id}')" class="px-4 py-2 bg-red-600/50 hover:bg-red-600 rounded-lg text-sm">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Render accepted orders (being prepared)
+function renderAcceptedOrders(orders) {
+    const container = document.getElementById('acceptedOrdersList');
+    
+    if (!orders || orders.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-6 text-gray-500">
+                <p class="text-sm">No orders being prepared</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = orders.map(order => {
+        const guest = order.token_wallets?.guests;
+        const items = order.token_order_items || [];
+        const itemList = items.map(i => `${i.beverage_menu?.emoji || '🍹'} ${i.quantity}x ${i.beverage_menu?.name || 'Item'}`).join(', ');
+        const acceptedTime = getTimeAgo(new Date(order.accepted_at));
+        
+        return `
+            <div class="bg-blue-900/20 border border-blue-600/30 rounded-xl p-4 mb-3">
+                <div class="flex items-start justify-between mb-3">
+                    <div>
+                        <span class="font-mono text-sm text-blue-400">${order.order_number}</span>
+                        <p class="text-white font-bold">${guest?.name || 'Guest'}</p>
+                        <p class="text-xs text-gray-400">Accepted ${acceptedTime}</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="bg-blue-600 text-white text-xs px-2 py-1 rounded-full">PREPARING</span>
+                    </div>
+                </div>
+                
+                <div class="bg-black/20 rounded-lg p-2 mb-3">
+                    <p class="text-sm">${itemList}</p>
+                </div>
+                
+                <button onclick="markOrderServed('${order.id}')" class="w-full py-3 bg-green-600 hover:bg-green-500 rounded-lg font-bold">
+                    <i class="fas fa-check-double mr-2"></i> Mark as Served
+                </button>
+            </div>
+        `;
+    }).join('');
+}
+
+// Render served orders
+function renderServedOrders(orders) {
+    const container = document.getElementById('servedOrdersList');
+    
+    if (!orders || orders.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">Served orders will appear here</p>';
+        return;
+    }
+    
+    container.innerHTML = orders.map(order => {
+        const guest = order.token_wallets?.guests;
+        const servedTime = getTimeAgo(new Date(order.served_at));
+        
+        return `
+            <div class="flex items-center justify-between py-2 border-b border-gray-800 last:border-0">
+                <div>
+                    <p class="text-white font-medium">${guest?.name || 'Guest'}</p>
+                    <p class="text-xs text-gray-500">${order.order_number} • ${servedTime}</p>
+                </div>
+                <div class="text-right">
+                    <span class="text-green-400 text-sm"><i class="fas fa-check-circle mr-1"></i>Served</span>
+                    <p class="text-xs text-gray-400">${order.total_tokens} tokens</p>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Accept order
+window.acceptOrder = async function(orderId) {
+    if (!currentUser) return;
+    
+    try {
+        // Update order status
+        const { error } = await supabase
+            .from('token_orders')
+            .update({
+                status: 'accepted',
+                accepted_by: currentUser.id,
+                accepted_at: new Date().toISOString()
+            })
+            .eq('id', orderId)
+            .eq('status', 'pending');
+        
+        if (error) throw error;
+        
+        // Get order details for notification
+        const { data: order } = await supabase
+            .from('token_orders')
+            .select('*, token_wallets(guests(name, phone)), bar_counters(counter_name)')
+            .eq('id', orderId)
+            .single();
+        
+        if (order) {
+            // Send WhatsApp notification to guest
+            const guestPhone = order.token_wallets?.guests?.phone;
+            const guestName = order.token_wallets?.guests?.name;
+            const counterName = order.bar_counters?.counter_name || 'Counter';
+            
+            const message = `🍹 *Order Accepted!*
+
+Hi ${guestName}!
+
+Your order *${order.order_number}* is being prepared at *${counterName}*.
+
+Served by: ${currentUser.full_name}
+
+Please wait nearby - we'll notify you when it's ready!
+
+_Vamos Festa_`;
+
+            const whatsappUrl = `https://wa.me/91${guestPhone}?text=${encodeURIComponent(message)}`;
+            window.open(whatsappUrl, '_blank');
+        }
+        
+        showToast('Order accepted! Preparing...', 'success');
+        
+        // Refresh orders
+        loadBarmanOrders();
+        loadBarmanStats();
+        
+        // Log to audit
+        logBarmanAction('order_accepted', orderId);
+        
+    } catch (error) {
+        console.error('Error accepting order:', error);
+        showToast('Failed to accept order', 'error');
+    }
+};
+
+// Mark order as served
+window.markOrderServed = async function(orderId) {
+    if (!currentUser) return;
+    
+    try {
+        // Get order details first
+        const { data: order } = await supabase
+            .from('token_orders')
+            .select('*, token_wallets(id, balance, guests(name, phone))')
+            .eq('id', orderId)
+            .single();
+        
+        if (!order) throw new Error('Order not found');
+        
+        // Update order status
+        const { error: updateError } = await supabase
+            .from('token_orders')
+            .update({
+                status: 'served',
+                served_by: currentUser.id,
+                served_at: new Date().toISOString()
+            })
+            .eq('id', orderId);
+        
+        if (updateError) throw updateError;
+        
+        // Deduct tokens from wallet (trigger should handle this, but let's be safe)
+        const wallet = order.token_wallets;
+        if (wallet) {
+            const newBalance = Math.max(0, (wallet.balance || 0) - order.total_tokens);
+            
+            await supabase
+                .from('token_wallets')
+                .update({ balance: newBalance })
+                .eq('id', wallet.id);
+        }
+        
+        // Send WhatsApp notification to guest
+        const guestPhone = order.token_wallets?.guests?.phone;
+        const guestName = order.token_wallets?.guests?.name;
+        const newBalance = Math.max(0, (wallet?.balance || 0) - order.total_tokens);
+        
+        const message = `✅ *Order Served!*
+
+Hi ${guestName}!
+
+Your order *${order.order_number}* is ready!
+
+💰 ${order.total_tokens} tokens deducted
+💳 Remaining balance: *${newBalance} tokens*
+
+Enjoy! 🎉
+_Vamos Festa_`;
+
+        const whatsappUrl = `https://wa.me/91${guestPhone}?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
+        
+        showToast('Order served! Guest notified.', 'success');
+        
+        // Refresh
+        loadBarmanOrders();
+        loadBarmanStats();
+        
+        // Log to audit
+        logBarmanAction('order_served', orderId);
+        
+    } catch (error) {
+        console.error('Error marking order served:', error);
+        showToast('Failed to mark as served', 'error');
+    }
+};
+
+// Open reject modal
+window.openRejectModal = function(orderId) {
+    document.getElementById('rejectOrderId').value = orderId;
+    document.querySelectorAll('input[name="rejectReason"]').forEach(r => r.checked = false);
+    document.getElementById('rejectReasonOther').classList.add('hidden');
+    openModal('rejectOrderModal');
+};
+
+// Handle reject reason selection
+document.addEventListener('change', (e) => {
+    if (e.target.name === 'rejectReason') {
+        const otherInput = document.getElementById('rejectReasonOther');
+        if (e.target.value === 'other') {
+            otherInput.classList.remove('hidden');
+        } else {
+            otherInput.classList.add('hidden');
+        }
+    }
+});
+
+// Confirm reject order
+window.confirmRejectOrder = async function() {
+    const orderId = document.getElementById('rejectOrderId').value;
+    const selectedReason = document.querySelector('input[name="rejectReason"]:checked');
+    
+    if (!selectedReason) {
+        showToast('Please select a reason', 'error');
+        return;
+    }
+    
+    let reason = selectedReason.value;
+    if (reason === 'other') {
+        reason = document.getElementById('rejectReasonOther').value.trim();
+        if (!reason) {
+            showToast('Please enter a reason', 'error');
+            return;
+        }
+    }
+    
+    try {
+        // Get order details
+        const { data: order } = await supabase
+            .from('token_orders')
+            .select('*, token_wallets(guests(name, phone))')
+            .eq('id', orderId)
+            .single();
+        
+        // Update order status
+        const { error } = await supabase
+            .from('token_orders')
+            .update({
+                status: 'rejected',
+                rejected_by: currentUser.id,
+                rejected_at: new Date().toISOString(),
+                rejection_reason: reason
+            })
+            .eq('id', orderId);
+        
+        if (error) throw error;
+        
+        // Notify guest
+        if (order) {
+            const guestPhone = order.token_wallets?.guests?.phone;
+            const guestName = order.token_wallets?.guests?.name;
+            
+            const reasonText = {
+                'item_unavailable': 'Item(s) currently unavailable',
+                'counter_closed': 'Counter is closing',
+                'too_busy': 'Counter too busy - please try another'
+            }[reason] || reason;
+            
+            const message = `❌ *Order Could Not Be Processed*
+
+Hi ${guestName},
+
+Sorry, your order *${order.order_number}* could not be fulfilled.
+
+Reason: ${reasonText}
+
+💰 No tokens were deducted.
+
+Please try ordering from another counter.
+
+_Vamos Festa_`;
+
+            const whatsappUrl = `https://wa.me/91${guestPhone}?text=${encodeURIComponent(message)}`;
+            window.open(whatsappUrl, '_blank');
+        }
+        
+        closeModal('rejectOrderModal');
+        showToast('Order rejected', 'warning');
+        
+        loadBarmanOrders();
+        logBarmanAction('order_rejected', orderId, { reason });
+        
+    } catch (error) {
+        console.error('Error rejecting order:', error);
+        showToast('Failed to reject order', 'error');
+    }
+};
+
+// View order details
+window.viewOrderDetails = async function(orderId) {
+    try {
+        const { data: order } = await supabase
+            .from('token_orders')
+            .select(`
+                *,
+                token_wallets(guests(name, phone)),
+                token_order_items(*, beverage_menu(name, emoji, token_price, measure)),
+                bar_counters(counter_name)
+            `)
+            .eq('id', orderId)
+            .single();
+        
+        if (!order) {
+            showToast('Order not found', 'error');
+            return;
+        }
+        
+        const guest = order.token_wallets?.guests;
+        const items = order.token_order_items || [];
+        
+        // Populate modal
+        document.getElementById('orderDetailNumber').textContent = order.order_number;
+        document.getElementById('orderDetailGuestName').textContent = guest?.name || 'Guest';
+        document.getElementById('orderDetailGuestPhone').textContent = guest?.phone || '-';
+        document.getElementById('orderDetailTotal').textContent = order.total_tokens;
+        document.getElementById('orderDetailTime').textContent = getTimeAgo(new Date(order.created_at));
+        
+        // Status badge
+        const statusEl = document.getElementById('orderDetailStatus');
+        const statusColors = {
+            'pending': 'bg-orange-500',
+            'accepted': 'bg-blue-500',
+            'served': 'bg-green-500',
+            'rejected': 'bg-red-500'
+        };
+        statusEl.className = `px-3 py-1 rounded-full text-xs font-bold ${statusColors[order.status] || 'bg-gray-500'}`;
+        statusEl.textContent = order.status.toUpperCase();
+        
+        // Items list
+        const itemsContainer = document.getElementById('orderDetailItems');
+        itemsContainer.innerHTML = items.map(item => `
+            <div class="flex items-center justify-between bg-gray-800/50 rounded-lg p-3">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">${item.beverage_menu?.emoji || '🍹'}</span>
+                    <div>
+                        <p class="text-white font-medium">${item.beverage_menu?.name || 'Item'}</p>
+                        <p class="text-xs text-gray-400">${item.beverage_menu?.measure || ''}</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="text-white font-bold">×${item.quantity}</p>
+                    <p class="text-xs text-gray-400">${item.tokens_subtotal} tokens</p>
+                </div>
+            </div>
+        `).join('');
+        
+        // Action buttons based on status
+        const actionsContainer = document.getElementById('orderDetailActions');
+        if (order.status === 'pending') {
+            actionsContainer.innerHTML = `
+                <button onclick="acceptOrder('${orderId}'); closeModal('orderDetailModal');" class="flex-1 py-3 bg-green-600 hover:bg-green-500 rounded-lg font-bold">
+                    <i class="fas fa-check mr-2"></i>Accept Order
+                </button>
+                <button onclick="closeModal('orderDetailModal'); openRejectModal('${orderId}');" class="flex-1 py-3 bg-red-600 hover:bg-red-500 rounded-lg font-bold">
+                    <i class="fas fa-times mr-2"></i>Reject
+                </button>
+            `;
+        } else if (order.status === 'accepted') {
+            actionsContainer.innerHTML = `
+                <button onclick="markOrderServed('${orderId}'); closeModal('orderDetailModal');" class="flex-1 py-3 bg-green-600 hover:bg-green-500 rounded-lg font-bold">
+                    <i class="fas fa-check-double mr-2"></i>Mark as Served
+                </button>
+            `;
+        } else {
+            actionsContainer.innerHTML = `
+                <button onclick="closeModal('orderDetailModal')" class="flex-1 py-3 bg-gray-600 hover:bg-gray-500 rounded-lg font-bold">
+                    Close
+                </button>
+            `;
+        }
+        
+        openModal('orderDetailModal');
+        
+    } catch (error) {
+        console.error('Error loading order details:', error);
+        showToast('Failed to load order', 'error');
+    }
+};
+
+// Show counter QR code
+window.showCounterQR = async function() {
+    if (!barmanCounterAssignment?.bar_counters) {
+        showToast('No counter assigned', 'error');
+        return;
+    }
+    
+    const counter = barmanCounterAssignment.bar_counters;
+    
+    document.getElementById('counterQRName').textContent = counter.counter_name;
+    document.getElementById('counterQRCodeText').textContent = counter.counter_code;
+    
+    // Generate QR
+    const qrContainer = document.getElementById('counterQRCode');
+    qrContainer.innerHTML = '';
+    
+    const qrData = JSON.stringify({
+        type: 'bar_counter',
+        counter_id: counter.id,
+        counter_code: counter.counter_code,
+        counter_name: counter.counter_name
+    });
+    
+    if (typeof QRCode !== 'undefined') {
+        new QRCode(qrContainer, {
+            text: qrData,
+            width: 200,
+            height: 200,
+            colorDark: '#1A1A2E',
+            colorLight: '#ffffff'
+        });
+    }
+    
+    openModal('counterQRModal');
+};
+
+// Load barman statistics
+async function loadBarmanStats() {
+    if (!currentUser) return;
+    
+    try {
+        const today = new Date().toISOString().slice(0, 10);
+        
+        // Get today's served orders
+        const { data: served } = await supabase
+            .from('token_orders')
+            .select('total_tokens')
+            .eq('served_by', currentUser.id)
+            .eq('status', 'served')
+            .gte('served_at', today);
+        
+        const servedCount = served?.length || 0;
+        const tokensProcessed = served?.reduce((sum, o) => sum + o.total_tokens, 0) || 0;
+        
+        document.getElementById('barmanServedToday').textContent = servedCount;
+        document.getElementById('barmanTokensProcessed').textContent = tokensProcessed;
+        
+    } catch (error) {
+        console.error('Error loading stats:', error);
+    }
+}
+
+// Setup realtime subscription for new orders
+function setupBarmanRealtime() {
+    if (!barmanCounterAssignment?.bar_counters?.id) return;
+    
+    // Clean up existing subscription
+    if (barmanOrderSubscription) {
+        supabase.removeChannel(barmanOrderSubscription);
+    }
+    
+    const counterId = barmanCounterAssignment.bar_counters.id;
+    
+    // Subscribe to order changes for this counter
+    barmanOrderSubscription = supabase
+        .channel(`orders-${counterId}`)
+        .on(
+            'postgres_changes',
+            {
+                event: '*',
+                schema: 'public',
+                table: 'token_orders',
+                filter: `counter_id=eq.${counterId}`
+            },
+            (payload) => {
+                console.log('Order change:', payload);
+                
+                // Play notification sound for new orders
+                if (payload.eventType === 'INSERT' && payload.new.status === 'pending') {
+                    playNotificationSound();
+                    showToast('New order received!', 'info');
+                }
+                
+                // Refresh orders
+                loadBarmanOrders();
+            }
+        )
+        .subscribe();
+    
+    console.log('✅ Barman realtime subscription active');
+}
+
+// Play notification sound
+function playNotificationSound() {
+    try {
+        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2Onp2Xh3VoYW55kKOvq5mEcmVkb4KVpq+rl4RxZGZvg5eoq6mWg3BjZG+DlKmrqZaDcGNlcIOXqaypln9uY2ZwhJerqqiUfm5jZnCFl6urqJR9bmJlcIaXq6uolH1uYmVwhZarq6iUfG5iZXGFl6yrp5N8bWJlcYaXrKunknttYmVxhpesq6aSe21iZXKHl62qppF6bGFkcoiYraqmkHlsYWRyiJmtqqWPeWthZHKJma2ppI94a2FkcomZramkjndrYWRzipmtqaSNd2thZHOKmq2po4x2amBjdIuarKmii3ZqYGN0jJqsqKKKdWpgY3WMm6yooYl0aWBjdYybrKihiXNpX2N2jZusqKCIc2lfY3aNnKynnoZyaF9id42craeehXFoX2J3jpyspp2EcGdfYniPnaylnINwZ19ieI+crKWbgnBmXmJ5kJ2spZuBb2VdYnqRnqylmoFuZV1iepKerKSZf25kXGJ7kp+so5h+bWRcYXuTn6yjl31sY1xhe5SgrKOWfGxjW2B8lKCso5V7a2JbYH2VoasslHprYlpgfZWhq6KSempgWmB+lqKroZF5aV9ZYH+Xoqqgj3hoX1lgf5eiqqCOd2dfWWCAl6OqoI12Zl5YYIGYo6qfjHVmXldhgZmkqZ6LdGVdV2GCmaWpnYpzZV1XYoKapamciHJkXFdjhJqlqJuHcWRcV2OFm6WnmYZwY1tWY4acp6eYhW9jW1Zkh52nppeDb2JaVWWInaemlINuYlpVZomep6WWgm1hWVVni5+mpZSAbGBZVWiMoKWkkn9rYFhUaYyhpZOQfmpfWFRqjaKkko9+aV5YVGuOo6SRjXxoXlhUbI+jpJCMfGheV1NtkKSjj4p6Z11XU22Ro6OOiHlmXVdTbpKkoY6GdmVcVlNvk6ShjoV1ZFxWU3CUpKCNhHRkW1VTcZWloI2CcmNbVVRylqWfjYFxYlpUVHOXpp6MgHBiWlRUdJimnYt/b2FZVFRil6adjH9uYVlTU2WYpp2Le25gWVNTZpmmnIp8bWBYU1JnmqabinyLX1dSUmiaq5t9e4peVlFRaZyrmn15il1WUVFqnayaeHmJXVVRUWudq5p3eIhcVFFRa52smnZ3h1tUUFFsnqyZdXeHW1NQUGyfq5l0dYZaU09Qba+smHR0hVlST09usKyXc3OEWVJPTm+xq5dycYNYUU5OcLKrlnFwglhQTk5xsquVcG+BWFBNTXKzq5Rvb4FXUE1Nc7SrlG5tgFdPTEt0tatTbWx/Vk9MS3W2qpRsanhWT0tKeLatklpqc31VTkpJeLerlGhqcn1TTUpIebqrkmhpdHtSTklIertqkmZodXpRT0hHe7yrkmdmdn1QUEVG fryqkWZmdnxPT0VGfbyqkGVkd3pOT0VFgL2qj2RieHlOTkRFgL6pjmNheXhNTkREgsCojmJgeHhLTUREg8GnjWFeeHZLTURDhMKmjF9cdnZJS0NDhcOmjV5adXRJSkJDhsSmjFxYdHNISkJCiMWljVxWdHJHSUFBicaliWBWcnFGSUFBismkiWBVcW9FSEBAi8mji2BUcG5ESEA/jcmhi2FUbm1DR0A/j8qgiGNTbGxCRj8+kMugh2RTbGpBRT4+ksuhhmVTamlBRD09lMyghmZTaGhAQz09lc2ehWdUZ2Y/Qjw8l82chGlVZmU+QTw8mc6bhWpWZGQ9QDs7m8+ahGxYYmI8Pzo7nc+YhG5ZYGE7Pjo6n9CXg3BbX149PTk5odGWgnJcXV08PDg4otKVgnRdXFw7Ozc3pNOUgHZfWlo6Ojc2ptSRgHliWFg5OTY1qNWQfntkVlY3ODU0qtaPfX5mVFQ2NzQzrNeMfYFoUlI1NjMzrdeLfINqUFA0NTIysFVrf4ZsTk4zNDEwslVpfolwTEsyMzAwAAAA');
+        audio.volume = 0.5;
+        audio.play();
+    } catch (e) {
+        console.log('Could not play notification sound');
+    }
+}
+
+// Log barman action to audit
+async function logBarmanAction(action, orderId, details = {}) {
+    try {
+        await supabase.from('audit_log').insert({
+            event_type: action,
+            actor_id: currentUser.id,
+            target_type: 'token_order',
+            target_id: orderId,
+            details: {
+                ...details,
+                counter_id: barmanCounterAssignment?.bar_counters?.id,
+                counter_name: barmanCounterAssignment?.bar_counters?.counter_name
+            }
+        });
+    } catch (e) {
+        console.error('Audit log error:', e);
+    }
+}
+
+console.log('✅ Barman Order Queue loaded');
