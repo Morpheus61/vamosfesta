@@ -7366,6 +7366,11 @@ async function loadOverseerSettings() {
         
     } catch (error) {
         console.log('Using default token rate');
+        // Set defaults
+        const rateInput = document.getElementById('overseerTokenRate');
+        const rateDisplay = document.getElementById('currentTokenRateDisplay');
+        if (rateInput) rateInput.value = '10';
+        if (rateDisplay) rateDisplay.textContent = '10';
     }
 }
 
@@ -7374,16 +7379,16 @@ async function loadOverseerTodaySummary() {
     try {
         const today = new Date().toISOString().slice(0, 10);
         
-        // Get today's sales
+        // Get today's token purchases (using token_purchases table)
         const { data: sales } = await supabase
-            .from('siptoken_invoices')
-            .select('tokens_requested, amount')
-            .eq('status', 'confirmed')
-            .gte('confirmed_at', today);
+            .from('token_purchases')
+            .select('tokens_purchased, amount_paid')
+            .eq('transaction_status', 'completed')
+            .gte('created_at', today);
         
-        // Get today's orders
+        // Get today's orders (using beverage_orders_v2)
         const { count: orderCount } = await supabase
-            .from('token_orders')
+            .from('beverage_orders_v2')
             .select('*', { count: 'exact', head: true })
             .eq('status', 'served')
             .gte('served_at', today);
@@ -7392,10 +7397,11 @@ async function loadOverseerTodaySummary() {
         const { count: activeStaff } = await supabase
             .from('siptoken_duty_sessions')
             .select('*', { count: 'exact', head: true })
-            .is('ended_at', null);
+            .is('clock_out_time', null)
+            .eq('status', 'on_duty');
         
-        const totalTokens = sales?.reduce((sum, s) => sum + (s.tokens_requested || 0), 0) || 0;
-        const totalRevenue = sales?.reduce((sum, s) => sum + (s.amount || 0), 0) || 0;
+        const totalTokens = sales?.reduce((sum, s) => sum + (s.tokens_purchased || 0), 0) || 0;
+        const totalRevenue = sales?.reduce((sum, s) => sum + (parseFloat(s.amount_paid) || 0), 0) || 0;
         
         // Update displays
         const updates = {
@@ -7415,7 +7421,7 @@ async function loadOverseerTodaySummary() {
     }
 }
 
-// Load Bar Counters
+// Load Bar Counters from dedicated table
 async function loadBarCounters() {
     try {
         const { data: counters, error } = await supabase
@@ -7455,10 +7461,60 @@ async function loadBarCounters() {
             </div>
         `).join('');
         
+        // Also load counter assignments
+        loadCounterAssignments();
+        
     } catch (error) {
         console.error('Error loading counters:', error);
         const container = document.getElementById('barCountersList');
         if (container) container.innerHTML = '<p class="text-red-400 text-sm text-center py-4">Failed to load counters</p>';
+    }
+}
+
+// Load Counter Assignments (which staff are at which counters)
+async function loadCounterAssignments() {
+    try {
+        const { data: assignments, error } = await supabase
+            .from('siptoken_duty_sessions')
+            .select(`
+                id,
+                staff_role,
+                counter_name,
+                staff:staff_id(username, full_name),
+                counter:counter_id(counter_name, counter_code)
+            `)
+            .is('clock_out_time', null)
+            .eq('status', 'on_duty');
+        
+        if (error) throw error;
+        
+        const container = document.getElementById('counterAssignmentsList');
+        if (!container) return;
+        
+        if (!assignments || assignments.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No active assignments</p>';
+            return;
+        }
+        
+        container.innerHTML = assignments.map(a => {
+            const staffName = a.staff?.full_name || a.staff?.username || 'Unknown';
+            const counterName = a.counter?.counter_name || a.counter_name || 'Unassigned';
+            const roleIcon = a.staff_role === 'barman' ? 'fa-cocktail' : 'fa-coins';
+            const roleColor = a.staff_role === 'barman' ? 'purple' : 'green';
+            
+            return `
+                <div class="flex items-center justify-between p-2 bg-gray-800/30 rounded">
+                    <div class="flex items-center gap-2">
+                        <i class="fas ${roleIcon} text-${roleColor}-400 text-sm"></i>
+                        <span class="text-sm text-white">${escapeHtml(staffName)}</span>
+                    </div>
+                    <span class="text-xs text-gray-400">${escapeHtml(counterName)}</span>
+                </div>
+            `;
+        }).join('');
+        
+    } catch (error) {
+        console.error('Error loading assignments:', error);
     }
 }
 
@@ -7469,7 +7525,7 @@ async function loadOverseerMenu() {
             .from('beverage_menu')
             .select('*')
             .order('category')
-            .order('item_name');
+            .order('name');
         
         if (error) throw error;
         
@@ -7484,7 +7540,8 @@ async function loadOverseerMenu() {
         const categoryIcons = {
             'alcoholic': '🍺',
             'non_alcoholic': '🥤',
-            'snacks': '🍿'
+            'snacks': '🍿',
+            'beverages': '🍹'
         };
         
         container.innerHTML = items.map(item => `
@@ -7492,8 +7549,8 @@ async function loadOverseerMenu() {
                 <div class="flex items-center gap-3">
                     <span class="text-2xl">${categoryIcons[item.category] || '🍹'}</span>
                     <div>
-                        <p class="font-semibold text-white">${escapeHtml(item.item_name)}</p>
-                        <p class="text-xs text-gray-500">${item.measure || '-'}</p>
+                        <p class="font-semibold text-white">${escapeHtml(item.name)}</p>
+                        <p class="text-xs text-gray-500">${item.description || '-'}</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
@@ -7518,15 +7575,17 @@ async function loadOverseerMenu() {
 // Load Overseer Duty Sessions
 async function loadOverseerDutySessions() {
     try {
+        // Using actual schema: staff_id, overseer_id, staff_role, counter_name/counter_id
         const { data: sessions, error } = await supabase
             .from('siptoken_duty_sessions')
             .select(`
                 *,
-                users:user_id(username, full_name),
-                bar_counters:counter_id(counter_name, counter_code)
+                staff:staff_id(username, full_name),
+                counter:counter_id(counter_name, counter_code)
             `)
-            .is('ended_at', null)
-            .order('started_at', { ascending: false });
+            .is('clock_out_time', null)
+            .eq('status', 'on_duty')
+            .order('clock_in_time', { ascending: false });
         
         if (error) throw error;
         
@@ -7543,17 +7602,18 @@ async function loadOverseerDutySessions() {
         }
         
         container.innerHTML = sessions.map(s => {
-            const startTime = new Date(s.started_at);
+            const startTime = new Date(s.clock_in_time);
             const now = new Date();
             const diffMs = now - startTime;
             const hours = Math.floor(diffMs / (1000 * 60 * 60));
             const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
             const duration = hours > 0 ? `${hours}h ${mins}m` : `${mins} min`;
             
-            const roleIcon = s.role_type === 'barman' ? 'fa-cocktail' : 'fa-coins';
-            const roleColor = s.role_type === 'barman' ? 'purple' : 'green';
-            const userName = s.users?.full_name || s.users?.username || 'Staff';
-            const counterName = s.bar_counters?.counter_name || 'No counter';
+            const roleIcon = s.staff_role === 'barman' ? 'fa-cocktail' : 'fa-coins';
+            const roleColor = s.staff_role === 'barman' ? 'purple' : 'green';
+            const userName = s.staff?.full_name || s.staff?.username || 'Staff';
+            // Try counter from join first, fallback to counter_name text field
+            const counterName = s.counter?.counter_name || s.counter_name || 'No counter';
             
             return `
                 <div class="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg mb-2">
@@ -7570,7 +7630,7 @@ async function loadOverseerDutySessions() {
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="px-2 py-1 rounded text-xs bg-${roleColor}-600 capitalize">
-                            ${s.role_type === 'barman' ? 'Barman' : 'Sales'}
+                            ${s.staff_role === 'barman' ? 'Barman' : 'Sales'}
                         </span>
                         <button onclick="endDutySession('${s.id}')" class="p-2 text-red-400 hover:text-red-300" title="End Session">
                             <i class="fas fa-stop-circle"></i>
@@ -7587,7 +7647,7 @@ async function loadOverseerDutySessions() {
     } catch (error) {
         console.error('Error loading duty sessions:', error);
         const container = document.getElementById('overseerDutySessions');
-        if (container) container.innerHTML = '<p class="text-red-400 text-sm text-center py-4">Failed to load sessions</p>';
+        if (container) container.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No active sessions</p>';
     }
 }
 
@@ -7598,13 +7658,17 @@ window.endDutySession = async function(sessionId) {
     try {
         const { error } = await supabase
             .from('siptoken_duty_sessions')
-            .update({ ended_at: new Date().toISOString() })
+            .update({ 
+                clock_out_time: new Date().toISOString(),
+                status: 'clocked_out'
+            })
             .eq('id', sessionId);
         
         if (error) throw error;
         
         showToast('Duty session ended', 'success');
         loadOverseerDutySessions();
+        loadOverseerDashboardStats();
         
     } catch (error) {
         console.error('Error:', error);
@@ -7613,7 +7677,7 @@ window.endDutySession = async function(sessionId) {
 };
 
 // Bar Counter Modal
-window.openBarCounterModal = function() {
+window.openBarCounterModal = function(counterId = null) {
     // Check if modal exists
     let modal = document.getElementById('barCounterModal');
     if (!modal) {
@@ -7622,7 +7686,7 @@ window.openBarCounterModal = function() {
             <div id="barCounterModal" class="modal">
                 <div class="modal-content max-w-md">
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-xl font-bold text-blue-400">
+                        <h3 id="barCounterModalTitle" class="text-xl font-bold text-blue-400">
                             <i class="fas fa-store mr-2"></i>Add Bar Counter
                         </h3>
                         <button onclick="closeModal('barCounterModal')" class="text-gray-400 hover:text-white">
@@ -7639,6 +7703,10 @@ window.openBarCounterModal = function() {
                             <label class="block text-sm mb-1">Counter Code *</label>
                             <input type="text" id="barCounterCode" class="vamosfesta-input" required placeholder="e.g., BAR-1" style="text-transform: uppercase;">
                             <p class="text-xs text-gray-500 mt-1">Unique identifier for this counter</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm mb-1">Description</label>
+                            <input type="text" id="barCounterDescription" class="vamosfesta-input" placeholder="e.g., Main floor bar">
                         </div>
                         <div class="flex items-center gap-2">
                             <input type="checkbox" id="barCounterActive" checked class="w-4 h-4 accent-green-500">
@@ -7657,7 +7725,12 @@ window.openBarCounterModal = function() {
     // Reset form
     const form = document.getElementById('barCounterForm');
     if (form) form.reset();
-    document.getElementById('editBarCounterId').value = '';
+    
+    const editIdField = document.getElementById('editBarCounterId');
+    if (editIdField) editIdField.value = '';
+    
+    const title = document.getElementById('barCounterModalTitle');
+    if (title) title.innerHTML = '<i class="fas fa-store mr-2"></i>Add Bar Counter';
     
     openModal('barCounterModal');
 };
@@ -7677,10 +7750,15 @@ window.editBarCounter = async function(counterId) {
         document.getElementById('editBarCounterId').value = counterId;
         document.getElementById('barCounterName').value = counter.counter_name || '';
         document.getElementById('barCounterCode').value = counter.counter_code || '';
+        document.getElementById('barCounterDescription').value = counter.description || '';
         document.getElementById('barCounterActive').checked = counter.is_active;
         
+        const title = document.getElementById('barCounterModalTitle');
+        if (title) title.innerHTML = '<i class="fas fa-edit mr-2"></i>Edit Bar Counter';
+        
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error loading counter:', error);
+        showToast('Failed to load counter details', 'error');
     }
 };
 
@@ -7691,30 +7769,47 @@ window.saveBarCounter = async function(e) {
     const counterData = {
         counter_name: document.getElementById('barCounterName').value.trim(),
         counter_code: document.getElementById('barCounterCode').value.trim().toUpperCase(),
-        is_active: document.getElementById('barCounterActive').checked
+        description: document.getElementById('barCounterDescription')?.value?.trim() || null,
+        is_active: document.getElementById('barCounterActive').checked,
+        updated_at: new Date().toISOString()
     };
+    
+    if (!counterData.counter_name || !counterData.counter_code) {
+        showToast('Please fill in all required fields', 'error');
+        return;
+    }
     
     try {
         if (counterId) {
+            // Update existing
             const { error } = await supabase
                 .from('bar_counters')
                 .update(counterData)
                 .eq('id', counterId);
             if (error) throw error;
+            showToast('Bar counter updated!', 'success');
         } else {
+            // Create new
+            counterData.created_by = currentUser?.id;
+            counterData.created_at = new Date().toISOString();
+            
             const { error } = await supabase
                 .from('bar_counters')
                 .insert([counterData]);
             if (error) throw error;
+            showToast('Bar counter created!', 'success');
         }
         
         closeModal('barCounterModal');
-        showToast('Bar counter saved!', 'success');
         loadBarCounters();
         
     } catch (error) {
-        console.error('Error:', error);
-        showToast('Failed to save counter: ' + error.message, 'error');
+        console.error('Error saving counter:', error);
+        if (error.message?.includes('duplicate') || error.code === '23505') {
+            showToast('Counter code already exists', 'error');
+        } else {
+            showToast('Failed to save counter: ' + error.message, 'error');
+        }
     }
 };
 
@@ -7725,27 +7820,28 @@ async function loadOverseerDashboardStats() {
         const { count: staffCount } = await supabase
             .from('siptoken_duty_sessions')
             .select('*', { count: 'exact', head: true })
-            .is('ended_at', null);
+            .is('clock_out_time', null)
+            .eq('status', 'on_duty');
         
         // Get today's data
         const today = new Date().toISOString().slice(0, 10);
         
-        // Tokens sold today
+        // Tokens sold today (using token_purchases)
         const { data: sales } = await supabase
-            .from('siptoken_invoices')
-            .select('tokens_requested, amount')
-            .eq('status', 'confirmed')
-            .gte('confirmed_at', today);
+            .from('token_purchases')
+            .select('tokens_purchased, amount_paid')
+            .eq('transaction_status', 'completed')
+            .gte('created_at', today);
         
-        // Orders processed today
+        // Orders processed today (using beverage_orders_v2)
         const { count: orderCount } = await supabase
-            .from('token_orders')
+            .from('beverage_orders_v2')
             .select('*', { count: 'exact', head: true })
             .eq('status', 'served')
             .gte('served_at', today);
         
-        const totalTokens = sales?.reduce((sum, s) => sum + (s.tokens_requested || 0), 0) || 0;
-        const totalRevenue = sales?.reduce((sum, s) => sum + (s.amount || 0), 0) || 0;
+        const totalTokens = sales?.reduce((sum, s) => sum + (s.tokens_purchased || 0), 0) || 0;
+        const totalRevenue = sales?.reduce((sum, s) => sum + (parseFloat(s.amount_paid) || 0), 0) || 0;
         
         // Update UI
         const updates = {
