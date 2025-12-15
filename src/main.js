@@ -4551,12 +4551,12 @@ async function initializeSipToken() {
     try {
         const { data, error } = await supabase
             .from('settings')
-            .select('value')
-            .eq('key', 'token_rate')
+            .select('setting_value')
+            .eq('setting_key', 'token_rate')
             .single();
         
-        if (data && data.value) {
-            window.siptokenRate = parseInt(data.value) || 10;
+        if (data && data.setting_value) {
+            window.siptokenRate = parseInt(data.setting_value) || 10;
         }
     } catch (e) {
         console.warn('Could not load token rate, using default:', e);
@@ -5306,12 +5306,12 @@ async function loadTokenRate() {
     try {
         const { data, error } = await supabase
             .from('settings')
-            .select('value')
-            .eq('key', 'token_rate')
+            .select('setting_value')
+            .eq('setting_key', 'token_rate')
             .single();
         
         if (data) {
-            document.getElementById('settingTokenRate').value = data.value;
+            document.getElementById('settingTokenRate').value = data.setting_value;
         }
     } catch (error) {
         console.error('Error loading token rate:', error);
@@ -5990,12 +5990,12 @@ async function loadTokenRateForSales() {
     try {
         const { data } = await supabase
             .from('settings')
-            .select('value')
-            .eq('key', 'token_rate')
+            .select('setting_value')
+            .eq('setting_key', 'token_rate')
             .single();
         
         if (data) {
-            currentTokenRate = parseInt(data.value) || 10;
+            currentTokenRate = parseInt(data.setting_value) || 10;
             const rateEl = document.getElementById('invoiceTokenRate');
             if (rateEl) rateEl.textContent = currentTokenRate;
             calculateInvoiceTotal();
