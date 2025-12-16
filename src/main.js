@@ -99,7 +99,7 @@ async function initializeApp() {
     if (currentUser.is_siptoken_overseer && currentUser.role !== 'super_admin') {
         const tabsToHide = ['settings', 'verification-queue', 'all-registrations', 
                            'seller-management', 'admin-management', 'gate-management',
-                           'view-registrations', 'view-sellers'];
+                           'view-registrations', 'view-sellers', 'statistics', 'overseer-management'];
         
         tabsToHide.forEach(tabName => {
             // Hide nav tabs
