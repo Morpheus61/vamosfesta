@@ -5308,6 +5308,122 @@ showTab = showTabWithSipToken;
 console.log('✅ SipToken integration loaded');
 
 // =====================================================
+// SIPTOKEN STAFF CLOCK-IN MODAL
+// =====================================================
+
+window.showClockInModal = function(staffRole) {
+    // Store the role for clock-in
+    window.pendingClockInRole = staffRole;
+    
+    // Set modal title
+    const modalTitle = staffRole === 'token_sales' ? 'Clock In Sales Staff' : 'Clock In Barman';
+    document.getElementById('clockInModalTitle').textContent = modalTitle;
+    
+    // Reset form
+    document.getElementById('clockInStaffSelect').innerHTML = '<option value="">Select staff member...</option>';
+    document.getElementById('clockInCounterSelect').innerHTML = '<option value="">Select counter...</option>';
+    document.getElementById('clockInOpeningCash').value = '';
+    
+    // Load staff members with this role
+    loadClockInStaffList(staffRole);
+    
+    // Load counters
+    loadClockInCounters();
+    
+    // Show modal
+    openModal('clockInModal');
+};
+
+async function loadClockInStaffList(role) {
+    try {
+        const roleField = role === 'token_sales' ? 'is_siptoken_sales' : 'is_barman';
+        const { data: users, error } = await supabase
+            .from('users')
+            .select('id, full_name, username')
+            .eq(roleField, true)
+            .eq('is_active', true)
+            .order('full_name');
+        
+        if (error) throw error;
+        
+        const select = document.getElementById('clockInStaffSelect');
+        users.forEach(user => {
+            const option = document.createElement('option');
+            option.value = user.id;
+            option.textContent = `${user.full_name} (${user.username})`;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading staff:', error);
+        showToast('Failed to load staff list', 'error');
+    }
+}
+
+async function loadClockInCounters() {
+    try {
+        const { data: counters, error } = await supabase
+            .from('bar_counters')
+            .select('id, counter_name, counter_code')
+            .eq('is_active', true)
+            .order('counter_name');
+        
+        if (error) throw error;
+        
+        const select = document.getElementById('clockInCounterSelect');
+        counters.forEach(counter => {
+            const option = document.createElement('option');
+            option.value = counter.id;
+            option.textContent = `${counter.counter_name} (${counter.counter_code})`;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading counters:', error);
+        showToast('Failed to load counters', 'error');
+    }
+}
+
+window.processClockIn = async function() {
+    const staffId = document.getElementById('clockInStaffSelect').value;
+    const counterId = document.getElementById('clockInCounterSelect').value;
+    const openingCash = document.getElementById('clockInOpeningCash').value;
+    
+    if (!staffId) {
+        showToast('Please select a staff member', 'error');
+        return;
+    }
+    
+    if (!counterId) {
+        showToast('Please select a counter', 'error');
+        return;
+    }
+    
+    const staffRole = window.pendingClockInRole;
+    
+    try {
+        const { error } = await supabase
+            .from('siptoken_duty_sessions')
+            .insert([{
+                staff_id: staffId,
+                overseer_id: currentUser.id,
+                staff_role: staffRole,
+                counter_id: counterId,
+                opening_cash: openingCash ? parseFloat(openingCash) : null,
+                status: 'on_duty'
+            }]);
+        
+        if (error) throw error;
+        
+        showToast('Staff clocked in successfully!', 'success');
+        closeModal('clockInModal');
+        loadOverseerDutySessions();
+        loadOverseerDashboardStats();
+    } catch (error) {
+        console.error('Error clocking in staff:', error);
+        showToast('Failed to clock in staff: ' + error.message, 'error');
+    }
+};
+
+// =====================================================
 // SIPTOKEN MENU MANAGEMENT (Super Admin Settings)
 // =====================================================
 
@@ -5471,7 +5587,7 @@ window.saveMenuItem = async function(event) {
     const itemData = {
         category: document.getElementById('menuItemCategory').value,
         name: document.getElementById('menuItemName').value.trim(),
-        measure: document.getElementById('menuItemMeasure').value.trim() || null,
+        description: document.getElementById('menuItemMeasure').value.trim() || null,
         token_price: parseInt(document.getElementById('menuItemTokens').value),
         is_available: document.getElementById('menuItemAvailable').checked
     };
@@ -7339,8 +7455,7 @@ window.saveOverseerTokenRate = async function() {
                 setting_key: 'token_rate',
                 setting_value: rate.toString(),
                 description: 'Price per token in INR',
-                updated_at: new Date().toISOString(),
-                updated_by: currentUser.id
+                updated_at: new Date().toISOString()
             }, { onConflict: 'setting_key' });
         
         if (error) throw error;

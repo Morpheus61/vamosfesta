@@ -2396,6 +2396,55 @@
         </div>
     </div>
 
+    <!-- Clock In Staff Modal -->
+    <div id="clockInModal" class="modal">
+        <div class="modal-content max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="clockInModalTitle" class="text-xl font-bold vamosfesta-header">
+                    <i class="fas fa-user-clock mr-2"></i>Clock In Staff
+                </h3>
+                <button onclick="closeModal('clockInModal')" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <form class="space-y-4" onsubmit="event.preventDefault(); processClockIn();">
+                <div>
+                    <label class="block text-sm mb-1">Staff Member *</label>
+                    <select id="clockInStaffSelect" class="vamosfesta-input" required>
+                        <option value="">Select staff member...</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm mb-1">Bar Counter *</label>
+                    <select id="clockInCounterSelect" class="vamosfesta-input" required>
+                        <option value="">Select counter...</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm mb-1">Opening Cash (Optional)</label>
+                    <div class="flex items-center gap-2">
+                        <span class="text-gray-400">₹</span>
+                        <input type="number" id="clockInOpeningCash" class="vamosfesta-input flex-1" 
+                               placeholder="0" min="0" step="0.01">
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">For token sales staff only</p>
+                </div>
+                
+                <div class="flex gap-3 pt-4">
+                    <button type="submit" class="vamosfesta-button flex-1">
+                        <i class="fas fa-check mr-2"></i>Clock In
+                    </button>
+                    <button type="button" onclick="closeModal('clockInModal')" class="vamosfesta-button secondary flex-1">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- ==================== SIPTOKEN MODALS ==================== -->
     
     <!-- Token Purchase Modal -->
