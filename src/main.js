@@ -5634,11 +5634,14 @@ window.saveMenuItem = async function(event) {
     
     try {
         if (isEdit) {
-            const { error } = await supabase
+            console.log('Updating menu item:', itemId, itemData);
+            const { data, error } = await supabase
                 .from('beverage_menu')
                 .update(itemData)
-                .eq('id', itemId);
+                .eq('id', itemId)
+                .select();
             
+            console.log('Update result:', data, error);
             if (error) throw error;
             showToast('Menu item updated!', 'success');
         } else {
