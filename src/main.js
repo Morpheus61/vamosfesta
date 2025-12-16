@@ -5370,7 +5370,33 @@ async function loadClockInCounters() {
         if (error) throw error;
         
         const select = document.getElementById('clockInCounterSelect');
-        counters.forEach(counter => {
+        
+        // Filter counters based on staff role
+        const staffRole = window.pendingClockInRole;
+        const filteredCounters = counters.filter(counter => {
+            if (staffRole === 'token_sales') {
+                // For token sales staff, show counters with "Token" or "Sales" in name
+                return counter.counter_name.toLowerCase().includes('token') || 
+                       counter.counter_name.toLowerCase().includes('sales');
+            } else {
+                // For barman, show beverage/bar counters (exclude token sales counters)
+                return !(counter.counter_name.toLowerCase().includes('token') || 
+                        counter.counter_name.toLowerCase().includes('sales'));
+            }
+        });
+        
+        if (filteredCounters.length === 0) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = staffRole === 'token_sales' 
+                ? 'No token sales counters available' 
+                : 'No bar counters available';
+            option.disabled = true;
+            select.appendChild(option);
+            return;
+        }
+        
+        filteredCounters.forEach(counter => {
             const option = document.createElement('option');
             option.value = counter.id;
             option.textContent = `${counter.counter_name} (${counter.counter_code})`;
