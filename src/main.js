@@ -137,11 +137,20 @@ async function initializeApp() {
     // Update user display
     document.getElementById('userName').textContent = currentUser.full_name || currentUser.username;
     
-    // Show proper role badge
+    // Show proper role badge with precise role definition
     let roleBadgeText = formatRole(currentUser.role);
-    if (currentUser.is_siptoken_sales) roleBadgeText = 'Token Sales';
-    if (currentUser.is_barman) roleBadgeText = 'Barman';
-    if (currentUser.is_siptoken_overseer) roleBadgeText += ' (Overseer)';
+    
+    // Override with specific SipToken roles if applicable
+    if (currentUser.is_siptoken_sales && !currentUser.is_siptoken_overseer) {
+        roleBadgeText = 'Token Sales';
+    } else if (currentUser.is_barman && !currentUser.is_siptoken_overseer) {
+        roleBadgeText = 'Barman';
+    }
+    
+    // Add Overseer designation if applicable
+    if (currentUser.is_siptoken_overseer) {
+        roleBadgeText = `${formatRole(currentUser.role)} (SipToken Overseer)`;
+    }
     
     document.getElementById('userRoleBadge').textContent = roleBadgeText;
     document.getElementById('userRoleBadge').className = `role-badge role-${currentUser.role}`;
