@@ -177,7 +177,14 @@ function formatRole(role) {
 function showDefaultTab() {
     let defaultTab;
     
-    // SipToken staff and overseers get SipToken tab by default
+    // Super Admin always gets full access - check role first
+    if (currentUser.role === 'super_admin') {
+        defaultTab = 'verification-queue';
+        showTab(defaultTab);
+        return;
+    }
+    
+    // SipToken staff and overseers (non-super-admin) get SipToken tab by default
     if (currentUser.is_siptoken_sales || currentUser.is_barman || currentUser.is_siptoken_overseer) {
         defaultTab = 'siptokenTab';
         showTab(defaultTab);
@@ -188,9 +195,6 @@ function showDefaultTab() {
     switch(currentUser.role) {
         case 'seller':
             defaultTab = 'register';
-            break;
-        case 'super_admin':
-            defaultTab = 'verification-queue';
             break;
         case 'admin':
             defaultTab = 'view-registrations';
