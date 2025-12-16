@@ -5955,8 +5955,7 @@ document.getElementById('userForm')?.addEventListener('submit', async function(e
         is_gate_overseer: role === 'gate_overseer',
         is_siptoken_overseer: role === 'siptoken_overseer',
         is_siptoken_sales: role === 'token_sales',
-        is_barman: role === 'barman',
-        is_entry_marshall: role === 'entry_marshall'
+        is_barman: role === 'barman'
     };
     
     if (!userId) {
