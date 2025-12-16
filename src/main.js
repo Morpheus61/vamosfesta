@@ -106,9 +106,9 @@ async function initializeApp() {
             const navTab = document.querySelector(`.nav-tab[data-tab="${tabName}"]`);
             if (navTab) navTab.style.display = 'none';
             
-            // Hide mobile menu items
-            const mobileItem = document.querySelector(`.mobile-menu-item[data-tab="${tabName}"]`);
-            if (mobileItem) mobileItem.style.display = 'none';
+            // Hide ALL mobile menu items with this data-tab (there may be multiple)
+            const mobileItems = document.querySelectorAll(`.mobile-menu-item[data-tab="${tabName}"]`);
+            mobileItems.forEach(item => item.style.display = 'none');
         });
         
         console.log('✅ SipToken Overseer: Hidden admin tabs - user has access only to SipToken management');
