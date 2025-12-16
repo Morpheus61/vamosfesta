@@ -7683,6 +7683,9 @@ async function loadOverseerMenu() {
         
         if (error) throw error;
         
+        // Populate cache so edit/delete functions work
+        menuItemsCache = items || [];
+        
         const container = document.getElementById('overseerMenuList');
         if (!container) return;
         
