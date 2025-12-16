@@ -5651,7 +5651,12 @@ window.saveMenuItem = async function(event) {
         }
         
         closeModal('menuItemModal');
-        await loadMenuItems();
+        // Reload the appropriate menu view based on user role
+        if (currentUser.is_siptoken_overseer && currentUser.role !== 'super_admin') {
+            await loadOverseerMenu();
+        } else {
+            await loadMenuItems();
+        }
     } catch (error) {
         console.error('Error saving menu item:', error);
         showToast('Failed to save menu item', 'error');
@@ -6100,7 +6105,8 @@ window.editUser = async function(userId) {
         else if (user.is_gate_overseer) role = 'gate_overseer';
         else if (user.is_barman) role = 'barman';
         else if (user.is_siptoken_sales) role = 'token_sales';
-        else if (user.is_entry_marshall) role = 'entry_marshall';
+        // entry_marshall is stored in role field, not as a flag
+        else if (role === 'entry_marshall') role = 'entry_marshall';
         
         document.getElementById('userRoleSelect').value = role;
         
