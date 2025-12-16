@@ -112,6 +112,10 @@ async function initializeApp() {
         });
         
         console.log('✅ SipToken Overseer: Hidden admin tabs - user has access only to SipToken management');
+        
+        // Also hide the Gate Management tab content itself
+        const gateManagementTab = document.getElementById('tab-gate-management');
+        if (gateManagementTab) gateManagementTab.style.display = 'none';
     }
     
     // Show SipToken tab for users with SipToken roles
@@ -5138,7 +5142,7 @@ window.loadOverseerStats = async function() {
         // Get active duty sessions
         const { data: sessions, error: sessionsError } = await supabase
             .from('siptoken_duty_sessions')
-            .select('*, users(full_name)')
+            .select('*, staff:staff_id(full_name)')
             .eq('status', 'on_duty');
         
         if (sessionsError) throw sessionsError;
