@@ -5556,7 +5556,7 @@ function renderMenuItems() {
                 <div class="flex items-center gap-2">
                     <span>${categoryIcons[item.category] || '🍽️'}</span>
                     <span class="font-semibold">${escapeHtml(item.name)}</span>
-                    ${item.measure ? `<span class="text-xs text-gray-400">(${escapeHtml(item.measure)})</span>` : ''}
+                    ${item.description ? `<span class="text-xs text-gray-400">(${escapeHtml(item.description)})</span>` : ''}
                 </div>
                 <div class="text-sm text-yellow-400 mt-1">
                     <i class="fas fa-coins mr-1"></i>${item.token_price} tokens
@@ -5596,7 +5596,7 @@ window.editMenuItem = async function(itemId) {
     document.getElementById('editMenuItemId').value = itemId;
     document.getElementById('menuItemCategory').value = item.category;
     document.getElementById('menuItemName').value = item.name;
-    document.getElementById('menuItemMeasure').value = item.measure || '';
+    document.getElementById('menuItemMeasure').value = item.description || '';
     document.getElementById('menuItemTokens').value = item.token_price;
     document.getElementById('menuItemAvailable').checked = item.is_available;
     
