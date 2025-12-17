@@ -7,8 +7,8 @@ import { createClient } from '@supabase/supabase-js';
 import QRCode from 'qrcode';
 
 // Supabase Configuration - Use environment variables or fallback to hardcoded values
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://nybbovgdsvbwabuqthbd.supabase.co';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55YmJvdmdkc3Zid2FidXF0aGJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ3NTU5NTIsImV4cCI6MjA4MDMzMTk1Mn0.g-1eRhGpiiOICp0tTPjsvAcuIUYur1NIqw1AOt1tugw';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://bruwwqxeevqnbhunrhia.supabase.co';
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJydXd3cXhlZXZxbmJodW5yaGlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MzIwMjksImV4cCI6MjA4MTEwODAyOX0.dhmkH6aUudxm3eUZblRe9Iah1RWEr5fz8PzcPNqh4tw';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Global State
