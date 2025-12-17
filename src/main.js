@@ -5634,14 +5634,29 @@ window.saveMenuItem = async function(event) {
     
     try {
         if (isEdit) {
-            console.log('Updating menu item:', itemId, itemData);
-            const { error } = await supabase
+            console.log('🔵 EDIT MODE - Updating menu item');
+            console.log('Item ID:', itemId);
+            console.log('Item Data:', itemData);
+            
+            const { data, error, count } = await supabase
                 .from('beverage_menu')
                 .update(itemData)
-                .eq('id', itemId);
+                .eq('id', itemId)
+                .select();
             
-            console.log('Update error:', error);
+            console.log('Update response - data:', data, 'error:', error, 'count:', count);
+            
             if (error) throw error;
+            
+            if (!data || data.length === 0) {
+                console.warn('⚠️ Update succeeded but no rows returned. Checking if row exists...');
+                const { data: checkData } = await supabase
+                    .from('beverage_menu')
+                    .select('*')
+                    .eq('id', itemId);
+                console.log('Row check:', checkData);
+            }
+            
             showToast('Menu item updated!', 'success');
         } else {
             const { error } = await supabase
