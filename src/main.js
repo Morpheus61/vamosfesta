@@ -1446,11 +1446,22 @@ window.resendPass = async function(guestId) {
 
 async function loadSellers() {
     try {
-        // Get all users
-        const { data: users, error: userError } = await supabase
+        // Get filter selection
+        const filter = document.getElementById('userStatusFilter')?.value || 'active';
+        
+        let query = supabase
             .from('users')
             .select('*')
             .order('created_at', { ascending: false });
+        
+        // Apply filter
+        if (filter === 'active') {
+            query = query.eq('is_active', true);
+        } else if (filter === 'inactive') {
+            query = query.eq('is_active', false);
+        }
+        
+        const { data: users, error: userError } = await query;
         
         if (userError) throw userError;
         
@@ -1465,40 +1476,128 @@ async function loadSellers() {
             return { ...u, ...stat };
         });
         
-        const tbody = document.getElementById('sellersTableBody');
-        tbody.innerHTML = usersWithStats.map(u => `
-            <tr>
-                <td class="font-semibold">${escapeHtml(u.username)}</td>
-                <td>${escapeHtml(u.full_name || '-')}</td>
-                <td>${u.mobile_number || '-'}</td>
-                <td class="text-sm">
-                    ${u.club_name ? `<span class="text-yellow-400">${escapeHtml(u.club_name)}</span>` : ''}
-                    ${u.club_number ? `<br><span class="text-gray-500 text-xs">#${escapeHtml(u.club_number)}</span>` : ''}
-                    ${!u.club_name && !u.club_number ? '-' : ''}
-                </td>
-                <td><span class="role-badge role-${u.role}">${formatRole(u.role)}</span></td>
-                <td>${u.total_registrations || 0}</td>
-                <td class="text-green-400">₹${(u.total_verified_amount || 0).toLocaleString()}</td>
-                <td>
-                    <span class="text-xs px-2 py-1 rounded ${u.is_active ? 'bg-green-600' : 'bg-red-600'}">
-                        ${u.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                </td>
-                <td>
-                    <button onclick="editUser('${u.id}')" class="vamosfesta-button secondary text-xs py-1 px-2 mr-1">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button onclick="toggleUserStatus('${u.id}', ${!u.is_active})" class="vamosfesta-button ${u.is_active ? 'danger' : 'success'} text-xs py-1 px-2">
-                        <i class="fas fa-${u.is_active ? 'ban' : 'check'}"></i>
-                    </button>
-                </td>
-            </tr>
-        `).join('');
+        const container = document.getElementById('usersListContainer');
+        if (!container) return;
+        
+        if (usersWithStats.length === 0) {
+            container.innerHTML = '<div class="text-center py-8 text-gray-500">No users found.</div>';
+            return;
+        }
+        
+        // Create clean card list - clickable to expand
+        container.innerHTML = usersWithStats.map(u => {
+            const roleConfig = Object.values(ROLE_CONFIG).find(r => r.dbRole === u.role || (r.flags && Object.keys(r.flags).some(k => u[k])));
+            const roleDisplay = roleConfig ? `${roleConfig.icon} ${roleConfig.desc}` : formatRole(u.role);
+            
+            const statusBadge = !u.is_active 
+                ? '<span class="status-badge" style="background: #ef4444;"><i class="fas fa-ban mr-1"></i>DEACTIVATED</span>'
+                : '';
+            
+            const uniqueId = `user-${u.id}`;
+            
+            return `
+                <div class="card hover:border-yellow-500 transition-all cursor-pointer ${!u.is_active ? 'opacity-60' : ''}" 
+                     onclick="toggleUserDetails('${uniqueId}')">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <h4 class="font-semibold text-lg">${escapeHtml(u.full_name || u.username)}</h4>
+                                ${statusBadge}
+                            </div>
+                            <div class="flex items-center gap-4 text-sm text-gray-400">
+                                <span><i class="fas fa-user-tag mr-1"></i><span class="role-badge role-${u.role}">${formatRole(u.role)}</span></span>
+                                <span><i class="fas fa-phone mr-1"></i>${u.mobile_number || '-'}</span>
+                                ${u.club_name ? `<span><i class="fas fa-users mr-1"></i>${escapeHtml(u.club_name)}</span>` : ''}
+                            </div>
+                        </div>
+                        <i id="${uniqueId}-icon" class="fas fa-chevron-down text-gray-400 transition-transform"></i>
+                    </div>
+                    
+                    <!-- Expandable Details -->
+                    <div id="${uniqueId}-details" class="hidden mt-4 pt-4 border-t border-gray-700 space-y-3">
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <span class="text-gray-500">Username:</span>
+                                <span class="text-white font-mono ml-2">${escapeHtml(u.username)}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-500">Role:</span>
+                                <span class="text-white ml-2">${roleDisplay}</span>
+                            </div>
+                            ${u.club_name ? `
+                                <div>
+                                    <span class="text-gray-500">Club:</span>
+                                    <span class="text-yellow-400 ml-2">${escapeHtml(u.club_name)}</span>
+                                </div>
+                            ` : ''}
+                            ${u.club_number ? `
+                                <div>
+                                    <span class="text-gray-500">Club #:</span>
+                                    <span class="text-white ml-2">${escapeHtml(u.club_number)}</span>
+                                </div>
+                            ` : ''}
+                            ${u.total_registrations > 0 ? `
+                                <div>
+                                    <span class="text-gray-500">Registrations:</span>
+                                    <span class="text-white ml-2">${u.total_registrations || 0}</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-500">Verified Amount:</span>
+                                    <span class="text-green-400 ml-2">₹${(u.total_verified_amount || 0).toLocaleString()}</span>
+                                </div>
+                            ` : ''}
+                            ${!u.is_active && u.deactivation_reason ? `
+                                <div class="col-span-2">
+                                    <span class="text-gray-500">Deactivation Reason:</span>
+                                    <span class="text-red-400 ml-2">${u.deactivation_reason.replace('_', ' ')}</span>
+                                    ${u.deactivated_at ? ` <span class="text-gray-500 text-xs">(${new Date(u.deactivated_at).toLocaleDateString()})</span>` : ''}
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="flex flex-wrap gap-2 pt-3">
+                            ${u.is_active ? `
+                                <button onclick="event.stopPropagation(); editUser('${u.id}')" 
+                                        class="vamosfesta-button secondary text-xs">
+                                    <i class="fas fa-edit mr-1"></i>Edit
+                                </button>
+                                <button onclick="event.stopPropagation(); deactivateUser('${u.id}', '${escapeHtml(u.username)}', '${escapeHtml(u.full_name || u.username)}')" 
+                                        class="vamosfesta-button danger text-xs ml-auto">
+                                    <i class="fas fa-user-slash mr-1"></i>Deactivate
+                                </button>
+                            ` : `
+                                <button onclick="event.stopPropagation(); reactivateUser('${u.id}', '${escapeHtml(u.username)}', '${escapeHtml(u.full_name || u.username)}')" 
+                                        class="vamosfesta-button success text-xs">
+                                    <i class="fas fa-user-check mr-1"></i>Reactivate
+                                </button>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
         
     } catch (error) {
         console.error('Error loading sellers:', error);
     }
 }
+
+// Toggle user details expand/collapse
+window.toggleUserDetails = function(uniqueId) {
+    const details = document.getElementById(`${uniqueId}-details`);
+    const icon = document.getElementById(`${uniqueId}-icon`);
+    
+    if (!details || !icon) return;
+    
+    if (details.classList.contains('hidden')) {
+        details.classList.remove('hidden');
+        icon.style.transform = 'rotate(180deg)';
+    } else {
+        details.classList.add('hidden');
+        icon.style.transform = 'rotate(0deg)';
+    }
+};
 
 // =====================================================
 // USERNAME NAMING PROTOCOL
@@ -1674,6 +1773,89 @@ window.showAddUserModal = function() {
     
     openModal('userModal');
 };
+
+// ============================================
+// ADMIN MODAL FUNCTIONS
+// ============================================
+
+// Admin-specific role configuration (subset of ROLE_CONFIG for admin types only)
+const ADMIN_ROLE_MAPPING = {
+    'admin': 'admin',
+    'gate_overseer': 'gate_overseer',
+    'siptoken_overseer': 'siptoken_overseer'
+};
+
+// Update admin role selection - show preview and update username prefix
+window.updateAdminRoleSelection = function() {
+    const select = document.getElementById('adminTypeSelect');
+    const roleKey = select.value;
+    const previewCard = document.getElementById('adminRolePreviewCard');
+    
+    if (!roleKey) {
+        previewCard.classList.add('hidden');
+        document.getElementById('adminUsernamePrefix').textContent = '---';
+        document.getElementById('adminUsernameValue').textContent = '---';
+        document.getElementById('adminUsername').value = '';
+        return;
+    }
+    
+    // Get config from main ROLE_CONFIG
+    const mappedRole = ADMIN_ROLE_MAPPING[roleKey];
+    const config = ROLE_CONFIG[mappedRole];
+    if (!config) return;
+    
+    // Show preview card
+    previewCard.classList.remove('hidden');
+    previewCard.className = `card border-2 ${config.color}`;
+    
+    // Update preview content
+    document.getElementById('adminRolePreviewIcon').textContent = config.icon;
+    document.getElementById('adminRolePreviewTitle').textContent = config.desc;
+    document.getElementById('adminRolePreviewDesc').textContent = 
+        roleKey === 'admin' ? 'Read-only access to reports and analytics' :
+        roleKey === 'gate_overseer' ? 'Manages entry marshalls and venue operations' :
+        'Manages token sales staff and barmen, handles reconciliation';
+    document.getElementById('adminRoleReportsTo').textContent = config.reportsTo;
+    document.getElementById('adminRolePrefix').textContent = config.prefix;
+    
+    // Update username prefix
+    document.getElementById('adminUsernamePrefix').textContent = config.prefix;
+    
+    // Regenerate username if name exists
+    generateAdminUsername();
+};
+
+// Generate username for admin
+window.generateAdminUsername = function() {
+    const roleKey = document.getElementById('adminTypeSelect').value;
+    const firstName = document.getElementById('adminFirstName').value.trim();
+    
+    if (!roleKey || !firstName) {
+        document.getElementById('adminUsernameValue').textContent = '---';
+        document.getElementById('adminUsername').value = '';
+        return;
+    }
+    
+    // Get config from main ROLE_CONFIG
+    const mappedRole = ADMIN_ROLE_MAPPING[roleKey];
+    const config = ROLE_CONFIG[mappedRole];
+    if (!config) return;
+    
+    // Clean first name: remove spaces, special chars, capitalize first letter
+    const cleanName = firstName.replace(/[^a-zA-Z]/g, '');
+    const formattedName = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+    
+    // Generate username: Prefix-Name
+    const username = `${config.prefix}-${formattedName}`;
+    
+    // Update display and hidden input
+    document.getElementById('adminUsernameValue').textContent = formattedName;
+    document.getElementById('adminUsername').value = username;
+};
+
+// ============================================
+// END ADMIN MODAL FUNCTIONS
+// ============================================
 
 // Toggle Overseer option visibility based on selected role
 function updateSipTokenOverseerVisibility() {
@@ -3523,12 +3705,23 @@ async function loadMarshallsOnDuty() {
 
 async function loadAdmins() {
     try {
-        const { data: admins, error } = await supabase
+        // Get filter selection
+        const filter = document.getElementById('adminStatusFilter')?.value || 'active';
+        
+        let query = supabase
             .from('users')
             .select('*')
             .eq('role', 'admin')
-            .eq('is_active', true)
             .order('full_name');
+        
+        // Apply filter
+        if (filter === 'active') {
+            query = query.eq('is_active', true);
+        } else if (filter === 'inactive') {
+            query = query.eq('is_active', false);
+        }
+        
+        const { data: admins, error } = await query;
         
         if (error) throw error;
         
@@ -3539,68 +3732,148 @@ async function loadAdmins() {
         
         if (assignError) throw assignError;
         
-        const tbody = document.getElementById('adminsTableBody');
+        const container = document.getElementById('adminsListContainer');
         if (!admins || admins.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-500">No admins found. Create one using the button above.</td></tr>';
+            container.innerHTML = '<div class="text-center py-8 text-gray-500">No admins found. Create one using the button above.</div>';
             return;
         }
         
-        tbody.innerHTML = admins.map(admin => {
+        // Create simplified card list - clickable to expand
+        container.innerHTML = admins.map(admin => {
             const adminAssignments = assignments?.filter(a => a.overseer_id === admin.id) || [];
             const isOverseer = admin.is_gate_overseer;
             const isSiptokenOverseer = admin.is_siptoken_overseer;
-            const leadAssignments = adminAssignments.filter(a => a.is_lead_overseer);
             
-            const gatesText = adminAssignments.length > 0
-                ? adminAssignments.map(a => {
-                    const lead = a.is_lead_overseer ? '⭐' : '';
-                    return `${lead}${a.entry_gates.gate_name}`;
-                }).join(', ')
-                : '<span class="text-gray-500">None</span>';
+            // Determine role badge
+            let roleBadge = '';
+            let roleText = 'Admin';
             
-            const overseerBadge = isOverseer
-                ? `<span class="status-badge" style="background: #f59e0b; color: white;"><i class="fas fa-shield-alt mr-1"></i>Gate Overseer</span>`
+            if (isOverseer && isSiptokenOverseer) {
+                roleBadge = '<span class="status-badge" style="background: #f59e0b;"><i class="fas fa-door-open mr-1"></i>Gate</span> <span class="status-badge" style="background: #3b82f6;"><i class="fas fa-coins mr-1"></i>SipToken</span>';
+                roleText = 'Gate & SipToken Overseer';
+            } else if (isOverseer) {
+                roleBadge = '<span class="status-badge" style="background: #f59e0b;"><i class="fas fa-door-open mr-1"></i>Gate Overseer</span>';
+                roleText = 'Gate Overseer';
+            } else if (isSiptokenOverseer) {
+                roleBadge = '<span class="status-badge" style="background: #3b82f6;"><i class="fas fa-coins mr-1"></i>SipToken Overseer</span>';
+                roleText = 'SipToken Overseer';
+            } else {
+                roleBadge = '<span class="text-gray-400 text-sm">Read-Only Admin</span>';
+                roleText = 'Admin (Read-Only)';
+            }
+            
+            const statusBadge = !admin.is_active 
+                ? '<span class="status-badge" style="background: #ef4444;"><i class="fas fa-ban mr-1"></i>DEACTIVATED</span>'
                 : '';
             
-            const siptokenBadge = isSiptokenOverseer
-                ? `<span class="status-badge" style="background: #3b82f6; color: white;"><i class="fas fa-coins mr-1"></i>SipToken</span>`
-                : '';
-            
-            const badges = [overseerBadge, siptokenBadge].filter(b => b).join(' ') || '<span class="text-gray-500">Regular Admin</span>';
+            const uniqueId = `admin-${admin.id}`;
             
             return `
-                <tr>
-                    <td class="font-semibold">${escapeHtml(admin.username)}</td>
-                    <td>${escapeHtml(admin.full_name)}</td>
-                    <td>${admin.mobile_number}</td>
-                    <td>${badges}</td>
-                    <td class="text-sm">${gatesText}</td>
-                    <td>
-                        <div class="flex flex-wrap gap-1">
-                            ${!isOverseer ? `
-                                <button onclick="toggleOverseerStatus('${admin.id}', true)" class="vamosfesta-button text-xs py-1" title="Make Gate Overseer">
-                                    <i class="fas fa-shield-alt"></i>
+                <div class="card hover:border-yellow-500 transition-all cursor-pointer ${!admin.is_active ? 'opacity-60' : ''}" 
+                     onclick="toggleAdminDetails('${uniqueId}')">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <h4 class="font-semibold text-lg">${escapeHtml(admin.full_name)}</h4>
+                                ${statusBadge}
+                            </div>
+                            <div class="flex items-center gap-4 text-sm text-gray-400">
+                                <span><i class="fas fa-user-tag mr-1"></i>${roleBadge}</span>
+                                <span><i class="fas fa-phone mr-1"></i>${admin.mobile_number}</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <i id="${uniqueId}-icon" class="fas fa-chevron-down text-gray-400 transition-transform"></i>
+                        </div>
+                    </div>
+                    
+                    <!-- Expandable Details -->
+                    <div id="${uniqueId}-details" class="hidden mt-4 pt-4 border-t border-gray-700 space-y-3">
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <span class="text-gray-500">Username:</span>
+                                <span class="text-white font-mono ml-2">${escapeHtml(admin.username)}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-500">Role:</span>
+                                <span class="text-white ml-2">${roleText}</span>
+                            </div>
+                            ${admin.club_name ? `
+                                <div>
+                                    <span class="text-gray-500">Club:</span>
+                                    <span class="text-white ml-2">${escapeHtml(admin.club_name)}</span>
+                                </div>
+                            ` : ''}
+                            ${admin.club_number ? `
+                                <div>
+                                    <span class="text-gray-500">Club #:</span>
+                                    <span class="text-white ml-2">${escapeHtml(admin.club_number)}</span>
+                                </div>
+                            ` : ''}
+                            ${!admin.is_active && admin.deactivation_reason ? `
+                                <div class="col-span-2">
+                                    <span class="text-gray-500">Deactivation Reason:</span>
+                                    <span class="text-red-400 ml-2">${admin.deactivation_reason.replace('_', ' ')}</span>
+                                    ${admin.deactivated_at ? ` <span class="text-gray-500 text-xs">(${new Date(admin.deactivated_at).toLocaleDateString()})</span>` : ''}
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        ${isOverseer && adminAssignments.length > 0 ? `
+                            <div>
+                                <span class="text-gray-500 text-sm">Assigned Gates:</span>
+                                <div class="flex flex-wrap gap-1 mt-1">
+                                    ${adminAssignments.map(a => `
+                                        <span class="px-2 py-1 bg-yellow-900/30 border border-yellow-600/50 rounded text-xs">
+                                            ${a.is_lead_overseer ? '⭐ ' : ''}${a.entry_gates.gate_name}
+                                        </span>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        <!-- Action Buttons -->
+                        <div class="flex flex-wrap gap-2 pt-3">
+                            ${admin.is_active ? `
+                                ${!isOverseer ? `
+                                    <button onclick="event.stopPropagation(); toggleOverseerStatus('${admin.id}', true)" 
+                                            class="vamosfesta-button text-xs">
+                                        <i class="fas fa-door-open mr-1"></i>Make Gate Overseer
+                                    </button>
+                                ` : `
+                                    <button onclick="event.stopPropagation(); showAssignGatesModal('${admin.id}')" 
+                                            class="vamosfesta-button success text-xs">
+                                        <i class="fas fa-tasks mr-1"></i>Assign Gates
+                                    </button>
+                                    <button onclick="event.stopPropagation(); toggleOverseerStatus('${admin.id}', false)" 
+                                            class="vamosfesta-button danger text-xs">
+                                        <i class="fas fa-times mr-1"></i>Remove Gate Role
+                                    </button>
+                                `}
+                                ${!isSiptokenOverseer ? `
+                                    <button onclick="event.stopPropagation(); toggleSiptokenOverseerStatus('${admin.id}', true)" 
+                                            class="vamosfesta-button text-xs" style="background: #3b82f6; border-color: #3b82f6;">
+                                        <i class="fas fa-coins mr-1"></i>Make SipToken Overseer
+                                    </button>
+                                ` : `
+                                    <button onclick="event.stopPropagation(); toggleSiptokenOverseerStatus('${admin.id}', false)" 
+                                            class="vamosfesta-button danger text-xs">
+                                        <i class="fas fa-times mr-1"></i>Remove SipToken Role
+                                    </button>
+                                `}
+                                <button onclick="event.stopPropagation(); deactivateUser('${admin.id}', '${escapeHtml(admin.username)}', '${escapeHtml(admin.full_name)}')" 
+                                        class="vamosfesta-button danger text-xs ml-auto">
+                                    <i class="fas fa-user-slash mr-1"></i>Deactivate
                                 </button>
                             ` : `
-                                <button onclick="showAssignGatesModal('${admin.id}')" class="vamosfesta-button success text-xs py-1" title="Assign Gates">
-                                    <i class="fas fa-door-open"></i>
-                                </button>
-                                <button onclick="toggleOverseerStatus('${admin.id}', false)" class="vamosfesta-button danger text-xs py-1" title="Remove Gate Overseer">
-                                    <i class="fas fa-shield-alt"></i>
-                                </button>
-                            `}
-                            ${!isSiptokenOverseer ? `
-                                <button onclick="toggleSiptokenOverseerStatus('${admin.id}', true)" class="vamosfesta-button secondary text-xs py-1" title="Make SipToken Overseer" style="background: #3b82f6; border-color: #3b82f6;">
-                                    <i class="fas fa-coins"></i>
-                                </button>
-                            ` : `
-                                <button onclick="toggleSiptokenOverseerStatus('${admin.id}', false)" class="vamosfesta-button danger text-xs py-1" title="Remove SipToken Overseer">
-                                    <i class="fas fa-coins"></i>
+                                <button onclick="event.stopPropagation(); reactivateUser('${admin.id}', '${escapeHtml(admin.username)}', '${escapeHtml(admin.full_name)}')" 
+                                        class="vamosfesta-button success text-xs">
+                                    <i class="fas fa-user-check mr-1"></i>Reactivate User
                                 </button>
                             `}
                         </div>
-                    </td>
-                </tr>
+                    </div>
+                </div>
             `;
         }).join('');
         
@@ -3612,6 +3885,22 @@ async function loadAdmins() {
         showToast('Failed to load admins', 'error');
     }
 }
+
+// Toggle admin details expand/collapse
+window.toggleAdminDetails = function(uniqueId) {
+    const details = document.getElementById(`${uniqueId}-details`);
+    const icon = document.getElementById(`${uniqueId}-icon`);
+    
+    if (details.classList.contains('hidden')) {
+        // Expand
+        details.classList.remove('hidden');
+        icon.style.transform = 'rotate(180deg)';
+    } else {
+        // Collapse
+        details.classList.add('hidden');
+        icon.style.transform = 'rotate(0deg)';
+    }
+};
 
 async function loadGateOverseerAssignments() {
     try {
@@ -3668,13 +3957,17 @@ async function loadGateOverseerAssignments() {
 window.showAddAdminModal = function() {
     document.getElementById('adminForm').reset();
     
+    // Reset username display
+    document.getElementById('adminUsernamePrefix').textContent = '---';
+    document.getElementById('adminUsernameValue').textContent = '---';
+    document.getElementById('adminUsername').value = '';
+    
+    // Hide role preview card
+    document.getElementById('adminRolePreviewCard').classList.add('hidden');
+    
     // Reset checkboxes
-    const gateOverseerCheckbox = document.getElementById('adminIsGateOverseer');
-    const siptokenOverseerCheckbox = document.getElementById('adminIsSiptokenOverseer');
     const siptokenSalesCheckbox = document.getElementById('adminIsSiptokenSales');
     const barmanCheckbox = document.getElementById('adminIsBarman');
-    if (gateOverseerCheckbox) gateOverseerCheckbox.checked = false;
-    if (siptokenOverseerCheckbox) siptokenOverseerCheckbox.checked = false;
     if (siptokenSalesCheckbox) siptokenSalesCheckbox.checked = false;
     if (barmanCheckbox) barmanCheckbox.checked = false;
     
@@ -3684,35 +3977,85 @@ window.showAddAdminModal = function() {
 document.getElementById('adminForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    const adminData = {
-        username: document.getElementById('adminUsername').value.trim(),
-        password: document.getElementById('adminPassword').value,
-        full_name: document.getElementById('adminFullName').value.trim(),
-        mobile_number: document.getElementById('adminMobile').value.trim(),
-        role: 'admin',
-        created_by: currentUser.id,
-        // Gate Overseer
-        is_gate_overseer: document.getElementById('adminIsGateOverseer')?.checked || false,
-        // SipToken roles
-        is_siptoken_overseer: document.getElementById('adminIsSiptokenOverseer')?.checked || false,
-        is_siptoken_sales: document.getElementById('adminIsSiptokenSales')?.checked || false,
-        is_barman: document.getElementById('adminIsBarman')?.checked || false
-    };
+    const roleType = document.getElementById('adminTypeSelect').value;
+    const username = document.getElementById('adminUsername').value.trim();
+    const password = document.getElementById('adminPassword').value;
+    const fullName = document.getElementById('adminFullName').value.trim();
+    const mobile = document.getElementById('adminMobile').value.trim();
     
-    if (adminData.password.length < 6) {
+    // Validate required fields
+    if (!roleType) {
+        showToast('Please select admin type', 'error');
+        return;
+    }
+    
+    if (!username) {
+        showToast('Please enter first name to generate username', 'error');
+        return;
+    }
+    
+    if (password.length < 6) {
         showToast('Password must be at least 6 characters', 'error');
         return;
     }
     
+    // Prepare admin data
+    const adminData = {
+        username: username,
+        password: password,
+        full_name: fullName,
+        mobile_number: mobile,
+        role: 'admin', // Base role is always admin
+        created_by: currentUser.id,
+        is_gate_overseer: false,
+        is_siptoken_overseer: false,
+        is_siptoken_sales: false,
+        is_barman: false
+    };
+    
+    // Set overseer flags based on role type
+    if (roleType === 'gate_overseer') {
+        adminData.is_gate_overseer = true;
+    } else if (roleType === 'siptoken_overseer') {
+        adminData.is_siptoken_overseer = true;
+    }
+    
+    // Add SipToken operational roles (available to all admin types)
+    if (document.getElementById('adminIsSiptokenSales')?.checked) {
+        adminData.is_siptoken_sales = true;
+    }
+    if (document.getElementById('adminIsBarman')?.checked) {
+        adminData.is_barman = true;
+    }
+    
     try {
+        // Check if username already exists
+        const { data: existingUser, error: checkError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('username', username)
+            .maybeSingle();
+        
+        if (existingUser) {
+            showToast('Username already exists. Please use a different first name.', 'error');
+            return;
+        }
+        
         const { error } = await supabase
             .from('users')
             .insert(adminData);
         
         if (error) throw error;
         
-        showToast('Admin created successfully', 'success');
+        showToast(`Admin created successfully! Username: ${username}`, 'success');
         closeModal('adminModal');
+        
+        // Reset form
+        document.getElementById('adminForm').reset();
+        document.getElementById('adminRolePreviewCard').classList.add('hidden');
+        document.getElementById('adminUsernamePrefix').textContent = '---';
+        document.getElementById('adminUsernameValue').textContent = '---';
+        
         await loadAdmins();
         
     } catch (error) {
@@ -3771,6 +4114,227 @@ window.toggleSiptokenOverseerStatus = async function(adminId, makeOverseer) {
         showToast('Failed to update SipToken overseer status', 'error');
     }
 };
+
+// ============================================
+// USER DEACTIVATION / REACTIVATION SYSTEM
+// ============================================
+
+window.deactivateUser = async function(userId, username, fullName) {
+    // Show confirmation modal with reason selection
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.innerHTML = `
+        <div class="modal-content max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-red-400">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Deactivate User
+                </h3>
+                <button onclick="this.closest('.modal').remove()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="card bg-red-900/20 border-red-600/30 mb-4">
+                <p class="text-sm">
+                    <strong class="text-white">${escapeHtml(fullName)}</strong><br>
+                    <span class="text-gray-400">Username: ${escapeHtml(username)}</span>
+                </p>
+            </div>
+            <p class="text-sm text-gray-300 mb-4">This user will:</p>
+            <ul class="text-sm text-gray-400 mb-4 space-y-1 list-disc list-inside">
+                <li>No longer be able to login</li>
+                <li>Be removed from active rosters</li>
+                <li>Retain all historical data for reports</li>
+            </ul>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm mb-2 font-semibold">Reason for Deactivation *</label>
+                    <select id="deactivationReason" class="vamosfesta-input" required>
+                        <option value="">-- Select Reason --</option>
+                        <option value="resigned">Resigned</option>
+                        <option value="terminated">Terminated</option>
+                        <option value="contract_ended">Contract Ended</option>
+                        <option value="performance_issues">Performance Issues</option>
+                        <option value="no_show">No Show / Abandoned</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm mb-2">Additional Notes (Optional)</label>
+                    <textarea id="deactivationNotes" class="vamosfesta-input" rows="3" 
+                              placeholder="Enter any additional details..."></textarea>
+                </div>
+            </div>
+            <div class="mt-6 p-3 bg-yellow-900/30 border border-yellow-600/50 rounded text-xs">
+                <i class="fas fa-info-circle text-yellow-400 mr-1"></i>
+                This action can be reversed by Super Admin
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button onclick="confirmDeactivation('${userId}')" class="vamosfesta-button danger flex-1">
+                    <i class="fas fa-user-slash mr-2"></i>Deactivate User
+                </button>
+                <button onclick="this.closest('.modal').remove()" class="vamosfesta-button secondary flex-1">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+};
+
+window.confirmDeactivation = async function(userId) {
+    const reason = document.getElementById('deactivationReason').value;
+    const notes = document.getElementById('deactivationNotes').value.trim();
+    
+    if (!reason) {
+        showToast('Please select a reason for deactivation', 'error');
+        return;
+    }
+    
+    try {
+        const { error } = await supabase
+            .from('users')
+            .update({ 
+                is_active: false,
+                deactivated_at: new Date().toISOString(),
+                deactivated_by: currentUser.id,
+                deactivation_reason: reason,
+                deactivation_notes: notes || null
+            })
+            .eq('id', userId);
+        
+        if (error) throw error;
+        
+        showToast('User deactivated successfully', 'success');
+        
+        // Close modal
+        document.querySelector('.modal').remove();
+        
+        // Reload appropriate list
+        if (typeof loadAdmins === 'function') await loadAdmins();
+        if (typeof loadStaffRoster === 'function') await loadStaffRoster();
+        
+    } catch (error) {
+        console.error('Error deactivating user:', error);
+        showToast('Failed to deactivate user: ' + error.message, 'error');
+    }
+};
+
+window.reactivateUser = async function(userId, username, fullName) {
+    if (!confirm(`Reactivate ${fullName} (${username})?\n\nThey will be able to login again immediately.`)) {
+        return;
+    }
+    
+    try {
+        const { error } = await supabase
+            .from('users')
+            .update({ 
+                is_active: true,
+                deactivated_at: null,
+                deactivated_by: null,
+                deactivation_reason: null,
+                deactivation_notes: null
+            })
+            .eq('id', userId);
+        
+        if (error) throw error;
+        
+        showToast('User reactivated successfully', 'success');
+        
+        // Reload appropriate list
+        if (typeof loadAdmins === 'function') await loadAdmins();
+        if (typeof loadStaffRoster === 'function') await loadStaffRoster();
+        
+    } catch (error) {
+        console.error('Error reactivating user:', error);
+        showToast('Failed to reactivate user: ' + error.message, 'error');
+    }
+};
+
+// Check if current user has permission to deactivate a target user
+window.canDeactivateUser = function(targetUser) {
+    if (currentUser.role === 'super_admin') {
+        return true; // Super admin can deactivate anyone
+    }
+    
+    if (currentUser.is_gate_overseer) {
+        // Gate overseers can deactivate entry marshalls only
+        return targetUser.role === 'entry_marshall';
+    }
+    
+    if (currentUser.is_siptoken_overseer) {
+        // SipToken overseers can deactivate token sales staff and barmen
+        return targetUser.is_siptoken_sales || targetUser.is_barman;
+    }
+    
+    return false; // Others cannot deactivate
+};
+
+// ============================================
+// INVENTORY ACCESS CONTROL SYSTEM
+// ============================================
+
+window.hasInventoryAccess = function(accessLevel) {
+    if (!currentUser) return false;
+    
+    switch (accessLevel) {
+        case 'full':
+            // Full control: Super Admin only
+            return currentUser.role === 'super_admin';
+            
+        case 'operational':
+            // Operational control: Super Admin + SipToken Overseer
+            return currentUser.role === 'super_admin' || currentUser.is_siptoken_overseer;
+            
+        case 'view':
+            // View access: Super Admin, SipToken Overseer, Barmen
+            return currentUser.role === 'super_admin' || 
+                   currentUser.is_siptoken_overseer || 
+                   currentUser.is_barman;
+            
+        case 'none':
+        default:
+            return false;
+    }
+};
+
+window.checkInventoryPermission = function(action) {
+    const permissions = {
+        'setup_beverages': 'full',           // Create/edit beverage master
+        'set_opening_stock': 'operational',  // Enter opening stock
+        'view_live_dashboard': 'operational',// Monitor during event
+        'enter_closing_stock': 'operational',// Enter closing count
+        'reconcile': 'operational',          // Perform reconciliation
+        'approve_reconciliation': 'full',    // Final approval
+        'view_reports': 'operational',       // View inventory reports
+        'view_own_stats': 'view'            // Barmen view their consumption
+    };
+    
+    const requiredLevel = permissions[action];
+    if (!requiredLevel) return false;
+    
+    return hasInventoryAccess(requiredLevel);
+};
+
+window.showInventoryAccessDenied = function() {
+    showToast('Access Denied: You do not have permission to access inventory features', 'error');
+};
+
+// Initialize inventory menu visibility based on user role
+window.updateInventoryMenuVisibility = function() {
+    const inventoryMenu = document.getElementById('inventoryMenuItem');
+    if (!inventoryMenu) return;
+    
+    if (hasInventoryAccess('view')) {
+        inventoryMenu.style.display = 'block';
+    } else {
+        inventoryMenu.style.display = 'none';
+    }
+};
+
+// ============================================
+// END DEACTIVATION & INVENTORY CONTROL
+// ============================================
 
 window.showAssignGatesModal = async function(overseerId) {
     try {
@@ -3905,70 +4469,167 @@ async function loadOverseerGates() {
     }
 }
 
-async function loadMarshallRoster() {
+async function loadMarshalls() {
     try {
-        const { data: marshalls, error: marshallsError } = await supabase
+        // Get filter selection
+        const filter = document.getElementById('marshallStatusFilter')?.value || 'active';
+        
+        let query = supabase
             .from('users')
             .select('*')
             .eq('role', 'entry_marshall')
-            .eq('is_active', true);
+            .order('full_name', { ascending: true });
         
+        // Apply filter
+        if (filter === 'active') {
+            query = query.eq('is_active', true);
+        } else if (filter === 'inactive') {
+            query = query.eq('is_active', false);
+        }
+        
+        const { data: marshalls, error: marshallsError } = await query;
         if (marshallsError) throw marshallsError;
         
         const { data: roster, error: rosterError } = await supabase
             .from('gate_roster')
             .select('*, entry_gates(gate_name, gate_code)');
-        
         if (rosterError) throw rosterError;
         
         const { data: duties, error: dutiesError } = await supabase
             .from('marshall_duties')
             .select('marshall_id, status')
             .eq('status', 'on_duty');
-        
         if (dutiesError) throw dutiesError;
         
         const onDutyMarshalls = new Set(duties?.map(d => d.marshall_id) || []);
         
-        const tbody = document.getElementById('marshallRosterBody');
+        const container = document.getElementById('marshallsListContainer');
+        if (!container) return;
+        
         if (!marshalls || marshalls.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-gray-500">No entry marshalls found</td></tr>';
+            container.innerHTML = '<div class="text-center py-8 text-gray-500">No entry marshalls found.</div>';
             return;
         }
         
-        tbody.innerHTML = marshalls.map(marshall => {
+        // Create clean card list - clickable to expand
+        container.innerHTML = marshalls.map(marshall => {
             const assignment = roster?.find(r => r.marshall_id === marshall.id);
             const isOnDuty = onDutyMarshalls.has(marshall.id);
             
-            const statusBadge = isOnDuty 
-                ? '<span class="status-badge" style="background: #10b981; color: white;"><i class="fas fa-broadcast-tower mr-1"></i>On Duty</span>'
-                : '<span class="status-badge" style="background: #6b7280; color: white;">Off Duty</span>';
+            const dutyBadge = isOnDuty 
+                ? '<span class="status-badge" style="background: #10b981;"><i class="fas fa-broadcast-tower mr-1"></i>ON DUTY</span>'
+                : '';
+            
+            const statusBadge = !marshall.is_active 
+                ? '<span class="status-badge" style="background: #ef4444;"><i class="fas fa-ban mr-1"></i>DEACTIVATED</span>'
+                : '';
+            
+            const uniqueId = `marshall-${marshall.id}`;
             
             return `
-                <tr>
-                    <td class="font-semibold">${escapeHtml(marshall.full_name)}</td>
-                    <td>${marshall.mobile_number}</td>
-                    <td>${assignment ? `${escapeHtml(assignment.entry_gates.gate_name)} <span class="text-xs text-gray-500">(${assignment.entry_gates.gate_code})</span>` : '<span class="text-gray-500">Not assigned</span>'}</td>
-                    <td>${statusBadge}</td>
-                    <td>
-                        ${!assignment ? `
-                            <button onclick="showAssignMarshallModal('${marshall.id}')" class="vamosfesta-button text-sm">
-                                <i class="fas fa-plus mr-1"></i>Assign
-                            </button>
-                        ` : `
-                            <button onclick="unassignMarshall('${marshall.id}')" class="vamosfesta-button danger text-sm">
-                                <i class="fas fa-times mr-1"></i>Unassign
-                            </button>
-                        `}
-                    </td>
-                </tr>
+                <div class="card hover:border-orange-500 transition-all cursor-pointer ${!marshall.is_active ? 'opacity-60' : ''}" 
+                     onclick="toggleMarshallDetails('${uniqueId}')">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <h4 class="font-semibold text-lg">${escapeHtml(marshall.full_name)}</h4>
+                                ${dutyBadge}
+                                ${statusBadge}
+                            </div>
+                            <div class="flex items-center gap-4 text-sm text-gray-400">
+                                <span><i class="fas fa-user-shield mr-1"></i><span class="role-badge role-entry_marshall">Entry Marshall</span></span>
+                                <span><i class="fas fa-phone mr-1"></i>${marshall.mobile_number || '-'}</span>
+                                ${assignment ? `<span><i class="fas fa-door-open mr-1"></i>${escapeHtml(assignment.entry_gates.gate_name)}</span>` : ''}
+                            </div>
+                        </div>
+                        <i id="${uniqueId}-icon" class="fas fa-chevron-down text-gray-400 transition-transform"></i>
+                    </div>
+                    
+                    <!-- Expandable Details -->
+                    <div id="${uniqueId}-details" class="hidden mt-4 pt-4 border-t border-gray-700 space-y-3">
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <span class="text-gray-500">Username:</span>
+                                <span class="text-white font-mono ml-2">${escapeHtml(marshall.username)}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-500">Status:</span>
+                                <span class="ml-2">${isOnDuty ? '<span class="text-green-400">On Duty</span>' : '<span class="text-gray-400">Off Duty</span>'}</span>
+                            </div>
+                            ${assignment ? `
+                                <div>
+                                    <span class="text-gray-500">Assigned Gate:</span>
+                                    <span class="text-orange-400 ml-2">${escapeHtml(assignment.entry_gates.gate_name)}</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-500">Gate Code:</span>
+                                    <span class="text-white ml-2">${assignment.entry_gates.gate_code}</span>
+                                </div>
+                            ` : '<div class="col-span-2 text-gray-500">Not assigned to any gate</div>'}
+                            ${!marshall.is_active && marshall.deactivation_reason ? `
+                                <div class="col-span-2">
+                                    <span class="text-gray-500">Deactivation Reason:</span>
+                                    <span class="text-red-400 ml-2">${marshall.deactivation_reason.replace('_', ' ')}</span>
+                                    ${marshall.deactivated_at ? ` <span class="text-gray-500 text-xs">(${new Date(marshall.deactivated_at).toLocaleDateString()})</span>` : ''}
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="flex flex-wrap gap-2 pt-3">
+                            ${marshall.is_active ? `
+                                ${!assignment ? `
+                                    <button onclick="event.stopPropagation(); showAssignMarshallModal('${marshall.id}')" 
+                                            class="vamosfesta-button text-xs">
+                                        <i class="fas fa-plus mr-1"></i>Assign to Gate
+                                    </button>
+                                ` : `
+                                    <button onclick="event.stopPropagation(); unassignMarshall('${marshall.id}')" 
+                                            class="vamosfesta-button secondary text-xs">
+                                        <i class="fas fa-times mr-1"></i>Unassign Gate
+                                    </button>
+                                `}
+                                <button onclick="event.stopPropagation(); deactivateUser('${marshall.id}', '${escapeHtml(marshall.username)}', '${escapeHtml(marshall.full_name)}'))" 
+                                        class="vamosfesta-button danger text-xs ml-auto">
+                                    <i class="fas fa-user-slash mr-1"></i>Deactivate
+                                </button>
+                            ` : `
+                                <button onclick="event.stopPropagation(); reactivateUser('${marshall.id}', '${escapeHtml(marshall.username)}', '${escapeHtml(marshall.full_name)}')}" 
+                                        class="vamosfesta-button success text-xs">
+                                    <i class="fas fa-user-check mr-1"></i>Reactivate
+                                </button>
+                            `}
+                        </div>
+                    </div>
+                </div>
             `;
         }).join('');
         
     } catch (error) {
-        console.error('Error loading marshall roster:', error);
-        showToast('Failed to load marshall roster', 'error');
+        console.error('Error loading marshalls:', error);
+        showToast('Failed to load marshalls', 'error');
     }
+}
+
+// Toggle marshall details expand/collapse
+window.toggleMarshallDetails = function(uniqueId) {
+    const details = document.getElementById(`${uniqueId}-details`);
+    const icon = document.getElementById(`${uniqueId}-icon`);
+    
+    if (!details || !icon) return;
+    
+    if (details.classList.contains('hidden')) {
+        details.classList.remove('hidden');
+        icon.style.transform = 'rotate(180deg)';
+    } else {
+        details.classList.add('hidden');
+        icon.style.transform = 'rotate(0deg)';
+    }
+};
+
+// Keep old function for backward compatibility
+async function loadMarshallRoster() {
+    await loadMarshalls();
 }
 
 window.showAssignMarshallModal = async function(marshallId) {
