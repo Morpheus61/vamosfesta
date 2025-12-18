@@ -6150,9 +6150,18 @@ window.saveTokenRate = async function() {
     try {
         const { error } = await supabase
             .from('settings')
-            .upsert({ key: 'token_rate', value: rate.toString() }, { onConflict: 'key' });
+            .upsert({ 
+                setting_key: 'token_rate', 
+                setting_value: rate.toString(),
+                description: 'Price per token in INR',
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'setting_key' });
         
         if (error) throw error;
+        
+        // Update global token rate
+        window.siptokenRate = rate;
+        
         showToast('Token rate saved: ₹' + rate + ' per token', 'success');
     } catch (error) {
         console.error('Error saving token rate:', error);

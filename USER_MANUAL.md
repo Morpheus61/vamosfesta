@@ -1,8 +1,8 @@
-# ROCK 4 ONE - User Manual
-## Harmony for Humanity - Event Management System
+# VAMOS FESTA - User Manual
+## Latin Fiesta Night - Event Management System
 
-**Version:** 2.0  
-**Last Updated:** December 11, 2025
+**Version:** 2.5  
+**Last Updated:** December 18, 2025
 
 ---
 
@@ -16,14 +16,15 @@
 6. [Seller Guide](#seller-guide)
 7. [Entry Marshall Guide](#entry-marshall-guide)
 8. [Gate Overseer Guide](#gate-overseer-guide)
-9. [Troubleshooting](#troubleshooting)
-10. [Security & Best Practices](#security--best-practices)
+9. [SipToken Overseer Guide](#siptoken-overseer-guide)
+10. [Troubleshooting](#troubleshooting)
+11. [Security & Best Practices](#security--best-practices)
 
 ---
 
 ## System Overview
 
-Rock 4 One is a comprehensive event management system designed for multi-seller ticket registration with integrated payment verification, QR-based entry management, and security-controlled gate operations.
+Vamos Festa is a comprehensive event management system designed for multi-seller ticket registration with integrated payment verification, QR-based entry management, SipToken beverage service, and security-controlled gate operations.
 
 ### Key Features
 
@@ -31,7 +32,11 @@ Rock 4 One is a comprehensive event management system designed for multi-seller 
 - **Payment Verification**: Super Admin verifies all payments before pass generation
 - **Digital Guest Passes**: QR code-based passes with WhatsApp delivery
 - **Entry Management**: QR scanning at gates with entry/exit tracking
+- **SipToken System**: Cashless beverage service with token-based ordering
+- **Inventory Management**: Complete beverage stock tracking and reconciliation
 - **Marshall Management**: Overseer-controlled clock-in/out with approval workflows
+- **User Deactivation**: Soft delete system with audit trail and reactivation
+- **Card-Based UI**: Clean, mobile-friendly lists with click-to-expand details
 - **Real-time Analytics**: Live statistics and reporting
 - **Security Controls**: Role-based access with audit trails
 
@@ -97,6 +102,83 @@ When you lose internet connection:
 - Continue working normally
 - Data saves locally and syncs when online
 - Badge disappears when connection returns
+
+### Understanding the New Card-Based UI
+
+**Vamos Festa v2.5 introduces a clean, mobile-friendly interface:**
+
+#### What You'll See
+
+**All Lists Now Use Cards:**
+- Personnel lists (Admins, Users, Marshalls, Staff)
+- Clean, uncluttered appearance
+- Easy to scan and find people
+- Mobile-optimized with no horizontal scrolling
+
+**Collapsed View (Default):**
+```
+┌─────────────────────────────────────────┐
+│ Ramesh Kumar                   🔽      │
+│ 🏷️ Gate Overseer  📱 9876543210       │
+└─────────────────────────────────────────┘
+```
+
+Shows only essential information:
+- ✅ Name (large, bold)
+- ✅ Role (with icon)
+- ✅ Phone number
+- ✅ Status badges (if applicable)
+
+**Click to Expand:**
+- Click anywhere on the card
+- Chevron rotates (🔽 → 🔼)
+- Details slide down smoothly
+- Shows full information and action buttons
+
+**Expanded View:**
+```
+┌─────────────────────────────────────────┐
+│ Ramesh Kumar                   🔼      │
+│ 🏷️ Gate Overseer  📱 9876543210       │
+├─────────────────────────────────────────┤
+│ Username: GateOverseer-Ramesh          │
+│ Club: 41'ers Mumbai                    │
+│ Registrations: 45 | Revenue: ₹67,500  │
+│                                         │
+│ [Edit] [Assign Gates] [Deactivate]    │
+└─────────────────────────────────────────┘
+```
+
+**Filter Dropdowns:**
+- Located at top of each list
+- Options:
+  - **Active Only** (default) - Shows only active users
+  - **All Users** - Shows everyone
+  - **Deactivated Only** - Shows deactivated users
+- Results update instantly
+
+**Status Badges:**
+- 🟢 **ON DUTY** - Staff currently working (green)
+- 🔴 **DEACTIVATED** - User cannot login (red)
+- Badges appear next to name in collapsed view
+
+**Visual Indicators:**
+- Hover effect: Border changes to yellow
+- Deactivated users: Semi-transparent (60% opacity)
+- Active cursor: Indicates card is clickable
+
+#### Interaction Tips
+
+**✅ DO:**
+- Click cards to see full details
+- Use filters to find specific users
+- Click action buttons inside expanded cards
+- Expand multiple cards simultaneously
+
+**❌ DON'T:**
+- Don't look for traditional tables
+- Cards don't need double-clicking
+- Action buttons won't collapse the card
 
 ### Dashboard Navigation
 
@@ -221,24 +303,136 @@ Each pass includes:
    - Club Number (optional)
 4. Click **Create Seller**
 
-#### Managing Existing Sellers
+#### Managing Existing Users
 
-- **View Stats**: See each seller's performance
-- **Deactivate**: Prevent login without deleting data
-- **View Details**: Click seller name for full information
+**Card-Based List View:**
+- Each user shown as a card
+- Collapsed view shows: Name, Role, Phone, Club
+- Click card to expand and see:
+  - Username (system ID)
+  - Club details
+  - Registration statistics
+  - Verified revenue amount
+  - Deactivation details (if deactivated)
+
+**Filter Options:**
+Use dropdown to filter:
+- **Active Only** (default)
+- **All Users**
+- **Deactivated Only**
+
+**Actions Available:**
+- **Edit**: Modify user details
+- **Deactivate**: Soft delete with reason tracking
+- **Reactivate**: Restore deactivated users
+
+#### Deactivating Users (Soft Delete)
+
+**Why Deactivate Instead of Delete?**
+✅ Preserves all historical data for reports  
+✅ Maintains audit trail  
+✅ Can be reversed if needed  
+✅ Complies with data retention policies  
+
+**How to Deactivate:**
+1. Find user in list
+2. Click card to expand
+3. Click **Deactivate** button (red)
+4. Modal opens - select reason:
+   - Resigned
+   - Terminated
+   - Contract Ended
+   - Performance Issues
+   - No Show / Abandoned
+   - Other
+5. Add optional notes
+6. Click **Deactivate User**
+
+**What Happens:**
+- User can no longer login
+- Appears with red "DEACTIVATED" badge
+- Card becomes semi-transparent (60% opacity)
+- Shows deactivation reason and date
+- All historical data preserved
+- Can filter to view deactivated users
+
+**Reactivating Users:**
+1. Change filter to "Deactivated Only" or "All Users"
+2. Find deactivated user (red badge)
+3. Click card to expand
+4. Click **Reactivate** button (green)
+5. Confirm action
+6. User can login immediately
+7. Deactivation details cleared
+
+**Permission Rules:**
+- Super Admin: Can deactivate anyone
+- Gate Overseer: Can only deactivate entry marshalls
+- SipToken Overseer: Can only deactivate token staff/barmen
+- Regular Admin: Cannot deactivate anyone
 
 ### 5. Admin Management
 
+#### Understanding the New Card-Based List View
+
+**What You See (Collapsed View):**
+- Admin name (large, bold)
+- Role badge (Admin/Gate Overseer/SipToken Overseer)
+- Phone number
+- Status badges (ON DUTY, DEACTIVATED if applicable)
+
+**Click to Expand:**
+- Click anywhere on the card to see full details
+- Username, role description, gate assignments
+- Deactivation details (if deactivated)
+- Action buttons (Assign Gates, Deactivate, etc.)
+
+**Filter Options:**
+- **Active Only** (default) - Shows only active admins
+- **All Users** - Shows everyone
+- **Deactivated Only** - Shows deactivated admins only
+
 #### Creating Admin Users
+
+**Improved Admin Creation Modal:**
 
 1. Click **Admin Management** tab
 2. Click **Add New Admin**
-3. Fill in:
-   - Username
-   - Password (min 6 chars)
-   - Full Name
-   - Mobile Number
-4. Click **Create Admin**
+3. **Step 1: Select Admin Type**
+   - Choose from dropdown:
+     - **Admin** - Read-only access to reports
+     - **Gate Overseer** - Manages entry marshalls
+     - **SipToken Overseer** - Manages token operations
+   - Role preview card appears showing:
+     - Icon and description
+     - Reporting hierarchy
+     - Username prefix
+
+4. **Step 2: Enter First Name**
+   - Enter first name or nickname (letters only)
+   - Username auto-generates with prefix:
+     - Admin-Ramesh
+     - GateOverseer-Tony
+     - TokenOverseer-Maria
+   - Preview shows full username (case-sensitive!)
+
+5. **Fill Additional Details:**
+   - Full name (for display)
+   - Password (min 6 chars, toggle visibility)
+   - Mobile number (10 digits)
+
+6. **Optional SipToken Operational Roles:**
+   - ☑️ Token Sales Staff (sell tokens to guests)
+   - ☑️ Barman (scan QR codes, serve beverages)
+   - These allow flexibility during the event
+
+7. Click **Create Admin**
+
+**Username Rules:**
+- Auto-generated based on admin type + first name
+- Case-sensitive (Admin-Ramesh ≠ admin-ramesh)
+- Cannot be changed after creation
+- System checks for duplicates
 
 #### Designating Gate Overseers
 
@@ -979,6 +1173,252 @@ View comprehensive logs:
 
 ---
 
+## SipToken Overseer Guide
+
+### Overview
+
+As SipToken Overseer, you manage the entire beverage service operation including:
+- Staff management (Token Sales & Barmen)
+- Clock-in/out for beverage staff
+- Live monitoring of token sales and beverage service
+- Inventory management and reconciliation
+- Bar counter operations
+
+### 1. Accessing SipToken Functions
+
+1. Login with your admin credentials
+2. Navigate to **SipToken Overseer** tab
+3. You'll see sections:
+   - Dashboard with live stats
+   - Staff management (Sales & Barmen)
+   - Bar counters
+   - Inventory (if you have access)
+
+### 2. Staff Management
+
+#### Card-Based Staff List
+
+**What You See:**
+- Clean cards showing: Name, Role, Phone
+- Status badges: ON DUTY, DEACTIVATED
+- Click card to expand for full details
+
+**Filter Staff:**
+- Active Only (default)
+- All Staff
+- Deactivated Only
+
+#### Clock-In Staff
+
+**Purpose**: Staff must clock in before working
+
+**Steps:**
+1. Click **Clock In Staff** button
+2. Select staff member from dropdown
+3. Choose their role for this shift:
+   - Token Sales (sells tokens to guests)
+   - Barman (serves beverages)
+4. Assign bar counter (if barman)
+5. Click **Clock In**
+
+**What Happens:**
+- Staff can access their interface
+- Duty session starts tracking
+- Shows in "Staff On Duty" section
+- Timer begins counting duration
+
+#### Monitoring Active Duty Sessions
+
+**Staff On Duty Section:**
+- Shows all currently working staff
+- Role icon: 🪙 Sales / 🍸 Barman
+- Counter assignment
+- Duty duration (hours/minutes)
+- End session button
+
+**Ending Duty Session:**
+1. Find staff in duty list
+2. Click stop button
+3. Confirm end of shift
+4. Duty record saved
+
+#### Clock-Out Approvals
+
+**When Staff Request Clock-Out:**
+1. Request appears in your queue
+2. Shows: Name, role, duration, reason
+3. **Approve**: Staff clocked out, shift ends
+4. **Reject**: Staff continues duty, must resubmit
+
+### 3. Bar Counter Management
+
+#### Viewing Counters
+
+**Counter List Shows:**
+- Counter name and code
+- Assigned barmen
+- Current status (Active/Inactive)
+- Counter QR code
+
+#### Counter QR Codes
+
+**Purpose**: Guests scan to place orders
+
+**Using QR Codes:**
+1. Click **View QR** on counter
+2. QR code displays
+3. Print or display on screen
+4. Place at bar counter
+5. Guests scan to order
+
+**QR Code Contains:**
+- Counter ID
+- Counter name
+- Ordering interface link
+
+### 4. Inventory Access Control
+
+#### Your Access Level: OPERATIONAL CONTROL
+
+As SipToken Overseer, you can:
+
+**✅ You CAN:**
+- View live inventory dashboard
+- Monitor stock levels during event
+- Enter opening stock (before event)
+- Enter closing stock (after event)
+- Perform reconciliation
+- Add wastage/breakage notes
+- Request restock
+- View consumption reports
+
+**❌ You CANNOT:**
+- Modify beverage master list
+- Change pricing or token costs
+- Delete inventory records
+- Final reconciliation approval (Super Admin only)
+
+#### Inventory Workflow Stages
+
+**Stage 1: Opening Stock (Your Job - Day of Event)**
+1. Navigate to Inventory section
+2. Click **Enter Opening Stock**
+3. Physical count all bottles
+4. Enter quantities per beverage
+5. Verify against purchase records
+6. Click **Lock Opening Stock**
+7. ⚠️ Once locked, cannot be changed
+
+**Stage 2: Live Monitoring (During Event)**
+1. Dashboard shows real-time consumption
+2. Watch for low stock alerts
+3. Monitor barman performance
+4. Coordinate restock if needed
+5. Track popular beverages
+
+**Stage 3: Closing Stock (Your Job - End of Event)**
+1. Click **Enter Closing Stock**
+2. Physical count remaining bottles
+3. Count damaged/broken bottles
+4. Enter closing quantities
+5. Note any discrepancies
+
+**Stage 4: Reconciliation (Your Job)**
+1. System calculates variance:
+   - Expected consumption (from orders)
+   - Actual consumption (opening - closing)
+   - Variance (difference)
+2. Review variance reports
+3. Add notes for high variances:
+   - Spillage during service
+   - Broken bottles (how many)
+   - Wastage (samples, spoiled)
+4. Submit reconciliation
+5. ⚠️ Awaits Super Admin approval
+
+**Stage 5: Approval (Super Admin)**
+- Super Admin reviews your reconciliation
+- Approves if variance acceptable
+- Flags for investigation if suspicious
+- Final closure locks inventory forever
+
+#### Understanding Variance
+
+**Acceptable Variance:**
+- 1-2% is normal (spillage, measurement)
+- Documented breakage
+- Reasonable wastage
+
+**Investigate If:**
+- Variance > 3%
+- No documentation
+- Pattern of shortages
+- Unexplained differences
+
+### 5. Live Dashboard
+
+**Key Metrics:**
+- Active staff on duty
+- Total tokens sold (today)
+- Total beverages served
+- Current inventory levels
+- Popular beverages
+- Revenue generated
+
+**Using Dashboard:**
+- Monitor in real-time
+- Identify bottlenecks
+- Allocate staff accordingly
+- Track performance
+- Make operational decisions
+
+### 6. Deactivating Staff
+
+**When to Deactivate:**
+- End of contract
+- Performance issues
+- No show
+- Resigned
+
+**How to Deactivate:**
+1. Find staff in list
+2. Click card to expand
+3. Click **Deactivate** (red button)
+4. Select reason
+5. Add notes
+6. Confirm deactivation
+
+**What Happens:**
+- Staff cannot login
+- All historical data preserved
+- Shows with red badge
+- Can be reactivated by Super Admin
+
+### Best Practices
+
+**Staff Management:**
+- ✅ Clock in staff before their shift
+- ✅ Brief staff on their duties
+- ✅ Monitor performance regularly
+- ✅ End shifts promptly
+- ✅ Handle clock-out requests quickly
+
+**Inventory Management:**
+- ✅ Accurate opening stock critical
+- ✅ Document all breakage immediately
+- ✅ Note spillage incidents
+- ✅ Double-check closing count
+- ✅ Explain variances clearly
+
+**During Event:**
+- ✅ Monitor dashboard continuously
+- ✅ Watch for stock alerts
+- ✅ Coordinate restock quickly
+- ✅ Address staff issues immediately
+- ✅ Keep Super Admin informed
+
+---
+
 ## Troubleshooting
 
 ### Common Issues & Solutions
@@ -1034,10 +1474,74 @@ View comprehensive logs:
 - Try landscape orientation
 
 **"Invalid QR code" error**
-- Verify code is from Rock 4 One system
+- Verify code is from Vamos Festa system
 - Check if token expired
 - Ensure correct gate assignment
 - Request new token if needed
+
+#### User Deactivation & Reactivation
+
+**Cannot find user in list**
+- Check filter dropdown setting
+- Change to "All Users" to see everyone
+- Deactivated users only show with "Deactivated Only" filter
+- Use search if available
+
+**Deactivate button not showing**
+- Expand the card first (click to open)
+- Check your permission level:
+  - Super Admin: Can deactivate anyone
+  - Gate Overseer: Only entry marshalls
+  - SipToken Overseer: Only token staff/barmen
+  - Regular Admin: Cannot deactivate
+- User might already be deactivated
+
+**User still can login after deactivation**
+- Verify deactivation completed (check for red badge)
+- User might be using cached session (ask them to logout)
+- Check database: is_active should be FALSE
+- Clear browser cache on user's device
+- Contact Super Admin if persists
+
+**Cannot reactivate user**
+- Only Super Admin can reactivate
+- Ensure you're viewing deactivated users (filter)
+- Expand card to see reactivate button
+- Check if user was permanently deleted (rare)
+
+**Deactivation modal not opening**
+- Ensure card is expanded first
+- Clear browser cache
+- Try different browser
+- Check console for JavaScript errors
+
+#### Card-Based UI Issues
+
+**Cards not expanding**
+- Click directly on card area (not action buttons)
+- JavaScript might not be loaded - refresh page
+- Try different browser
+- Clear cache and reload
+- Check browser console for errors
+
+**Chevron icon not rotating**
+- Visual issue only - card still expands
+- Refresh page to reload CSS
+- Check browser supports CSS transforms
+- Not critical - functionality still works
+
+**Filter dropdown not working**
+- Ensure list has loaded completely
+- Try selecting different option
+- Refresh page
+- Clear browser cache
+- Check network connectivity
+
+**Action buttons collapse card**
+- This shouldn't happen (uses stopPropagation)
+- Report as bug to Super Admin
+- Workaround: Re-expand card after action
+- May need code fix
 
 #### Payment Verification
 
@@ -1256,6 +1760,16 @@ View comprehensive logs:
 
 ### Quick Reference Card
 
+#### Card-Based UI Interactions
+```
+- Expand Card: Click anywhere on card
+- Collapse Card: Click card again
+- Action Buttons: Click button (card stays open)
+- Filter Lists: Use dropdown at top
+- Find Deactivated: Change filter to "Deactivated Only"
+- Status Badges: Green (ON DUTY), Red (DEACTIVATED)
+```
+
 #### PWA Installation & Offline
 ```
 - Install App: Click "Install App" button → Add to Home
@@ -1269,8 +1783,10 @@ View comprehensive logs:
 ```
 - Verify Payment: Verification Queue → Verify/Reject
 - Generate Pass: All Registrations → QR icon
-- Create Seller: Seller Management → Add New Seller
-- Create Admin: Admin Management → Add New Admin
+- Create Seller: User Management → Add New Seller
+- Create Admin: Admin Management → Add New Admin (dropdown-based)
+- Deactivate User: Expand card → Deactivate → Select reason
+- Reactivate User: Filter "Deactivated Only" → Expand → Reactivate
 - Update Settings: Settings → Edit → Save
 ```
 
@@ -1292,11 +1808,23 @@ View comprehensive logs:
 - Check Pending Scans: Offline indicator badge
 ```
 
-#### Overseer Quick Actions
+#### Gate Overseer Quick Actions
 ```
-- Assign Marshall: Roster → Assign Marshall
+- Assign Marshall: Roster → Expand card → Assign to Gate
 - Generate Token: Tokens → Generate New Token
 - Approve Clockout: Requests → Approve/Reject
+- Deactivate Marshall: Expand card → Deactivate
+```
+
+#### SipToken Overseer Quick Actions
+```
+- Clock In Staff: Click Clock In → Select staff & counter
+- Monitor Dashboard: View live stats and alerts
+- Enter Opening Stock: Inventory → Opening Stock → Enter counts
+- Enter Closing Stock: Inventory → Closing Stock → Count remaining
+- Reconcile: Inventory → Reconciliation → Review variance
+- Deactivate Staff: Expand card → Deactivate → Reason
+- End Duty: Staff On Duty → Stop button
 ```
 
 ### Keyboard Shortcuts
