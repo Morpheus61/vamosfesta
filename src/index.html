@@ -1445,31 +1445,16 @@
                             <i class="fas fa-eye mr-2"></i>All Registrations (View Only)
                         </h2>
                         <div class="flex gap-2">
-                            <input type="search" id="adminSearchReg" class="vamosfesta-input w-48" placeholder="Search...">
+                            <input type="search" id="adminSearchReg" class="vamosfesta-input w-48" placeholder="Search..." oninput="filterAdminRegistrations()">
                             <button onclick="downloadRegistrationsCSV()" class="vamosfesta-button text-sm">
                                 <i class="fas fa-download mr-1"></i>Export
                             </button>
                         </div>
                     </div>
                     
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Guest</th>
-                                    <th>Mobile</th>
-                                    <th>Type</th>
-                                    <th>Amount</th>
-                                    <th>Payment</th>
-                                    <th>Seller</th>
-                                    <th>Status</th>
-                                    <th>Date</th>
-                                </tr>
-                            </thead>
-                            <tbody id="adminRegTableBody">
-                                <tr><td colspan="8" class="text-center py-8 text-gray-500">Loading...</td></tr>
-                            </tbody>
-                        </table>
+                    <!-- Card-based List -->
+                    <div id="adminRegListContainer" class="space-y-2">
+                        <div class="text-center py-8 text-gray-500">Loading...</div>
                     </div>
                 </div>
             </section>
@@ -1477,31 +1462,16 @@
             <!-- ========== ADMIN: View Sellers (Read-Only) ========== -->
             <section id="tab-view-sellers" class="tab-content hidden">
                 <div class="vamosfesta-container p-6">
-                    <h2 class="text-xl font-bold vamosfesta-header mb-6">
-                        <i class="fas fa-chart-bar mr-2"></i>Sales by Seller
-                    </h2>
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold vamosfesta-header">
+                            <i class="fas fa-chart-bar mr-2"></i>Sales by Seller
+                        </h2>
+                        <input type="search" id="adminSearchSeller" class="vamosfesta-input w-48" placeholder="Search seller..." oninput="filterAdminSellers()">
+                    </div>
                     
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Seller</th>
-                                    <th>Club</th>
-                                    <th>Total Reg.</th>
-                                    <th>Pending</th>
-                                    <th>Verified</th>
-                                    <th>Stag</th>
-                                    <th>Couple</th>
-                                    <th>Cash</th>
-                                    <th>UPI</th>
-                                    <th>Bank</th>
-                                    <th>Total Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody id="adminSellerStatsBody">
-                                <tr><td colspan="11" class="text-center py-8 text-gray-500">Loading...</td></tr>
-                            </tbody>
-                        </table>
+                    <!-- Card-based List -->
+                    <div id="adminSellersListContainer" class="space-y-2">
+                        <div class="text-center py-8 text-gray-500">Loading...</div>
                     </div>
                 </div>
             </section>

@@ -2083,38 +2083,119 @@ window.toggleUserStatus = async function(userId, newStatus) {
 // ADMIN: READ-ONLY VIEWS
 // =====================================================
 
+let adminRegistrationsCache = [];
+
 async function loadAdminRegistrations() {
     try {
-        const { data: guests, error } = await supabase
+        const { data: guests, error} = await supabase
             .from('guests')
             .select(`*, seller:registered_by(username, full_name)`)
             .order('created_at', { ascending: false });
         
         if (error) throw error;
         
-        const tbody = document.getElementById('adminRegTableBody');
-        if (guests.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-500">No registrations found</td></tr>';
-            return;
-        }
-        
-        tbody.innerHTML = guests.map(g => `
-            <tr>
-                <td class="font-semibold">${escapeHtml(g.guest_name)}</td>
-                <td>${g.mobile_number}</td>
-                <td class="capitalize">${g.entry_type}</td>
-                <td>₹${g.ticket_price?.toLocaleString()}</td>
-                <td>${formatPaymentMode(g.payment_mode)}</td>
-                <td class="text-sm">${g.seller?.full_name || g.seller?.username || '-'}</td>
-                <td>${getStatusBadge(g.status)}</td>
-                <td class="text-sm text-gray-400">${formatDate(g.created_at)}</td>
-            </tr>
-        `).join('');
+        adminRegistrationsCache = guests || [];
+        renderAdminRegistrations(adminRegistrationsCache);
         
     } catch (error) {
         console.error('Error loading admin registrations:', error);
+        document.getElementById('adminRegListContainer').innerHTML = 
+            '<div class="text-center py-8 text-red-400">Error loading registrations</div>';
     }
 }
+
+function renderAdminRegistrations(guests) {
+    const container = document.getElementById('adminRegListContainer');
+    
+    if (!guests || guests.length === 0) {
+        container.innerHTML = '<div class="text-center py-8 text-gray-500">No registrations found</div>';
+        return;
+    }
+    
+    container.innerHTML = guests.map((g, index) => {
+        const uniqueId = `admin-reg-${g.id || index}`;
+        const statusClass = g.status === 'payment_verified' ? 'bg-green-900/20 border-green-600/30' :
+                           g.status === 'pending_verification' ? 'bg-orange-900/20 border-orange-600/30' :
+                           'bg-gray-900/20 border-gray-600/30';
+        
+        return `
+            <div class="card ${statusClass} cursor-pointer hover:border-yellow-600/50 transition-all" onclick="toggleAdminRegDetails('${uniqueId}')">
+                <!-- Collapsed View -->
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3">
+                            <div class="flex-1">
+                                <h4 class="font-semibold text-white">${escapeHtml(g.guest_name)}</h4>
+                                <p class="text-sm text-gray-400">📱 ${g.mobile_number}</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm capitalize">${g.entry_type}</p>
+                                <p class="font-bold text-yellow-400">₹${g.ticket_price?.toLocaleString()}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <i id="chevron-${uniqueId}" class="fas fa-chevron-down text-gray-500 ml-3 transition-transform"></i>
+                </div>
+                
+                <!-- Expanded Details -->
+                <div id="details-${uniqueId}" class="hidden mt-4 pt-4 border-t border-gray-700 space-y-3">
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <span class="text-gray-400">Payment:</span>
+                            <p class="font-semibold">${formatPaymentMode(g.payment_mode)}</p>
+                        </div>
+                        <div>
+                            <span class="text-gray-400">Reference:</span>
+                            <p class="font-semibold">${g.payment_reference || '-'}</p>
+                        </div>
+                        <div>
+                            <span class="text-gray-400">Seller:</span>
+                            <p class="font-semibold">${g.seller?.full_name || g.seller?.username || '-'}</p>
+                        </div>
+                        <div>
+                            <span class="text-gray-400">Status:</span>
+                            <p>${getStatusBadge(g.status)}</p>
+                        </div>
+                        <div class="col-span-2">
+                            <span class="text-gray-400">Registered:</span>
+                            <p class="font-semibold">${formatDate(g.created_at)}</p>
+                        </div>
+                        ${g.verified_at ? `<div class="col-span-2">
+                            <span class="text-gray-400">Verified:</span>
+                            <p class="font-semibold">${formatDate(g.verified_at)}</p>
+                        </div>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Toggle function for admin registrations
+window.toggleAdminRegDetails = function(uniqueId) {
+    const details = document.getElementById(`details-${uniqueId}`);
+    const chevron = document.getElementById(`chevron-${uniqueId}`);
+    
+    if (details && chevron) {
+        details.classList.toggle('hidden');
+        chevron.classList.toggle('fa-chevron-down');
+        chevron.classList.toggle('fa-chevron-up');
+    }
+};
+
+// Filter function for admin registrations
+window.filterAdminRegistrations = function() {
+    const searchTerm = document.getElementById('adminSearchReg')?.value.toLowerCase() || '';
+    const filtered = adminRegistrationsCache.filter(g => 
+        g.guest_name.toLowerCase().includes(searchTerm) ||
+        g.mobile_number.includes(searchTerm) ||
+        (g.seller?.full_name || '').toLowerCase().includes(searchTerm) ||
+        (g.seller?.username || '').toLowerCase().includes(searchTerm)
+    );
+    renderAdminRegistrations(filtered);
+};
+
+let adminSellersCache = [];
 
 async function loadAdminSellerStats() {
     try {
@@ -2124,34 +2205,128 @@ async function loadAdminSellerStats() {
         
         if (error) throw error;
         
-        const tbody = document.getElementById('adminSellerStatsBody');
-        if (!stats || stats.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="11" class="text-center py-8 text-gray-500">No seller data</td></tr>';
-            return;
-        }
-        
-        tbody.innerHTML = stats.map(s => `
-            <tr>
-                <td class="font-semibold">${escapeHtml(s.full_name || s.username)}</td>
-                <td class="text-sm">
-                    ${s.club_name ? `<span class="text-yellow-400">${escapeHtml(s.club_name)}</span>` : '-'}
-                </td>
-                <td>${s.total_registrations}</td>
-                <td class="text-orange-400">${s.pending_count}</td>
-                <td class="text-green-400">${s.verified_count}</td>
-                <td>${s.stag_count}</td>
-                <td>${s.couple_count}</td>
-                <td>₹${s.cash_collected?.toLocaleString()}</td>
-                <td>₹${s.upi_collected?.toLocaleString()}</td>
-                <td>₹${s.bank_collected?.toLocaleString()}</td>
-                <td class="font-semibold text-yellow-400">₹${s.total_verified_amount?.toLocaleString()}</td>
-            </tr>
-        `).join('');
+        adminSellersCache = stats || [];
+        renderAdminSellers(adminSellersCache);
         
     } catch (error) {
         console.error('Error loading admin seller stats:', error);
+        document.getElementById('adminSellersListContainer').innerHTML = 
+            '<div class="text-center py-8 text-red-400">Error loading seller stats</div>';
     }
 }
+
+function renderAdminSellers(sellers) {
+    const container = document.getElementById('adminSellersListContainer');
+    
+    if (!sellers || sellers.length === 0) {
+        container.innerHTML = '<div class="text-center py-8 text-gray-500">No seller data available</div>';
+        return;
+    }
+    
+    container.innerHTML = sellers.map((s, index) => {
+        const uniqueId = `admin-seller-${s.seller_id || index}`;
+        const hasClub = s.club_name && s.club_name.trim() !== '';
+        
+        return `
+            <div class="card cursor-pointer hover:border-yellow-600/50 transition-all" onclick="toggleAdminSellerDetails('${uniqueId}')">
+                <!-- Collapsed View -->
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3">
+                            <div class="flex-1">
+                                <h4 class="font-semibold text-white">${escapeHtml(s.full_name || s.username)}</h4>
+                                ${hasClub ? `<p class="text-sm text-yellow-400">🏷️ ${escapeHtml(s.club_name)}</p>` : '<p class="text-sm text-gray-500">Guest Registration</p>'}
+                            </div>
+                            <div class="text-right">
+                                <p class="text-2xl font-bold text-green-400">${s.total_registrations || 0}</p>
+                                <p class="text-xs text-gray-400">registrations</p>
+                            </div>
+                        </div>
+                    </div>
+                    <i id="chevron-${uniqueId}" class="fas fa-chevron-down text-gray-500 ml-3 transition-transform"></i>
+                </div>
+                
+                <!-- Expanded Details -->
+                <div id="details-${uniqueId}" class="hidden mt-4 pt-4 border-t border-gray-700">
+                    <!-- Status Breakdown -->
+                    <div class="grid grid-cols-3 gap-3 mb-4">
+                        <div class="text-center p-3 bg-orange-900/20 rounded-lg">
+                            <p class="text-2xl font-bold text-orange-400">${s.pending_count || 0}</p>
+                            <p class="text-xs text-gray-400">Pending</p>
+                        </div>
+                        <div class="text-center p-3 bg-green-900/20 rounded-lg">
+                            <p class="text-2xl font-bold text-green-400">${s.verified_count || 0}</p>
+                            <p class="text-xs text-gray-400">Verified</p>
+                        </div>
+                        <div class="text-center p-3 bg-blue-900/20 rounded-lg">
+                            <p class="text-2xl font-bold text-blue-400">${s.rejected_count || 0}</p>
+                            <p class="text-xs text-gray-400">Rejected</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Entry Types -->
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div class="p-3 bg-gray-800/50 rounded-lg">
+                            <p class="text-sm text-gray-400">Stag Entries</p>
+                            <p class="text-xl font-bold text-white">${s.stag_count || 0}</p>
+                        </div>
+                        <div class="p-3 bg-gray-800/50 rounded-lg">
+                            <p class="text-sm text-gray-400">Couple Entries</p>
+                            <p class="text-xl font-bold text-white">${s.couple_count || 0}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Payment Breakdown -->
+                    <div class="space-y-2 mb-4">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-400">💵 Cash:</span>
+                            <span class="font-semibold">₹${(s.cash_collected || 0).toLocaleString()}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-400">📱 UPI:</span>
+                            <span class="font-semibold">₹${(s.upi_collected || 0).toLocaleString()}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-400">🏦 Bank:</span>
+                            <span class="font-semibold">₹${(s.bank_collected || 0).toLocaleString()}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Total Revenue -->
+                    <div class="p-4 bg-green-900/20 rounded-lg border border-green-600/30">
+                        <div class="flex justify-between items-center">
+                            <span class="text-green-400 font-semibold">Total Revenue:</span>
+                            <span class="text-2xl font-bold text-green-400">₹${(s.total_verified_amount || 0).toLocaleString()}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Toggle function for admin sellers
+window.toggleAdminSellerDetails = function(uniqueId) {
+    const details = document.getElementById(`details-${uniqueId}`);
+    const chevron = document.getElementById(`chevron-${uniqueId}`);
+    
+    if (details && chevron) {
+        details.classList.toggle('hidden');
+        chevron.classList.toggle('fa-chevron-down');
+        chevron.classList.toggle('fa-chevron-up');
+    }
+};
+
+// Filter function for admin sellers
+window.filterAdminSellers = function() {
+    const searchTerm = document.getElementById('adminSearchSeller')?.value.toLowerCase() || '';
+    const filtered = adminSellersCache.filter(s => 
+        (s.full_name || '').toLowerCase().includes(searchTerm) ||
+        (s.username || '').toLowerCase().includes(searchTerm) ||
+        (s.club_name || '').toLowerCase().includes(searchTerm)
+    );
+    renderAdminSellers(filtered);
+};
 
 // =====================================================
 // STATISTICS
@@ -6140,6 +6315,12 @@ async function loadTokenRate() {
 
 // Save token rate
 window.saveTokenRate = async function() {
+    // Authorization: Only Super Admin can modify token rate from Settings
+    if (!currentUser || currentUser.role !== 'super_admin') {
+        showToast('Unauthorized: Only Super Admin can modify token rate', 'error');
+        return;
+    }
+    
     const rate = parseInt(document.getElementById('settingTokenRate').value);
     
     if (!rate || rate < 1) {
@@ -8182,6 +8363,12 @@ window.filterOverseerMenu = function(category) {
 
 // Save Token Rate (Overseer version)
 window.saveOverseerTokenRate = async function() {
+    // Authorization: Only Super Admin or SipToken Overseer can modify token rate
+    if (!currentUser || (currentUser.role !== 'super_admin' && !currentUser.is_siptoken_overseer)) {
+        showToast('Unauthorized: Only SipToken Overseer can modify token rate', 'error');
+        return;
+    }
+    
     const rateInput = document.getElementById('overseerTokenRate');
     const rate = rateInput?.value;
     
