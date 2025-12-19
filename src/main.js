@@ -6148,7 +6148,8 @@ window.saveTokenRate = async function() {
     }
     
     try {
-        const { error } = await supabase
+        // Update settings table
+        const { error: settingsError } = await supabase
             .from('settings')
             .upsert({ 
                 setting_key: 'token_rate', 
@@ -6157,7 +6158,26 @@ window.saveTokenRate = async function() {
                 updated_at: new Date().toISOString()
             }, { onConflict: 'setting_key' });
         
-        if (error) throw error;
+        if (settingsError) throw settingsError;
+        
+        // Update siptoken_settings table (get first row dynamically)
+        const { data: siptokenData } = await supabase
+            .from('siptoken_settings')
+            .select('id')
+            .limit(1)
+            .single();
+        
+        if (siptokenData) {
+            const { error: siptokenError } = await supabase
+                .from('siptoken_settings')
+                .update({ 
+                    token_rate: rate.toString(),
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', siptokenData.id);
+            
+            if (siptokenError) console.warn('SipToken settings update failed:', siptokenError);
+        }
         
         // Update global token rate
         window.siptokenRate = rate;
@@ -8171,7 +8191,8 @@ window.saveOverseerTokenRate = async function() {
     }
     
     try {
-        const { error } = await supabase
+        // Update settings table
+        const { error: settingsError } = await supabase
             .from('settings')
             .upsert({ 
                 setting_key: 'token_rate',
@@ -8180,11 +8201,33 @@ window.saveOverseerTokenRate = async function() {
                 updated_at: new Date().toISOString()
             }, { onConflict: 'setting_key' });
         
-        if (error) throw error;
+        if (settingsError) throw settingsError;
+        
+        // Update siptoken_settings table (get first row dynamically)
+        const { data: siptokenData } = await supabase
+            .from('siptoken_settings')
+            .select('id')
+            .limit(1)
+            .single();
+        
+        if (siptokenData) {
+            const { error: siptokenError } = await supabase
+                .from('siptoken_settings')
+                .update({ 
+                    token_rate: rate.toString(),
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', siptokenData.id);
+            
+            if (siptokenError) console.warn('SipToken settings update failed:', siptokenError);
+        }
         
         // Update display
         const display = document.getElementById('currentTokenRateDisplay');
         if (display) display.textContent = rate;
+        
+        // Update global token rate
+        window.siptokenRate = parseInt(rate);
         
         showToast('Token rate updated to ₹' + rate, 'success');
         
