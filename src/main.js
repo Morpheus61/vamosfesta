@@ -7076,20 +7076,22 @@ window.searchGuestForTokens = async function() {
     }
 };
 
+// Global scanner instance
+let guestQRScanner = null;
+
 // Start QR scanner for guest pass
 window.startGuestQRScanner = function() {
     openModal('guestQRScannerModal');
     
     // Initialize scanner if html5-qrcode is available
     if (typeof Html5Qrcode !== 'undefined') {
-        const scanner = new Html5Qrcode('guestScannerPreview');
+        guestQRScanner = new Html5Qrcode('guestScannerPreview');
         
-        scanner.start(
+        guestQRScanner.start(
             { facingMode: 'environment' },
             { fps: 10, qrbox: { width: 250, height: 250 } },
             async (decodedText) => {
-                scanner.stop();
-                closeModal('guestQRScannerModal');
+                await stopGuestQRScanner();
                 
                 try {
                     const qrData = JSON.parse(decodedText);
@@ -7129,6 +7131,20 @@ window.startGuestQRScanner = function() {
             searchGuestById(guestId);
         }
     }
+};
+
+// Stop QR scanner for guest pass
+window.stopGuestQRScanner = async function() {
+    if (guestQRScanner) {
+        try {
+            await guestQRScanner.stop();
+            guestQRScanner.clear();
+            guestQRScanner = null;
+        } catch (err) {
+            console.error('Error stopping scanner:', err);
+        }
+    }
+    closeModal('guestQRScannerModal');
 };
 
 // Search guest by ID (fallback)
