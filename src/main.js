@@ -2047,12 +2047,18 @@ async function handleUserForm(e) {
         
         if (isEdit) {
             // Update user including username (RBAC protocol requires username to match role)
-            const { error } = await supabase
+            console.log('Updating user with data:', userData);
+            const { data: result, error } = await supabase
                 .from('users')
                 .update(userData)
-                .eq('id', userId);
+                .eq('id', userId)
+                .select();
             
-            if (error) throw error;
+            if (error) {
+                console.error('Update error details:', error);
+                throw error;
+            }
+            console.log('User updated successfully:', result);
             showToast('User role and details updated successfully!', 'success');
         } else {
             if (!password) {
@@ -5471,7 +5477,7 @@ window.searchGuestForTokens = async function() {
         const { data: guest, error } = await supabase
             .from('guests')
             .select('*')
-            .eq('phone', phone)
+            .eq('mobile_number', phone)
             .single();
         
         if (error || !guest) {
@@ -5524,7 +5530,7 @@ window.searchGuestForTokens = async function() {
 // Show token purchase modal
 function showTokenPurchaseModal(guest, wallet) {
     document.getElementById('purchaseGuestName').textContent = guest.guest_name;
-    document.getElementById('purchaseGuestPhone').textContent = guest.phone;
+    document.getElementById('purchaseGuestPhone').textContent = guest.mobile_number;
     document.getElementById('purchaseCurrentBalance').textContent = wallet.token_balance || 0;
     document.getElementById('purchaseTokenRate').textContent = '₹' + (window.siptokenRate || 10);
     document.getElementById('purchaseTokenAmount').value = '';
@@ -5699,7 +5705,7 @@ async function scanGuestQR(video) {
                             .insert({
                                 guest_id: guest.id,
                                 guest_name: guest.guest_name,
-                                guest_phone: guest.phone,
+                                guest_phone: guest.mobile_number,
                                 token_balance: 0
                             })
                             .select()
@@ -7164,7 +7170,7 @@ window.searchGuestForTokens = async function() {
         const { data: guest, error } = await supabase
             .from('guests')
             .select('*, token_wallets(*)')
-            .eq('phone', phone)
+            .eq('mobile_number', phone)
             .single();
         
         if (error || !guest) {
@@ -7419,10 +7425,10 @@ window.loadPendingInvoices = async function() {
     
     try {
         const { data: invoices, error } = await supabase
-            .from('siptoken_invoices')
-            .select('*, guests(name, phone)')
+            .from('token_purchases')
+            .select('*, token_wallets(guest_name, guest_phone)')
             .eq('seller_id', currentUser.id)
-            .eq('status', 'pending')
+            .eq('transaction_status', 'pending')
             .order('created_at', { ascending: false });
         
         if (error) throw error;
