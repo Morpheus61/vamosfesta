@@ -5396,6 +5396,7 @@ window.loadOverseerGates = loadOverseerGates;
 
 // SipToken Initialization
 window.siptokenRate = 10; // Default rate
+window.minTokenPurchase = 5; // Default minimum
 
 async function initializeSipToken() {
     console.log('🔄 Initializing SipToken...');
@@ -5415,7 +5416,22 @@ async function initializeSipToken() {
         console.warn('Could not load token rate, using default:', e);
     }
     
-    console.log('✅ SipToken initialized with rate: ₹' + window.siptokenRate);
+    // Load minimum token purchase from settings
+    try {
+        const { data, error } = await supabase
+            .from('settings')
+            .select('setting_value')
+            .eq('setting_key', 'min_token_purchase')
+            .single();
+        
+        if (data && data.setting_value) {
+            window.minTokenPurchase = parseInt(data.setting_value) || 5;
+        }
+    } catch (e) {
+        console.warn('Could not load min token purchase, using default:', e);
+    }
+    
+    console.log(`✅ SipToken initialized - Rate: ₹${window.siptokenRate}, Min: ${window.minTokenPurchase} tokens`);
 }
 
 // Search guest for token purchase
@@ -6299,17 +6315,29 @@ let currentMenuFilter = 'all';
 // Load token rate
 async function loadTokenRate() {
     try {
-        const { data, error } = await supabase
+        // Load token rate
+        const { data: rateData, error: rateError } = await supabase
             .from('settings')
             .select('setting_value')
             .eq('setting_key', 'token_rate')
             .single();
         
-        if (data) {
-            document.getElementById('settingTokenRate').value = data.setting_value;
+        if (rateData) {
+            document.getElementById('settingTokenRate').value = rateData.setting_value;
+        }
+        
+        // Load minimum token purchase
+        const { data: minTokenData, error: minTokenError } = await supabase
+            .from('settings')
+            .select('setting_value')
+            .eq('setting_key', 'min_token_purchase')
+            .single();
+        
+        if (minTokenData) {
+            document.getElementById('settingMinTokens').value = minTokenData.setting_value;
         }
     } catch (error) {
-        console.error('Error loading token rate:', error);
+        console.error('Error loading token settings:', error);
     }
 }
 
@@ -6322,14 +6350,20 @@ window.saveTokenRate = async function() {
     }
     
     const rate = parseInt(document.getElementById('settingTokenRate').value);
+    const minTokens = parseInt(document.getElementById('settingMinTokens').value);
     
     if (!rate || rate < 1) {
         showToast('Please enter a valid token rate', 'error');
         return;
     }
     
+    if (!minTokens || minTokens < 1) {
+        showToast('Please enter a valid minimum token purchase', 'error');
+        return;
+    }
+    
     try {
-        // Update settings table
+        // Update token_rate in settings table
         const { error: settingsError } = await supabase
             .from('settings')
             .upsert({ 
@@ -6340,6 +6374,18 @@ window.saveTokenRate = async function() {
             }, { onConflict: 'setting_key' });
         
         if (settingsError) throw settingsError;
+        
+        // Update min_token_purchase in settings table
+        const { error: minTokensError } = await supabase
+            .from('settings')
+            .upsert({ 
+                setting_key: 'min_token_purchase', 
+                setting_value: minTokens.toString(),
+                description: 'Minimum tokens that can be purchased at once',
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'setting_key' });
+        
+        if (minTokensError) throw minTokensError;
         
         // Update siptoken_settings table (get first row dynamically)
         const { data: siptokenData } = await supabase
@@ -6353,6 +6399,7 @@ window.saveTokenRate = async function() {
                 .from('siptoken_settings')
                 .update({ 
                     token_rate: rate.toString(),
+                    min_token_purchase: minTokens,
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', siptokenData.id);
@@ -6360,13 +6407,14 @@ window.saveTokenRate = async function() {
             if (siptokenError) console.warn('SipToken settings update failed:', siptokenError);
         }
         
-        // Update global token rate
+        // Update global variables
         window.siptokenRate = rate;
+        window.minTokenPurchase = minTokens;
         
-        showToast('Token rate saved: ₹' + rate + ' per token', 'success');
+        showToast(`Configuration saved: ₹${rate}/token, Min: ${minTokens} tokens`, 'success');
     } catch (error) {
-        console.error('Error saving token rate:', error);
-        showToast('Failed to save token rate', 'error');
+        console.error('Error saving token configuration:', error);
+        showToast('Failed to save configuration', 'error');
     }
 };
 
@@ -7040,20 +7088,45 @@ async function initTokenSalesDashboard() {
 // Load token rate from settings
 async function loadTokenRateForSales() {
     try {
-        const { data } = await supabase
+        // Load token rate
+        const { data: rateData } = await supabase
             .from('settings')
             .select('setting_value')
             .eq('setting_key', 'token_rate')
             .single();
         
-        if (data) {
-            currentTokenRate = parseInt(data.setting_value) || 10;
+        if (rateData) {
+            currentTokenRate = parseInt(rateData.setting_value) || 10;
             const rateEl = document.getElementById('invoiceTokenRate');
             if (rateEl) rateEl.textContent = currentTokenRate;
-            calculateInvoiceTotal();
         }
+        
+        // Load minimum token purchase
+        const { data: minTokenData } = await supabase
+            .from('settings')
+            .select('setting_value')
+            .eq('setting_key', 'min_token_purchase')
+            .single();
+        
+        if (minTokenData) {
+            window.minTokenPurchase = parseInt(minTokenData.setting_value) || 5;
+            const minTokenEl = document.getElementById('minTokenDisplay');
+            if (minTokenEl) minTokenEl.textContent = window.minTokenPurchase;
+            
+            // Update input min attribute
+            const inputEl = document.getElementById('invoiceTokenQty');
+            if (inputEl) {
+                inputEl.setAttribute('min', window.minTokenPurchase);
+                // Ensure current value is not below minimum
+                if (parseInt(inputEl.value) < window.minTokenPurchase) {
+                    inputEl.value = window.minTokenPurchase;
+                }
+            }
+        }
+        
+        calculateInvoiceTotal();
     } catch (error) {
-        console.log('Using default token rate:', currentTokenRate);
+        console.log('Using default settings - Token rate:', currentTokenRate, 'Min tokens:', window.minTokenPurchase || 5);
     }
 }
 
@@ -7184,8 +7257,9 @@ function selectGuestForTokenSale(guest) {
     document.getElementById('tokenSalesStep1').classList.add('opacity-50');
     document.getElementById('tokenSalesStep2').classList.remove('hidden');
     
-    // Reset token quantity
-    document.getElementById('invoiceTokenQty').value = 10;
+    // Reset token quantity to minimum or 10, whichever is higher
+    const minTokens = window.minTokenPurchase || 5;
+    document.getElementById('invoiceTokenQty').value = Math.max(10, minTokens);
     calculateInvoiceTotal();
     
     showToast(`Guest found: ${guest.name}`, 'success');
@@ -7202,14 +7276,19 @@ window.clearSelectedGuest = function() {
 // Adjust token quantity
 window.adjustTokenQty = function(delta) {
     const input = document.getElementById('invoiceTokenQty');
-    let qty = parseInt(input.value) || 0;
-    qty = Math.max(1, Math.min(500, qty + delta));
+    let qty = parseInt(input.value) || window.minTokenPurchase || 5;
+    qty = Math.max(window.minTokenPurchase || 5, Math.min(500, qty + delta));
     input.value = qty;
     calculateInvoiceTotal();
 };
 
 // Set specific token quantity
 window.setTokenQty = function(qty) {
+    const minTokens = window.minTokenPurchase || 5;
+    if (qty < minTokens) {
+        showToast(`Minimum purchase: ${minTokens} tokens`, 'warning');
+        qty = minTokens;
+    }
     document.getElementById('invoiceTokenQty').value = qty;
     calculateInvoiceTotal();
 };
@@ -7230,9 +7309,17 @@ window.sendInvoiceToGuest = async function() {
     }
     
     const tokenQty = parseInt(document.getElementById('invoiceTokenQty').value) || 0;
+    const minTokens = window.minTokenPurchase || 5;
     
     if (tokenQty < 1) {
         showToast('Please enter token quantity', 'error');
+        return;
+    }
+    
+    if (tokenQty < minTokens) {
+        showToast(`Minimum purchase requirement: ${minTokens} tokens (Current: ${tokenQty})`, 'error');
+        document.getElementById('invoiceTokenQty').value = minTokens;
+        calculateInvoiceTotal();
         return;
     }
     
@@ -8370,15 +8457,22 @@ window.saveOverseerTokenRate = async function() {
     }
     
     const rateInput = document.getElementById('overseerTokenRate');
+    const minTokensInput = document.getElementById('overseerMinTokens');
     const rate = rateInput?.value;
+    const minTokens = minTokensInput?.value;
     
     if (!rate || rate < 1) {
         showToast('Please enter a valid token rate', 'error');
         return;
     }
     
+    if (!minTokens || minTokens < 1) {
+        showToast('Please enter a valid minimum token purchase', 'error');
+        return;
+    }
+    
     try {
-        // Update settings table
+        // Update token_rate in settings table
         const { error: settingsError } = await supabase
             .from('settings')
             .upsert({ 
@@ -8389,6 +8483,18 @@ window.saveOverseerTokenRate = async function() {
             }, { onConflict: 'setting_key' });
         
         if (settingsError) throw settingsError;
+        
+        // Update min_token_purchase in settings table
+        const { error: minTokensError } = await supabase
+            .from('settings')
+            .upsert({ 
+                setting_key: 'min_token_purchase',
+                setting_value: minTokens.toString(),
+                description: 'Minimum tokens that can be purchased at once',
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'setting_key' });
+        
+        if (minTokensError) throw minTokensError;
         
         // Update siptoken_settings table (get first row dynamically)
         const { data: siptokenData } = await supabase
@@ -8402,6 +8508,7 @@ window.saveOverseerTokenRate = async function() {
                 .from('siptoken_settings')
                 .update({ 
                     token_rate: rate.toString(),
+                    min_token_purchase: parseInt(minTokens),
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', siptokenData.id);
@@ -8413,43 +8520,59 @@ window.saveOverseerTokenRate = async function() {
         const display = document.getElementById('currentTokenRateDisplay');
         if (display) display.textContent = rate;
         
-        // Update global token rate
+        // Update global variables
         window.siptokenRate = parseInt(rate);
+        window.minTokenPurchase = parseInt(minTokens);
         
-        showToast('Token rate updated to ₹' + rate, 'success');
+        showToast(`Configuration updated: ₹${rate}/token, Min: ${minTokens} tokens`, 'success');
         
     } catch (error) {
-        console.error('Error saving token rate:', error);
-        showToast('Failed to save token rate', 'error');
+        console.error('Error saving token configuration:', error);
+        showToast('Failed to save configuration', 'error');
     }
 };
 
 // Load Overseer Settings
 async function loadOverseerSettings() {
     try {
-        const { data } = await supabase
+        // Load token rate
+        const { data: rateData } = await supabase
             .from('settings')
             .select('setting_value')
             .eq('setting_key', 'token_rate')
             .single();
         
-        const rate = data?.setting_value || '10';
+        const rate = rateData?.setting_value || '10';
         
+        // Load minimum token purchase
+        const { data: minTokenData } = await supabase
+            .from('settings')
+            .select('setting_value')
+            .eq('setting_key', 'min_token_purchase')
+            .single();
+        
+        const minTokens = minTokenData?.setting_value || '5';
+        
+        // Update UI
         const rateInput = document.getElementById('overseerTokenRate');
+        const minTokensInput = document.getElementById('overseerMinTokens');
         const rateDisplay = document.getElementById('currentTokenRateDisplay');
         
         if (rateInput) rateInput.value = rate;
+        if (minTokensInput) minTokensInput.value = minTokens;
         if (rateDisplay) rateDisplay.textContent = rate;
         
         // Load today's summary
         await loadOverseerTodaySummary();
         
     } catch (error) {
-        console.log('Using default token rate');
+        console.log('Using default settings');
         // Set defaults
         const rateInput = document.getElementById('overseerTokenRate');
+        const minTokensInput = document.getElementById('overseerMinTokens');
         const rateDisplay = document.getElementById('currentTokenRateDisplay');
         if (rateInput) rateInput.value = '10';
+        if (minTokensInput) minTokensInput.value = '5';
         if (rateDisplay) rateDisplay.textContent = '10';
     }
 }

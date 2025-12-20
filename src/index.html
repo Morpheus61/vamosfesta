@@ -1387,20 +1387,32 @@
                                 </h3>
                             </div>
                             
-                            <!-- Token Rate -->
-                            <div class="mb-6 p-4 bg-blue-900/20 rounded-lg">
-                                <label class="block text-sm mb-2 text-blue-300">Token Rate (₹ per token)</label>
-                                <div class="flex gap-3 items-center">
-                                    <input type="number" id="settingTokenRate" class="vamosfesta-input w-32" 
-                                           min="1" value="10" placeholder="10">
-                                    <button type="button" onclick="saveTokenRate()" class="vamosfesta-button text-sm">
-                                        <i class="fas fa-save mr-1"></i>Save Rate
-                                    </button>
-                                    <span class="text-sm text-gray-400">Example: If rate is ₹10, buying 5 tokens costs ₹50</span>
-                                </div>
-                            </div>
-                            
-                            <!-- Beverage Menu -->
+            <!-- Token Rate -->
+            <div class="mb-4 p-4 bg-blue-900/20 rounded-lg">
+                <label class="block text-sm mb-2 text-blue-300">Token Rate (₹ per token)</label>
+                <div class="flex gap-3 items-center">
+                    <input type="number" id="settingTokenRate" class="vamosfesta-input w-32" 
+                           min="1" value="10" placeholder="10">
+                    <span class="text-sm text-gray-400">Example: If rate is ₹10, buying 5 tokens costs ₹50</span>
+                </div>
+            </div>
+            
+            <!-- Minimum Token Purchase -->
+            <div class="mb-6 p-4 bg-purple-900/20 rounded-lg">
+                <label class="block text-sm mb-2 text-purple-300">Minimum Token Purchase</label>
+                <div class="flex gap-3 items-center">
+                    <input type="number" id="settingMinTokens" class="vamosfesta-input w-32" 
+                           min="1" value="5" placeholder="5">
+                    <span class="text-sm text-gray-400">Minimum tokens a guest must buy at once</span>
+                </div>
+            </div>
+            
+            <!-- Save Button -->
+            <div class="flex justify-end">
+                <button type="button" onclick="saveTokenRate()" class="vamosfesta-button">
+                    <i class="fas fa-save mr-2"></i>Save Configuration
+                </button>
+            </div>                            <!-- Beverage Menu -->
                             <div class="border-t border-gray-700 pt-4">
                                 <div class="flex justify-between items-center mb-4">
                                     <h4 class="font-semibold text-yellow-400">
@@ -1943,10 +1955,13 @@
                                     <button onclick="adjustTokenQty(-10)" class="w-12 h-12 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-bold text-lg">-10</button>
                                     <button onclick="adjustTokenQty(-1)" class="w-10 h-10 rounded-lg bg-gray-700 hover:bg-gray-600 text-white">-1</button>
                                     <input type="number" id="invoiceTokenQty" class="vamosfesta-input text-center text-2xl font-bold flex-1" 
-                                           value="10" min="1" max="500" onchange="calculateInvoiceTotal()">
+                                           value="10" min="5" max="500" onchange="calculateInvoiceTotal()">
                                     <button onclick="adjustTokenQty(1)" class="w-10 h-10 rounded-lg bg-gray-700 hover:bg-gray-600 text-white">+1</button>
                                     <button onclick="adjustTokenQty(10)" class="w-12 h-12 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-bold text-lg">+10</button>
                                 </div>
+                                <p class="text-xs text-orange-400 mt-2">
+                                    <i class="fas fa-info-circle mr-1"></i>Minimum purchase: <span id="minTokenDisplay">5</span> tokens
+                                </p>
                                 <!-- Quick amounts -->
                                 <div class="flex gap-2 mt-3">
                                     <button onclick="setTokenQty(10)" class="flex-1 py-2 rounded bg-gray-800 hover:bg-gray-700 text-sm">10 tokens</button>
@@ -2234,23 +2249,38 @@
                                     <i class="fas fa-coins mr-2"></i>Token Configuration
                                 </h3>
                                 
-                                <!-- Token Rate -->
-                                <div class="bg-blue-900/20 rounded-lg p-4 mb-4">
-                                    <label class="block text-sm mb-2 text-blue-300 font-medium">Token Rate (₹ per token)</label>
-                                    <div class="flex gap-3 items-center flex-wrap">
-                                        <input type="number" id="overseerTokenRate" class="vamosfesta-input w-32" 
-                                               min="1" value="10" placeholder="10">
-                                        <button onclick="saveOverseerTokenRate()" class="vamosfesta-button">
-                                            <i class="fas fa-save mr-1"></i>Save Rate
-                                        </button>
-                                    </div>
-                                    <p class="text-xs text-gray-500 mt-2">
-                                        <i class="fas fa-info-circle mr-1"></i>
-                                        If rate is ₹10, buying 5 tokens costs ₹50
-                                    </p>
+                            <!-- Token Rate -->
+                            <div class="bg-blue-900/20 rounded-lg p-4 mb-4">
+                                <label class="block text-sm mb-2 text-blue-300 font-medium">Token Rate (₹ per token)</label>
+                                <div class="flex gap-3 items-center flex-wrap">
+                                    <input type="number" id="overseerTokenRate" class="vamosfesta-input w-32" 
+                                           min="1" value="10" placeholder="10">
                                 </div>
-                                
-                                <!-- Current Rate Display -->
+                                <p class="text-xs text-gray-500 mt-2">
+                                    <i class="fas fa-info-circle mr-1"></i>
+                                    If rate is ₹10, buying 5 tokens costs ₹50
+                                </p>
+                            </div>
+                            
+                            <!-- Minimum Token Purchase -->
+                            <div class="bg-purple-900/20 rounded-lg p-4 mb-4">
+                                <label class="block text-sm mb-2 text-purple-300 font-medium">Minimum Token Purchase</label>
+                                <div class="flex gap-3 items-center flex-wrap">
+                                    <input type="number" id="overseerMinTokens" class="vamosfesta-input w-32" 
+                                           min="1" value="5" placeholder="5">
+                                </div>
+                                <p class="text-xs text-gray-500 mt-2">
+                                    <i class="fas fa-info-circle mr-1"></i>
+                                    Minimum number of tokens a guest must buy at once
+                                </p>
+                            </div>
+                            
+                            <!-- Save Button -->
+                            <div class="flex justify-end mb-4">
+                                <button onclick="saveOverseerTokenRate()" class="vamosfesta-button">
+                                    <i class="fas fa-save mr-2"></i>Save Configuration
+                                </button>
+                            </div>                                <!-- Current Rate Display -->
                                 <div class="bg-yellow-900/20 rounded-lg p-4 text-center">
                                     <p class="text-sm text-gray-400">Current Token Rate</p>
                                     <p class="text-4xl font-bold text-yellow-400">₹<span id="currentTokenRateDisplay">10</span></p>
