@@ -2011,7 +2011,7 @@ async function handleUserForm(e) {
     }
     
     try {
-        // Check username uniqueness (for new users)
+        // Check username uniqueness (skip check if editing and username unchanged)
         if (!isEdit) {
             const { data: existing } = await supabase
                 .from('users')
@@ -2023,16 +2023,37 @@ async function handleUserForm(e) {
                 showToast('Username already exists! Use a different name.', 'error');
                 return;
             }
+        } else {
+            // For edits, check if username changed and if new username exists
+            const { data: currentUser } = await supabase
+                .from('users')
+                .select('username')
+                .eq('id', userId)
+                .single();
+            
+            if (currentUser && currentUser.username !== username) {
+                const { data: existing } = await supabase
+                    .from('users')
+                    .select('id')
+                    .eq('username', username)
+                    .single();
+                
+                if (existing) {
+                    showToast('Username already exists! Cannot change to this role/name combination.', 'error');
+                    return;
+                }
+            }
         }
         
         if (isEdit) {
+            // Update user including username (RBAC protocol requires username to match role)
             const { error } = await supabase
                 .from('users')
                 .update(userData)
                 .eq('id', userId);
             
             if (error) throw error;
-            showToast('User updated successfully!', 'success');
+            showToast('User role and details updated successfully!', 'success');
         } else {
             if (!password) {
                 showToast('Password is required for new users', 'error');
