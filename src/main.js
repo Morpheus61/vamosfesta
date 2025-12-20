@@ -7193,18 +7193,18 @@ window.searchGuestForTokens = async function() {
 
 // Start QR scanner for guest pass
 window.startGuestQRScanner = function() {
-    openModal('qrScannerModal');
+    openModal('guestQRScannerModal');
     
     // Initialize scanner if html5-qrcode is available
     if (typeof Html5Qrcode !== 'undefined') {
-        const scanner = new Html5Qrcode('qrScannerPreview');
+        const scanner = new Html5Qrcode('guestScannerPreview');
         
         scanner.start(
             { facingMode: 'environment' },
             { fps: 10, qrbox: { width: 250, height: 250 } },
             async (decodedText) => {
                 scanner.stop();
-                closeModal('qrScannerModal');
+                closeModal('guestQRScannerModal');
                 
                 try {
                     const qrData = JSON.parse(decodedText);
