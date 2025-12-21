@@ -273,13 +273,88 @@ ${portalLink}`;
     return sendWhatsAppMessage(guestPhone, message, 'low_balance');
 }
 
+// Order Submitted Confirmation
+export async function sendOrderSubmittedMessage(guestPhone, guestName, orderNumber, counterName, items, totalTokens) {
+    const message = `📝 *Order Submitted!*
+
+Hi ${guestName}!
+
+Your order *#${orderNumber}* has been sent to *${counterName}*.
+
+📋 Items: ${items}
+🪙 Total: ${totalTokens} tokens
+
+⏳ Waiting for barman to accept...
+
+We'll notify you when it's ready!
+
+_Vamos Festa_`;
+
+    return sendWhatsAppMessage(guestPhone, message, 'order_submitted');
+}
+
+// Order Accepted Notification
+export async function sendOrderAcceptedMessage(guestPhone, guestName, orderNumber, counterName, barmanName) {
+    const message = `✅ *Order Accepted!*
+
+Hi ${guestName}!
+
+Your order *#${orderNumber}* is being prepared at *${counterName}*.
+
+👨‍🍳 Prepared by: ${barmanName}
+
+Please wait nearby - we'll notify you when it's ready!
+
+_Vamos Festa_`;
+
+    return sendWhatsAppMessage(guestPhone, message, 'order_accepted');
+}
+
+// Guest Registration Welcome (with Portal Link)
+export async function sendGuestWelcomeMessage(guestPhone, guestName, guestId, entryType) {
+    const authToken = await generateGuestAuthToken(guestPhone, guestId);
+    const portalLink = `${APP_URL}/guest.html?token=${authToken}`;
+    
+    const message = `🎉 *Welcome to Vamos Festa!*
+
+Hi ${guestName}!
+
+Your registration is complete!
+
+🎫 Entry Type: ${entryType === 'stag' ? 'Stag' : 'Couple'}
+📱 Mobile: ${guestPhone}
+
+👉 *Your Personal Guest Portal:*
+${portalLink}
+
+✨ *Simply click the link above to access your portal!*
+(No login needed - the link is personalized for you)
+
+*Portal Features:*
+• Download your guest pass
+• Purchase beverage tokens
+• Order drinks from any counter
+• Track your orders in real-time
+
+💡 *TIP:* Save this link for easy access throughout the event!
+
+See you at the festa! 🎊
+
+_Vamos Festa - ¡Viva la Fiesta!_`;
+
+    return sendWhatsAppMessage(guestPhone, message, 'guest_welcome');
+}
+
 // =====================================================
 // EXPORTS
 // =====================================================
 
 export {
     sendWhatsAppMessage,
-    generateGuestAuthToken
+    generateGuestAuthToken,
+    sendOrderSubmittedMessage,
+    sendOrderAcceptedMessage,
+    sendGuestWelcomeMessage
 };
 
 console.log('✅ WhatsApp service loaded');

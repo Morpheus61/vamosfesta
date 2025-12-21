@@ -38,9 +38,26 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, var(--dark-bg) 0%, var(--dark-secondary) 50%, var(--dark-bg) 100%);
+            background-image: url('/vamos_festa_logo.png');
+            background-size: cover;
+            background-position: center top;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            position: relative;
             min-height: 100vh;
             color: #fff;
+        }
+        
+        /* Dark overlay for better readability */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(26, 26, 46, 0.85);
+            z-index: -1;
         }
         
         /* Header */
@@ -641,7 +658,10 @@
     <!-- Header -->
     <header class="header">
         <div class="header-content">
-            <div class="logo">VAMOS FESTA</div>
+            <div class="logo" style="display: flex; align-items: center; gap: 10px;">
+                <img src="/vamos_festa_logo.png" alt="Vamos Festa" style="height: 35px; width: auto;" onerror="this.style.display='none'">
+                <span>VAMOS FESTA</span>
+            </div>
             <div class="balance-badge">
                 <i class="fas fa-coins"></i>
                 <span id="headerBalance">0</span>
@@ -755,6 +775,24 @@
                         <i class="fas fa-spinner"></i>
                         <p>Loading transactions...</p>
                     </div>
+                </div>
+            </div>
+            
+            <!-- Guest Pass Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-ticket-alt"></i> My Guest Pass
+                    </h3>
+                </div>
+                <div style="padding: 20px;">
+                    <button onclick="downloadGuestPass()" class="vamosfesta-button" style="width: 100%; padding: 15px; font-size: 1rem; background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%); color: var(--dark-bg); border: none; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                        <i class="fas fa-download"></i>
+                        Download Guest Pass
+                    </button>
+                    <p style="text-align: center; margin-top: 10px; color: #888; font-size: 0.85rem;">
+                        Show this pass at the entry gate
+                    </p>
                 </div>
             </div>
             
@@ -1295,6 +1333,41 @@
                 
                 if (itemsError) throw itemsError;
                 
+                // Send WhatsApp notification to guest
+                try {
+                    const { data: guestData } = await supabase
+                        .from('token_wallets')
+                        .select('guests(guest_name, mobile_number)')
+                        .eq('id', walletId)
+                        .single();
+                    
+                    if (guestData?.guests) {
+                        const itemsList = Object.entries(cart)
+                            .map(([itemId, qty]) => {
+                                const item = menuItems.find(i => i.id === itemId);
+                                return `${qty}x ${item?.name || 'Item'}`;
+                            })
+                            .join(', ');
+                        
+                        // Use WhatsApp service to send notification
+                        const whatsappServiceUrl = '/whatsapp-service.js';
+                        const response = await fetch('/api/whatsapp/order-submitted', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                guestPhone: guestData.guests.mobile_number,
+                                guestName: guestData.guests.guest_name,
+                                orderNumber: orderNumber,
+                                counterName: selectedCounter.counter_name,
+                                items: itemsList,
+                                totalTokens: totalTokens
+                            })
+                        }).catch(err => console.warn('WhatsApp API call failed:', err));
+                    }
+                } catch (whatsappError) {
+                    console.warn('WhatsApp notification failed:', whatsappError);
+                }
+                
                 // Clear cart and show active order
                 activeOrder = order;
                 activeOrder.items = orderItems;
@@ -1440,6 +1513,114 @@
                     })
                     .subscribe();
             }
+        }
+        
+        // =====================================================
+        // GUEST PASS DOWNLOAD
+        // =====================================================
+        
+        async function downloadGuestPass() {
+            try {
+                // Get guest data
+                const { data: guest, error } = await supabase
+                    .from('guests')
+                    .select('*')
+                    .eq('id', guestId)
+                    .single();
+                
+                if (error || !guest) {
+                    showToast('Guest data not found', 'error');
+                    return;
+                }
+                
+                // Check if pass already exists
+                if (guest.pass_qr_data) {
+                    // Generate QR code and download
+                    generateAndDownloadPass(guest);
+                } else {
+                    showToast('Guest pass not generated yet. Contact admin.', 'error');
+                }
+                
+            } catch (error) {
+                console.error('Download error:', error);
+                showToast('Failed to download pass', 'error');
+            }
+        }
+        
+        function generateAndDownloadPass(guest) {
+            // Create canvas for pass
+            const canvas = document.createElement('canvas');
+            canvas.width = 600;
+            canvas.height = 900;
+            const ctx = canvas.getContext('2d');
+            
+            // Background gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, 900);
+            gradient.addColorStop(0, '#1A1A2E');
+            gradient.addColorStop(0.5, '#16213E');
+            gradient.addColorStop(1, '#1A1A2E');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 600, 900);
+            
+            // Gold accent top
+            ctx.fillStyle = '#D4A853';
+            ctx.fillRect(0, 0, 600, 10);
+            
+            // Event name
+            ctx.fillStyle = '#D4A853';
+            ctx.font = 'bold 48px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('VAMOS FESTA', 300, 80);
+            
+            // Guest name
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 36px Arial';
+            ctx.fillText(guest.guest_name, 300, 150);
+            
+            // Entry type
+            ctx.fillStyle = '#D4A853';
+            ctx.font = '28px Arial';
+            ctx.fillText(guest.entry_type.toUpperCase(), 300, 190);
+            
+            // QR Code placeholder (you'll need QRCode.js library)
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(150, 250, 300, 300);
+            ctx.fillStyle = '#1A1A2E';
+            ctx.font = '20px Arial';
+            ctx.fillText('QR CODE', 300, 410);
+            ctx.font = '14px Arial';
+            ctx.fillStyle = '#666';
+            ctx.fillText('Scan at entry gate', 300, 440);
+            
+            // Guest details
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = '20px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText('Mobile: ' + guest.mobile_number, 50, 620);
+            ctx.fillText('Pass ID: ' + guest.id.slice(0, 8), 50, 660);
+            
+            // Payment status
+            ctx.fillStyle = guest.is_verified ? '#28A745' : '#FFC107';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(guest.is_verified ? '\u2713 VERIFIED' : '\u23f3 PENDING', 300, 750);
+            
+            // Footer
+            ctx.fillStyle = '#888';
+            ctx.font = '16px Arial';
+            ctx.fillText('Show this pass at entry', 300, 820);
+            ctx.fillText('Valid only with photo ID', 300, 850);
+            
+            // Download
+            canvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `VamosFesta_Pass_${guest.guest_name.replace(/\\s+/g, '_')}.png`;
+                a.click();
+                URL.revokeObjectURL(url);
+                showToast('Guest pass downloaded!', 'success');
+            });
         }
         
         // =====================================================

@@ -1076,6 +1076,28 @@ async function handleVerification(e) {
         showToast('Payment verified successfully!', 'success');
         await loadVerificationQueue();
         
+        // Send welcome message with portal link
+        try {
+            const { data: guest } = await supabase
+                .from('guests')
+                .select('*')
+                .eq('id', guestId)
+                .single();
+            
+            if (guest) {
+                const { sendGuestWelcomeMessage } = await import('./whatsapp-service.js');
+                await sendGuestWelcomeMessage(
+                    guest.mobile_number,
+                    guest.guest_name,
+                    guest.id,
+                    guest.entry_type
+                );
+                showToast('Welcome message sent to guest!', 'success');
+            }
+        } catch (whatsappError) {
+            console.warn('WhatsApp welcome message failed:', whatsappError);
+        }
+        
         // Ask to generate pass
         if (confirm('Generate and send guest pass now?')) {
             await generateAndShowPass(guestId);
@@ -7765,8 +7787,108 @@ let barmanCounterAssignment = null;
 let barmanOrdersCache = [];
 let barmanOrderSubscription = null;
 
+// Notification system
+let lastOrderCount = 0;
+let notificationPermission = 'default';
+
+// Initialize notification system and request permission
+async function initBarmanNotificationSystem() {
+    // Request notification permission on first load
+    if ('Notification' in window && Notification.permission === 'default') {
+        try {
+            notificationPermission = await Notification.requestPermission();
+            if (notificationPermission === 'granted') {
+                showToast('✅ Browser notifications enabled!', 'success');
+            } else {
+                showToast('ℹ️ Enable notifications for order alerts', 'info');
+            }
+        } catch (error) {
+            console.warn('Notification permission error:', error);
+        }
+    } else if ('Notification' in window) {
+        notificationPermission = Notification.permission;
+    }
+}
+
+// Trigger multi-modal alert for new orders
+function triggerBarmanAlert() {
+    // 1. Browser notification (works even when tab is not focused)
+    if ('Notification' in window && Notification.permission === 'granted') {
+        const notification = new Notification('🔔 New Order Received!', {
+            body: 'A new beverage order is waiting for you',
+            icon: '/icons/icon-192.png',
+            badge: '/icons/icon-96.png',
+            tag: 'new-order',
+            requireInteraction: true, // Stays until dismissed
+            silent: false, // Uses device notification sound
+            vibrate: [200, 100, 200, 100, 200]
+        });
+        
+        // Auto-close after 10 seconds
+        setTimeout(() => notification.close(), 10000);
+        
+        // Focus window when notification clicked
+        notification.onclick = () => {
+            window.focus();
+            notification.close();
+        };
+    }
+    
+    // 2. Vibrate device (mobile only)
+    if ('vibrate' in navigator) {
+        navigator.vibrate([200, 100, 200, 100, 200, 100, 200]);
+    }
+    
+    // 3. Visual flash alert (works even if phone is silent)
+    flashOrderAlert();
+    
+    // 4. In-app toast notification
+    showToast('🔔 New order received!', 'info');
+}
+
+// Flash visual alert with persistent indicator
+function flashOrderAlert() {
+    const banner = document.getElementById('barmanCounterBanner');
+    const alertIndicator = document.getElementById('alertIndicator');
+    if (!banner) return;
+    
+    // Show persistent flashing bell indicator
+    if (alertIndicator) {
+        alertIndicator.classList.remove('hidden');
+    }
+    
+    let flashCount = 0;
+    const flashInterval = setInterval(() => {
+        if (flashCount >= 10) { // Increased from 6 to 10 flashes
+            clearInterval(flashInterval);
+            banner.style.backgroundColor = '';
+            banner.style.borderColor = '';
+            return;
+        }
+        
+        // More intense flash colors
+        if (flashCount % 2 === 0) {
+            banner.style.backgroundColor = '#ff6b35'; // Bright orange
+            banner.style.borderColor = '#ff6b35';
+        } else {
+            banner.style.backgroundColor = '';
+            banner.style.borderColor = '';
+        }
+        flashCount++;
+    }, 250); // Faster flash (250ms instead of 300ms)
+}
+
+// Hide alert indicator when all pending orders are handled
+function hideAlertIndicator() {
+    const alertIndicator = document.getElementById('alertIndicator');
+    if (alertIndicator) {
+        alertIndicator.classList.add('hidden');
+    }
+}
+
 // Initialize barman dashboard
 async function initBarmanDashboard() {
+    initBarmanNotificationSystem();
     await loadBarmanCounterAssignment();
     await loadBarmanOrders();
     await loadBarmanStats();
@@ -7869,6 +7991,19 @@ window.loadBarmanOrders = async function() {
         renderPendingOrders(pendingOrders || []);
         renderAcceptedOrders(acceptedOrders || []);
         renderServedOrders(servedOrders || []);
+        
+        // Check for new orders and trigger alert
+        const currentOrderCount = (pendingOrders || []).length;
+        if (lastOrderCount > 0 && currentOrderCount > lastOrderCount) {
+            // New order arrived!
+            triggerBarmanAlert();
+        }
+        lastOrderCount = currentOrderCount;
+        
+        // Hide alert indicator if no pending orders
+        if (currentOrderCount === 0) {
+            hideAlertIndicator();
+        }
         
         // Update badges
         document.getElementById('pendingOrdersBadge').textContent = pendingOrders?.length || 0;
@@ -8035,25 +8170,25 @@ window.acceptOrder = async function(orderId) {
             .single();
         
         if (order) {
-            // Send WhatsApp notification to guest
+            // Send automated WhatsApp notification to guest
             const guestPhone = order.token_wallets?.guests?.mobile_number;
             const guestName = order.token_wallets?.guests?.guest_name;
             const counterName = order.bar_counters?.counter_name || 'Counter';
             
-            const message = `🍹 *Order Accepted!*
-
-Hi ${guestName}!
-
-Your order *${order.order_number}* is being prepared at *${counterName}*.
-
-Served by: ${currentUser.full_name}
-
-Please wait nearby - we'll notify you when it's ready!
-
-_Vamos Festa_`;
-
-            const whatsappUrl = `https://wa.me/91${guestPhone}?text=${encodeURIComponent(message)}`;
-            window.open(whatsappUrl, '_blank');
+            if (guestPhone && guestName) {
+                try {
+                    const { sendOrderAcceptedMessage } = await import('./whatsapp-service.js');
+                    await sendOrderAcceptedMessage(
+                        guestPhone,
+                        guestName,
+                        order.order_number,
+                        counterName,
+                        currentUser.full_name
+                    );
+                } catch (whatsappError) {
+                    console.warn('WhatsApp notification failed:', whatsappError);
+                }
+            }
         }
         
         showToast('Order accepted! Preparing...', 'success');
@@ -8108,25 +8243,37 @@ window.markOrderServed = async function(orderId) {
                 .eq('id', wallet.id);
         }
         
-        // Send WhatsApp notification to guest
+        // Send automated WhatsApp notification to guest
         const guestPhone = order.token_wallets?.guests?.mobile_number;
         const guestName = order.token_wallets?.guests?.guest_name;
         const newBalance = Math.max(0, (wallet?.balance || 0) - order.total_tokens);
         
-        const message = `✅ *Order Served!*
-
-Hi ${guestName}!
-
-Your order *${order.order_number}* is ready!
-
-💰 ${order.total_tokens} tokens deducted
-💳 Remaining balance: *${newBalance} tokens*
-
-Enjoy! 🎉
-_Vamos Festa_`;
-
-        const whatsappUrl = `https://wa.me/91${guestPhone}?text=${encodeURIComponent(message)}`;
-        window.open(whatsappUrl, '_blank');
+        if (guestPhone && guestName) {
+            try {
+                // Get order items for notification
+                const { data: orderWithItems } = await supabase
+                    .from('token_orders')
+                    .select('*, token_order_items(*, beverage_menu(name))')
+                    .eq('id', orderId)
+                    .single();
+                
+                const itemsList = orderWithItems?.token_order_items
+                    ?.map(item => `${item.quantity}x ${item.beverage_menu?.name}`)
+                    .join(', ') || 'Items';
+                
+                const { sendOrderServedMessage } = await import('./whatsapp-service.js');
+                await sendOrderServedMessage(
+                    guestPhone,
+                    guestName,
+                    order.order_number,
+                    itemsList,
+                    order.total_tokens,
+                    newBalance
+                );
+            } catch (whatsappError) {
+                console.warn('WhatsApp notification failed:', whatsappError);
+            }
+        }
         
         showToast('Order served! Guest notified.', 'success');
         
@@ -8189,6 +8336,24 @@ window.confirmRejectOrder = async function() {
             .select('*, token_wallets(guests(guest_name, mobile_number))')
             .eq('id', orderId)
             .single();
+        
+        // Send automated WhatsApp notification to guest
+        const guestPhone = order.token_wallets?.guests?.mobile_number;
+        const guestName = order.token_wallets?.guests?.guest_name;
+        
+        if (guestPhone && guestName) {
+            try {
+                const { sendOrderRejectedMessage } = await import('./whatsapp-service.js');
+                await sendOrderRejectedMessage(
+                    guestPhone,
+                    guestName,
+                    order.order_number,
+                    reason
+                );
+            } catch (whatsappError) {
+                console.warn('WhatsApp notification failed:', whatsappError);
+            }
+        }
         
         // Update order status
         const { error } = await supabase
