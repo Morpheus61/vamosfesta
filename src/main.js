@@ -8926,6 +8926,7 @@ async function loadOverseerDutySessions() {
     }
 }
 
+window.loadOverseerDutySessions = loadOverseerDutySessions;
 // End duty session
 window.endDutySession = async function(sessionId) {
     if (!confirm('End this staff member\'s duty session?')) return;
