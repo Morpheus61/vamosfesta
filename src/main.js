@@ -8585,9 +8585,12 @@ window.saveOverseerTokenRate = async function() {
             if (siptokenError) console.warn('SipToken settings update failed:', siptokenError);
         }
         
-        // Update display
-        const display = document.getElementById('currentTokenRateDisplay');
-        if (display) display.textContent = rate;
+        // Update BOTH display elements
+        const rateDisplay = document.getElementById('currentTokenRateDisplay');
+        const minTokensDisplay = document.getElementById('currentMinTokensDisplay');
+        
+        if (rateDisplay) rateDisplay.textContent = rate;
+        if (minTokensDisplay) minTokensDisplay.textContent = minTokens;
         
         // Update global variables
         window.siptokenRate = parseInt(rate);
@@ -8622,14 +8625,18 @@ async function loadOverseerSettings() {
         
         const minTokens = minTokenData?.setting_value || '5';
         
-        // Update UI
+        // Update input fields
         const rateInput = document.getElementById('overseerTokenRate');
         const minTokensInput = document.getElementById('overseerMinTokens');
+        
+        // Update display elements
         const rateDisplay = document.getElementById('currentTokenRateDisplay');
+        const minTokensDisplay = document.getElementById('currentMinTokensDisplay');
         
         if (rateInput) rateInput.value = rate;
         if (minTokensInput) minTokensInput.value = minTokens;
         if (rateDisplay) rateDisplay.textContent = rate;
+        if (minTokensDisplay) minTokensDisplay.textContent = minTokens;
         
         // Load today's summary
         await loadOverseerTodaySummary();
@@ -8640,9 +8647,12 @@ async function loadOverseerSettings() {
         const rateInput = document.getElementById('overseerTokenRate');
         const minTokensInput = document.getElementById('overseerMinTokens');
         const rateDisplay = document.getElementById('currentTokenRateDisplay');
+        const minTokensDisplay = document.getElementById('currentMinTokensDisplay');
+        
         if (rateInput) rateInput.value = '10';
         if (minTokensInput) minTokensInput.value = '5';
         if (rateDisplay) rateDisplay.textContent = '10';
+        if (minTokensDisplay) minTokensDisplay.textContent = '5';
     }
 }
 

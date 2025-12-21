@@ -2282,12 +2282,24 @@
                                 <button onclick="saveOverseerTokenRate()" class="vamosfesta-button">
                                     <i class="fas fa-save mr-2"></i>Save Configuration
                                 </button>
-                            </div>                                <!-- Current Rate Display -->
+                            </div>
+                            
+                            <!-- Current Settings Display (2 columns) -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <!-- Current Token Rate -->
                                 <div class="bg-yellow-900/20 rounded-lg p-4 text-center">
                                     <p class="text-sm text-gray-400">Current Token Rate</p>
                                     <p class="text-4xl font-bold text-yellow-400">₹<span id="currentTokenRateDisplay">10</span></p>
                                     <p class="text-xs text-gray-500 mt-1">per token</p>
                                 </div>
+                                
+                                <!-- Current Minimum Purchase -->
+                                <div class="bg-purple-900/20 rounded-lg p-4 text-center">
+                                    <p class="text-sm text-gray-400">Minimum Purchase</p>
+                                    <p class="text-4xl font-bold text-purple-400"><span id="currentMinTokensDisplay">15</span></p>
+                                    <p class="text-xs text-gray-500 mt-1">tokens minimum</p>
+                                </div>
+                            </div>
                             </div>
                             
                             <!-- Daily Summary -->
