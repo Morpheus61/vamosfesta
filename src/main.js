@@ -81,9 +81,11 @@ async function initializeApp() {
         bodyClass += ` role-${currentUser.role}`;
     }
     
+    // Add 'overseer' class ONLY for Gate Overseers (not SipToken Overseers)
     if (currentUser.is_gate_overseer) {
         bodyClass += ' overseer';
     }
+    // Add separate class for SipToken Overseer (but NOT 'overseer')
     if (currentUser.is_siptoken_overseer) {
         bodyClass += ' siptoken-overseer';
     }

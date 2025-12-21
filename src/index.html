@@ -311,7 +311,7 @@
         .role-entry_marshall { background: #f97316; color: white; }
         
         /* Hide elements based on role */
-        .super-admin-only, .admin-only, .admin-view, .seller-only, .entry-marshall-only, .overseer-only { display: none !important; }
+        .super-admin-only, .admin-only, .admin-view, .seller-only, .entry-marshall-only, .overseer-only, .gate-overseer-only { display: none !important; }
         
         /* Show elements for Super Admin */
         body.role-super_admin .super-admin-only { display: block !important; }
@@ -325,6 +325,10 @@
         body.role-admin .nav-tab.admin-only,
         body.role-admin .nav-tab.admin-view { display: flex !important; }
         body.role-admin.overseer .overseer-only { display: block !important; }
+        
+        /* Show elements for Gate Overseer ONLY (not SipToken Overseer) */
+        body.role-admin.overseer .gate-overseer-only { display: block !important; }
+        body.role-admin.overseer .nav-tab.gate-overseer-only { display: flex !important; }
         
         /* Show elements for Seller */
         body.role-seller .seller-only { display: block !important; }
@@ -828,7 +832,7 @@
                         <i class="fas fa-door-open"></i>
                         <span>Gate Management</span>
                     </div>
-                    <div class="mobile-menu-item overseer-only" data-tab="overseer-management">
+                    <div class="mobile-menu-item gate-overseer-only" data-tab="overseer-management">
                         <i class="fas fa-tasks"></i>
                         <span>Marshall Management</span>
                     </div>
@@ -913,7 +917,7 @@
                     <button class="nav-tab admin-only" data-tab="gate-management">
                         <i class="fas fa-door-open mr-2"></i><span class="tab-text">Gates</span>
                     </button>
-                    <button class="nav-tab admin-only overseer-only" data-tab="overseer-management">
+                    <button class="nav-tab admin-only gate-overseer-only" data-tab="overseer-management">
                         <i class="fas fa-tasks mr-2"></i><span class="tab-text">Marshall Mgmt</span>
                     </button>
                     
