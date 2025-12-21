@@ -6176,7 +6176,118 @@ async function loadClockInCounters() {
     }
 }
 
+// =====================================================
+// COMPLETE REPLACEMENT FOR processClockIn FUNCTION
+// This uses the RPC function approach (RECOMMENDED)
+// Replace in main.js around line 6179
+// =====================================================
+
 window.processClockIn = async function() {
+    const staffId = document.getElementById('clockInStaffSelect').value;
+    const counterId = document.getElementById('clockInCounterSelect').value;
+    const openingCash = document.getElementById('clockInOpeningCash').value;
+    
+    // Validation
+    if (!staffId) {
+        showToast('Please select a staff member', 'error');
+        return;
+    }
+    
+    if (!counterId) {
+        showToast('Please select a counter', 'error');
+        return;
+    }
+    
+    const staffRole = window.pendingClockInRole;
+    
+    console.log('🔄 Attempting clock-in:', {
+        staffId,
+        counterId,
+        staffRole,
+        openingCash,
+        currentUserId: currentUser?.id
+    });
+    
+    try {
+        // Use the RPC function instead of direct INSERT
+        // This bypasses RLS and provides better error handling
+        const { data, error } = await supabase
+            .rpc('clock_in_siptoken_staff', {
+                p_staff_id: staffId,
+                p_overseer_id: currentUser.id,
+                p_staff_role: staffRole,
+                p_counter_id: counterId,
+                p_opening_cash: openingCash ? parseFloat(openingCash) : 0
+            });
+        
+        if (error) {
+            console.error('❌ RPC error:', error);
+            throw error;
+        }
+        
+        console.log('📊 RPC response:', data);
+        
+        // Check if function returned an error
+        if (data && data.success === false) {
+            console.error('❌ Function returned error:', data.error);
+            throw new Error(data.error || 'Failed to clock in staff');
+        }
+        
+        // Success!
+        console.log('✅ Clock-in successful:', data);
+        
+        const successMessage = data.message || 
+            `✅ ${data.staff_name || 'Staff'} clocked in successfully!`;
+        
+        showToast(successMessage, 'success');
+        
+        // Close modal
+        closeModal('clockInModal');
+        
+        // Reload data
+        if (typeof loadOverseerDutySessions === 'function') {
+            await loadOverseerDutySessions();
+        }
+        if (typeof loadOverseerDashboardStats === 'function') {
+            await loadOverseerDashboardStats();
+        }
+        
+        // Clear form
+        document.getElementById('clockInStaffSelect').value = '';
+        document.getElementById('clockInCounterSelect').value = '';
+        document.getElementById('clockInOpeningCash').value = '';
+        
+    } catch (error) {
+        console.error('❌ Error clocking in staff:', error);
+        
+        // Provide user-friendly error messages
+        let errorMessage = 'Failed to clock in staff';
+        
+        if (error.message.includes('Only SipToken Overseers')) {
+            errorMessage = 'Permission denied: Only SipToken Overseers can clock in staff';
+        } else if (error.message.includes('already clocked in')) {
+            errorMessage = 'This staff member is already clocked in. Please clock them out first.';
+        } else if (error.message.includes('Invalid staff member')) {
+            errorMessage = 'Invalid staff member or role mismatch';
+        } else if (error.message.includes('Invalid counter')) {
+            errorMessage = 'Invalid counter selected';
+        } else if (error.message.includes('function clock_in_siptoken_staff')) {
+            errorMessage = 'Database function not found. Please contact administrator.';
+        } else if (error.message) {
+            errorMessage += ': ' + error.message;
+        }
+        
+        showToast(errorMessage, 'error');
+    }
+};
+
+// =====================================================
+// ALTERNATE VERSION: If you prefer to keep direct INSERT
+// Use this ONLY if you fix RLS policies properly
+// =====================================================
+
+/*
+window.processClockInWithDirectInsert = async function() {
     const staffId = document.getElementById('clockInStaffSelect').value;
     const counterId = document.getElementById('clockInCounterSelect').value;
     const openingCash = document.getElementById('clockInOpeningCash').value;
@@ -6194,7 +6305,28 @@ window.processClockIn = async function() {
     const staffRole = window.pendingClockInRole;
     
     try {
-        const { error } = await supabase
+        // Check if already clocked in
+        const { data: existing } = await supabase
+            .from('siptoken_duty_sessions')
+            .select('id, counter_name')
+            .eq('staff_id', staffId)
+            .eq('status', 'on_duty')
+            .maybeSingle();
+        
+        if (existing) {
+            showToast(`Staff is already clocked in at ${existing.counter_name}`, 'warning');
+            return;
+        }
+        
+        // Get staff name for success message
+        const { data: staff } = await supabase
+            .from('users')
+            .select('full_name')
+            .eq('id', staffId)
+            .single();
+        
+        // Direct INSERT (requires proper RLS policies)
+        const { data, error } = await supabase
             .from('siptoken_duty_sessions')
             .insert([{
                 staff_id: staffId,
@@ -6203,19 +6335,28 @@ window.processClockIn = async function() {
                 counter_id: counterId,
                 opening_cash: openingCash ? parseFloat(openingCash) : null,
                 status: 'on_duty'
-            }]);
+            }])
+            .select()
+            .single();
         
-        if (error) throw error;
+        if (error) {
+            if (error.code === '42501') {
+                throw new Error('Permission denied. RLS policy preventing insert.');
+            }
+            throw error;
+        }
         
-        showToast('Staff clocked in successfully!', 'success');
+        showToast(`✅ ${staff?.full_name || 'Staff'} clocked in successfully!`, 'success');
         closeModal('clockInModal');
         loadOverseerDutySessions();
         loadOverseerDashboardStats();
+        
     } catch (error) {
         console.error('Error clocking in staff:', error);
         showToast('Failed to clock in staff: ' + error.message, 'error');
     }
 };
+*/
 
 // =====================================================
 // SIPTOKEN MENU MANAGEMENT (Super Admin Settings)
