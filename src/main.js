@@ -115,9 +115,12 @@ async function initializeApp() {
         
         console.log('✅ SipToken Overseer: Hidden admin tabs - user has access only to SipToken management');
         
-        // Also hide the Gate Management tab content itself
+        // Also hide the Gate Management and Marshall Management tab content
         const gateManagementTab = document.getElementById('tab-gate-management');
         if (gateManagementTab) gateManagementTab.style.display = 'none';
+        
+        const marshallManagementTab = document.getElementById('tab-overseer-management');
+        if (marshallManagementTab) marshallManagementTab.style.display = 'none';
     }
     
     // Show SipToken tab for users with SipToken roles
@@ -5447,7 +5450,7 @@ window.loadOverseerGates = loadOverseerGates;
 
 // SipToken Initialization
 window.siptokenRate = 10; // Default rate
-window.minTokenPurchase = 5; // Default minimum
+window.minTokenPurchase = 15; // Default minimum
 
 async function initializeSipToken() {
     console.log('🔄 Initializing SipToken...');
@@ -5476,7 +5479,7 @@ async function initializeSipToken() {
             .single();
         
         if (data && data.setting_value) {
-            window.minTokenPurchase = parseInt(data.setting_value) || 5;
+            window.minTokenPurchase = parseInt(data.setting_value) || 15;
         }
     } catch (e) {
         console.warn('Could not load min token purchase, using default:', e);
@@ -7186,7 +7189,7 @@ async function loadTokenRateForSales() {
             .single();
         
         if (minTokenData) {
-            window.minTokenPurchase = parseInt(minTokenData.setting_value) || 5;
+            window.minTokenPurchase = parseInt(minTokenData.setting_value) || 15;;
             const minTokenEl = document.getElementById('minTokenDisplay');
             if (minTokenEl) minTokenEl.textContent = window.minTokenPurchase;
             
@@ -7203,7 +7206,7 @@ async function loadTokenRateForSales() {
         
         calculateInvoiceTotal();
     } catch (error) {
-        console.log('Using default settings - Token rate:', currentTokenRate, 'Min tokens:', window.minTokenPurchase || 5);
+        console.log('Using default settings - Token rate:', currentTokenRate, 'Min tokens:', window.minTokenPurchase || 15);
     }
 }
 
@@ -7351,7 +7354,7 @@ function selectGuestForTokenSale(guest) {
     document.getElementById('tokenSalesStep2').classList.remove('hidden');
     
     // Reset token quantity to minimum or 10, whichever is higher
-    const minTokens = window.minTokenPurchase || 5;
+    const minTokens = window.minTokenPurchase || 15;
     document.getElementById('invoiceTokenQty').value = Math.max(10, minTokens);
     calculateInvoiceTotal();
     
@@ -7369,15 +7372,15 @@ window.clearSelectedGuest = function() {
 // Adjust token quantity
 window.adjustTokenQty = function(delta) {
     const input = document.getElementById('invoiceTokenQty');
-    let qty = parseInt(input.value) || window.minTokenPurchase || 5;
-    qty = Math.max(window.minTokenPurchase || 5, Math.min(500, qty + delta));
+    let qty = parseInt(input.value) || window.minTokenPurchase || 15;
+    qty = Math.max(window.minTokenPurchase || 15, Math.min(500, qty + delta));
     input.value = qty;
     calculateInvoiceTotal();
 };
 
 // Set specific token quantity
 window.setTokenQty = function(qty) {
-    const minTokens = window.minTokenPurchase || 5;
+    const minTokens = window.minTokenPurchase || 15;
     if (qty < minTokens) {
         showToast(`Minimum purchase: ${minTokens} tokens`, 'warning');
         qty = minTokens;
@@ -7402,7 +7405,7 @@ window.sendInvoiceToGuest = async function() {
     }
     
     const tokenQty = parseInt(document.getElementById('invoiceTokenQty').value) || 0;
-    const minTokens = window.minTokenPurchase || 5;
+    const minTokens = window.minTokenPurchase || 15;
     
     if (tokenQty < 1) {
         showToast('Please enter token quantity', 'error');

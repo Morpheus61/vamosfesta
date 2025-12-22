@@ -1961,17 +1961,17 @@
                                     <button onclick="adjustTokenQty(-10)" class="w-12 h-12 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-bold text-lg">-10</button>
                                     <button onclick="adjustTokenQty(-1)" class="w-10 h-10 rounded-lg bg-gray-700 hover:bg-gray-600 text-white">-1</button>
                                     <input type="number" id="invoiceTokenQty" class="vamosfesta-input text-center text-2xl font-bold flex-1" 
-                                           value="10" min="5" max="500" onchange="calculateInvoiceTotal()">
+                                           value="15" min="15" max="500" onchange="calculateInvoiceTotal()">
                                     <button onclick="adjustTokenQty(1)" class="w-10 h-10 rounded-lg bg-gray-700 hover:bg-gray-600 text-white">+1</button>
                                     <button onclick="adjustTokenQty(10)" class="w-12 h-12 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-bold text-lg">+10</button>
                                 </div>
                                 <p class="text-xs text-orange-400 mt-2">
-                                    <i class="fas fa-info-circle mr-1"></i>Minimum purchase: <span id="minTokenDisplay">5</span> tokens
+                                    <i class="fas fa-info-circle mr-1"></i>Minimum purchase: <span id="minTokenDisplay">15</span> tokens
                                 </p>
                                 <!-- Quick amounts -->
                                 <div class="flex gap-2 mt-3">
-                                    <button onclick="setTokenQty(10)" class="flex-1 py-2 rounded bg-gray-800 hover:bg-gray-700 text-sm">10 tokens</button>
-                                    <button onclick="setTokenQty(20)" class="flex-1 py-2 rounded bg-gray-800 hover:bg-gray-700 text-sm">20 tokens</button>
+                                    <button onclick="setTokenQty(15)" class="flex-1 py-2 rounded bg-gray-800 hover:bg-gray-700 text-sm">15 tokens</button>
+                                    <button onclick="setTokenQty(30)" class="flex-1 py-2 rounded bg-gray-800 hover:bg-gray-700 text-sm">30 tokens</button>
                                     <button onclick="setTokenQty(50)" class="flex-1 py-2 rounded bg-gray-800 hover:bg-gray-700 text-sm">50 tokens</button>
                                     <button onclick="setTokenQty(100)" class="flex-1 py-2 rounded bg-gray-800 hover:bg-gray-700 text-sm">100 tokens</button>
                                 </div>
@@ -2309,7 +2309,7 @@
                                 
                                 <!-- Current Minimum Purchase -->
                                 <div class="bg-purple-900/20 rounded-lg p-4 text-center">
-                                    <p class="text-sm text-gray-400">Minimum Purchase</p>
+                                    <p class="text-sm text-gray-400">Minimum Tokens</p>
                                     <p class="text-4xl font-bold text-purple-400"><span id="currentMinTokensDisplay">15</span></p>
                                     <p class="text-xs text-gray-500 mt-1">tokens per transaction</p>
                                 </div>
