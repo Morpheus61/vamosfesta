@@ -6007,12 +6007,13 @@ window.loadDutySessions = async function(sessions) {
     
     container.innerHTML = sessions.map(session => {
         const duration = Math.floor((new Date() - new Date(session.clock_in_time)) / 1000 / 60);
+        const staffName = session.users?.full_name || 'Unknown Staff';
         return `
             <div class="card bg-gray-800/50 mb-3">
                 <div class="flex justify-between items-start mb-2">
                     <div>
-                        <h4 class="font-bold">${session.users.full_name}</h4>
-                        <p class="text-sm text-gray-400">${session.counter_name}</p>
+                        <h4 class="font-bold">${staffName}</h4>
+                        <p class="text-sm text-gray-400">${session.counter_name || 'No Counter'}</p>
                         <p class="text-xs text-gray-500">
                             ${session.staff_role === 'token_sales' ? '💰 Sales Staff' : '🍹 Barman'}
                         </p>

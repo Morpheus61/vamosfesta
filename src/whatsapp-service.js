@@ -345,16 +345,4 @@ _Vamos Festa - ¡Viva la Fiesta!_`;
     return sendWhatsAppMessage(guestPhone, message, 'guest_welcome');
 }
 
-// =====================================================
-// EXPORTS
-// =====================================================
-
-export {
-    sendWhatsAppMessage,
-    generateGuestAuthToken,
-    sendOrderSubmittedMessage,
-    sendOrderAcceptedMessage,
-    sendGuestWelcomeMessage
-};
-
 console.log('✅ WhatsApp service loaded');
