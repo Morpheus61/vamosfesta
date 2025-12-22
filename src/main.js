@@ -5723,7 +5723,7 @@ async function scanOrderQR(video) {
                 // Load order details
                 const { data: order, error } = await supabase
                     .from('token_orders')
-                    .select('*, token_wallets(guest_name, guest_phone, token_balance), order_items:token_order_items(*, beverage_menu(name))')
+                    .select('*, token_wallets(guest_name, mobile_number, token_balance), order_items:token_order_items(*, beverage_menu(name))')
                     .eq('id', qrData.order_id)
                     .single();
                 
@@ -7505,7 +7505,7 @@ window.loadPendingInvoices = async function() {
     try {
         const { data: invoices, error } = await supabase
             .from('token_purchases')
-            .select('*, token_wallets(guest_name, guest_phone)')
+            .select('*, token_wallets(guest_name, mobile_number)')
             .eq('seller_id', currentUser.id)
             .eq('transaction_status', 'pending')
             .order('created_at', { ascending: false });
@@ -7573,7 +7573,7 @@ window.confirmPayment = async function(invoiceId, paymentMethod) {
         // Get invoice details
         const { data: invoice, error: fetchError } = await supabase
             .from('siptoken_invoices')
-            .select('*, guests(id, name, phone)')
+            .select('*, guests(id, guest_name, mobile_number)')
             .eq('id', invoiceId)
             .single();
         
