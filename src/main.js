@@ -3144,6 +3144,59 @@ window.stopQRScanner = function() {
     closeModal('scannerModal');
 };
 
+// Show Marshall Clock-in Token QR Code
+window.showTokenQR = async function(tokenString) {
+    try {
+        const modalHtml = `
+            <div class="modal active" id="tokenQRModal" style="z-index: 10000;">
+                <div class="modal-content" style="max-width: 400px;">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold">Clock-in Token QR</h3>
+                        <button onclick="closeTokenQRModal()" class="text-gray-400 hover:text-white">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <div id="tokenQRCode" class="bg-white p-4 rounded"></div>
+                        <p class="text-sm text-gray-400 mt-4 text-center">Scan this QR to clock in</p>
+                        <p class="text-xs text-gray-500 mt-2 break-all">${tokenString.substring(0, 20)}...</p>
+                    </div>
+                    <button onclick="closeTokenQRModal()" class="vamosfesta-button w-full mt-4">
+                        Close
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        // Remove existing modal if any
+        const existingModal = document.getElementById('tokenQRModal');
+        if (existingModal) existingModal.remove();
+        
+        // Add modal to body
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Generate QR code
+        const qrContainer = document.getElementById('tokenQRCode');
+        new QRCode(qrContainer, {
+            text: tokenString,
+            width: 256,
+            height: 256,
+            colorDark: '#000000',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.H
+        });
+        
+    } catch (error) {
+        console.error('Error showing token QR:', error);
+        showToast('Failed to display QR code', 'error');
+    }
+};
+
+window.closeTokenQRModal = function() {
+    const modal = document.getElementById('tokenQRModal');
+    if (modal) modal.remove();
+};
+
 async function processQRCode(qrData) {
     stopQRScanner();
     
