@@ -7990,13 +7990,15 @@ async function loadBarmanCounterAssignment() {
     if (!currentUser) return;
     
     try {
-        // Get active assignment for this barman
-        const { data: assignment, error } = await supabase
-            .from('counter_assignments')
-            .select('*, bar_counters(*)')
-            .eq('user_id', currentUser.id)
-            .is('ended_at', null)
-            .order('started_at', { ascending: false })
+        // Get active duty session for this barman
+        const { data: session, error } = await supabase
+            .from('siptoken_duty_sessions')
+            .select('*, bar_counters!counter_id(*)')
+            .eq('staff_id', currentUser.id)
+            .eq('staff_role', 'barman')
+            .is('clock_out_time', null)
+            .eq('status', 'on_duty')
+            .order('clock_in_time', { ascending: false })
             .limit(1)
             .single();
         
@@ -8004,16 +8006,24 @@ async function loadBarmanCounterAssignment() {
             console.error('Error loading assignment:', error);
         }
         
-        barmanCounterAssignment = assignment;
+        // Transform session data to match expected assignment structure
+        barmanCounterAssignment = session ? {
+            ...session,
+            bar_counters: session.bar_counters || {
+                id: session.counter_id,
+                counter_name: session.counter_name || 'Unknown',
+                counter_code: 'N/A'
+            }
+        } : null;
         
         // Update UI
         const counterName = document.getElementById('barmanCounterName');
         const counterCode = document.getElementById('barmanCounterCode');
         const banner = document.getElementById('barmanCounterBanner');
         
-        if (assignment && assignment.bar_counters) {
-            counterName.textContent = assignment.bar_counters.counter_name;
-            counterCode.textContent = assignment.bar_counters.counter_code;
+        if (barmanCounterAssignment && barmanCounterAssignment.bar_counters) {
+            counterName.textContent = barmanCounterAssignment.bar_counters.counter_name;
+            counterCode.textContent = barmanCounterAssignment.bar_counters.counter_code || 'N/A';
             banner.classList.remove('border-red-600/50', 'bg-red-900/30');
             banner.classList.add('border-purple-600/50', 'bg-purple-900/30');
         } else {
