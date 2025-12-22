@@ -5148,7 +5148,7 @@ async function loadClockoutRequests() {
         
         const { data: requests, error } = await supabase
             .from('clockout_requests')
-            .select('*, users(full_name), entry_gates(gate_name, gate_code)')
+            .select('*, users!user_id(full_name), entry_gates!gate_id(gate_name, gate_code)')
             .in('gate_id', gateIds)
             .eq('status', 'pending')
             .order('created_at', { ascending: false });
@@ -6008,7 +6008,7 @@ window.loadOverseerStats = async function() {
         // Get active duty sessions
         const { data: sessions, error: sessionsError } = await supabase
             .from('siptoken_duty_sessions')
-            .select('*, staff:staff_id(full_name)')
+            .select('*, users!staff_id(full_name, username)')
             .eq('status', 'on_duty');
         
         if (sessionsError) throw sessionsError;
@@ -6051,7 +6051,7 @@ window.loadDutySessions = async function(sessions) {
     if (!sessions) {
         const { data, error } = await supabase
             .from('siptoken_duty_sessions')
-            .select('*, users(full_name)')
+            .select('*, users!staff_id(full_name)')
             .eq('status', 'on_duty')
             .order('clock_in_time', { ascending: false });
         
@@ -6069,7 +6069,7 @@ window.loadDutySessions = async function(sessions) {
     
     container.innerHTML = sessions.map(session => {
         const duration = Math.floor((new Date() - new Date(session.clock_in_time)) / 1000 / 60);
-        const staffName = session.users?.full_name || 'Unknown Staff';
+        const staffName = session.users?.full_name || session.users?.username || 'Unknown Staff';
         return `
             <div class="card bg-gray-800/50 mb-3">
                 <div class="flex justify-between items-start mb-2">
