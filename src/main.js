@@ -153,7 +153,11 @@ async function initializeApp() {
     }
     
     // Add Overseer designation if applicable
-    if (currentUser.is_siptoken_overseer) {
+    if (currentUser.is_gate_overseer && currentUser.is_siptoken_overseer) {
+        roleBadgeText = `${formatRole(currentUser.role)} (Gate & SipToken Overseer)`;
+    } else if (currentUser.is_gate_overseer) {
+        roleBadgeText = `${formatRole(currentUser.role)} (Gate Overseer)`;
+    } else if (currentUser.is_siptoken_overseer) {
         roleBadgeText = `${formatRole(currentUser.role)} (SipToken Overseer)`;
     }
     
@@ -4575,6 +4579,11 @@ window.showAssignGatesModal = async function(overseerId) {
             .order('gate_name');
         
         if (error) throw error;
+        
+        if (!gates || gates.length === 0) {
+            showToast('No active gates found. Please create gates first in Gate Management.', 'error');
+            return;
+        }
         
         // Load existing assignments
         const { data: assignments } = await supabase
