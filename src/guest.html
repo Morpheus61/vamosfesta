@@ -1390,7 +1390,7 @@
             try {
                 const { data: orders, error } = await supabase
                     .from('token_orders')
-                    .select('*, bar_counters(counter_name)')
+                    .select('*, bar_counters!counter_id(counter_name)')
                     .eq('wallet_id', walletId)
                     .in('status', ['pending', 'accepted', 'preparing'])
                     .order('created_at', { ascending: false })
@@ -1402,7 +1402,7 @@
                     // Get order items
                     const { data: items } = await supabase
                         .from('token_order_items')
-                        .select('*, beverage_menu(name)')
+                        .select('*, beverage_menu!menu_item_id(name)')
                         .eq('order_id', activeOrder.id);
                     
                     activeOrder.items = items || [];
