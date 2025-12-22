@@ -6204,11 +6204,33 @@ async function loadClockInStaffList(role) {
         
         if (error) throw error;
         
+        // Get active duty sessions to check who's already clocked in
+        const { data: activeSessions } = await supabase
+            .from('siptoken_duty_sessions')
+            .select('staff_id, bar_counters!counter_id(counter_name)')
+            .is('clock_out_time', null)
+            .eq('status', 'on_duty');
+        
+        // Create a map of clocked-in staff
+        const clockedInMap = {};
+        (activeSessions || []).forEach(session => {
+            clockedInMap[session.staff_id] = session.bar_counters?.counter_name || 'Unknown Counter';
+        });
+        
         const select = document.getElementById('clockInStaffSelect');
         users.forEach(user => {
             const option = document.createElement('option');
             option.value = user.id;
-            option.textContent = `${user.full_name} (${user.username})`;
+            
+            if (clockedInMap[user.id]) {
+                // Staff is already clocked in - disable and show status
+                option.textContent = `${user.full_name} - 🟢 ON DUTY at ${clockedInMap[user.id]}`;
+                option.disabled = true;
+                option.style.color = '#22c55e';
+            } else {
+                option.textContent = `${user.full_name} (${user.username})`;
+            }
+            
             select.appendChild(option);
         });
     } catch (error) {
@@ -6356,7 +6378,7 @@ window.processClockIn = async function() {
         if (error.message.includes('Only SipToken Overseers')) {
             errorMessage = 'Permission denied: Only SipToken Overseers can clock in staff';
         } else if (error.message.includes('already clocked in')) {
-            errorMessage = 'This staff member is already clocked in. Please clock them out first.';
+            errorMessage = '⚠️ This staff member is already clocked in. Please find them in "Active Duty Sessions" below and clock them out first, then try again.';
         } else if (error.message.includes('Invalid staff member')) {
             errorMessage = 'Invalid staff member or role mismatch';
         } else if (error.message.includes('Invalid counter')) {
@@ -9162,6 +9184,31 @@ async function loadOverseerDutySessions() {
         const statsEl = document.getElementById('overseerStaffOnDuty');
         if (statsEl) statsEl.textContent = sessions.length;
         
+        // Check for stale sessions (over 24 hours)
+        const staleSessions = sessions.filter(s => {
+            const startTime = new Date(s.clock_in_time);
+            const hoursOnDuty = (new Date() - startTime) / (1000 * 60 * 60);
+            return hoursOnDuty > 24;
+        });
+        
+        if (staleSessions.length > 0) {
+            const warningDiv = document.createElement('div');
+            warningDiv.className = 'bg-yellow-900/30 border border-yellow-600 rounded-lg p-3 mb-3';
+            warningDiv.innerHTML = `
+                <div class="flex items-start gap-2">
+                    <i class="fas fa-exclamation-triangle text-yellow-400 mt-1"></i>
+                    <div class="flex-1">
+                        <p class="text-yellow-200 font-semibold text-sm">⚠️ Stale Sessions Detected</p>
+                        <p class="text-yellow-300 text-xs mt-1">${staleSessions.length} staff member(s) clocked in for over 24 hours</p>
+                        <button onclick="clockOutAllStaleSessions()" class="mt-2 px-3 py-1 bg-yellow-600 hover:bg-yellow-500 text-white text-xs rounded">
+                            Clock Out All Stale Sessions
+                        </button>
+                    </div>
+                </div>
+            `;
+            container.insertBefore(warningDiv, container.firstChild);
+        }
+        
     } catch (error) {
         console.error('Error loading duty sessions:', error);
         const container = document.getElementById('overseerDutySessions');
@@ -9170,11 +9217,67 @@ async function loadOverseerDutySessions() {
 }
 
 window.loadOverseerDutySessions = loadOverseerDutySessions;
-// End duty session
-window.endDutySession = async function(sessionId) {
-    if (!confirm('End this staff member\'s duty session?')) return;
+
+// Clock out all stale sessions
+window.clockOutAllStaleSessions = async function() {
+    if (!confirm('Clock out all staff members who have been on duty for over 24 hours?')) return;
     
     try {
+        // Get sessions over 24 hours old
+        const oneDayAgo = new Date();
+        oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+        
+        const { data: staleSessions, error: fetchError } = await supabase
+            .from('siptoken_duty_sessions')
+            .select('id')
+            .is('clock_out_time', null)
+            .lt('clock_in_time', oneDayAgo.toISOString());
+        
+        if (fetchError) throw fetchError;
+        
+        if (!staleSessions || staleSessions.length === 0) {
+            showToast('No stale sessions found', 'info');
+            return;
+        }
+        
+        // Clock out all stale sessions
+        const { error: updateError } = await supabase
+            .from('siptoken_duty_sessions')
+            .update({ 
+                clock_out_time: new Date().toISOString(),
+                status: 'clocked_out'
+            })
+            .is('clock_out_time', null)
+            .lt('clock_in_time', oneDayAgo.toISOString());
+        
+        if (updateError) throw updateError;
+        
+        showToast(`✅ Clocked out ${staleSessions.length} stale session(s)`, 'success');
+        loadOverseerDutySessions();
+        loadOverseerDashboardStats();
+        
+    } catch (error) {
+        console.error('Error clocking out stale sessions:', error);
+        showToast('Failed to clock out stale sessions', 'error');
+    }
+};
+// End duty session
+window.endDutySession = async function(sessionId) {
+    try {
+        // Get session details first
+        const { data: session, error: fetchError } = await supabase
+            .from('siptoken_duty_sessions')
+            .select('*, users!staff_id(full_name), bar_counters!counter_id(counter_name)')
+            .eq('id', sessionId)
+            .single();
+        
+        if (fetchError) throw fetchError;
+        
+        const staffName = session.users?.full_name || 'Staff member';
+        const counterName = session.bar_counters?.counter_name || session.counter_name || 'Unknown counter';
+        
+        if (!confirm(`Clock out ${staffName} from ${counterName}?`)) return;
+        
         const { error } = await supabase
             .from('siptoken_duty_sessions')
             .update({ 
@@ -9185,7 +9288,7 @@ window.endDutySession = async function(sessionId) {
         
         if (error) throw error;
         
-        showToast('Duty session ended', 'success');
+        showToast(`✅ ${staffName} clocked out successfully`, 'success');
         loadOverseerDutySessions();
         loadOverseerDashboardStats();
         
