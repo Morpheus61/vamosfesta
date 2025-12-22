@@ -8059,7 +8059,7 @@ window.loadBarmanOrders = async function() {
             .from('token_orders')
             .select(`
                 *,
-                token_wallets!wallet_id(guest_id, guests!guest_id(guest_name, mobile_number)),
+                token_wallets!wallet_id(guest_id, guests(guest_name, mobile_number)),
                 token_order_items(*, beverage_menu!menu_item_id(name, emoji))
             `)
             .eq('counter_id', counterId)
@@ -8071,7 +8071,7 @@ window.loadBarmanOrders = async function() {
             .from('token_orders')
             .select(`
                 *,
-                token_wallets!wallet_id(guest_id, guests!guest_id(guest_name, mobile_number)),
+                token_wallets!wallet_id(guest_id, guests(guest_name, mobile_number)),
                 token_order_items(*, beverage_menu!menu_item_id(name, emoji))
             `)
             .eq('counter_id', counterId)
@@ -8084,7 +8084,7 @@ window.loadBarmanOrders = async function() {
             .from('token_orders')
             .select(`
                 *,
-                token_wallets!wallet_id(guest_id, guests!guest_id(guest_name, mobile_number)),
+                token_wallets!wallet_id(guest_id, guests(guest_name, mobile_number)),
                 token_order_items(*, beverage_menu!menu_item_id(name, emoji))
             `)
             .eq('counter_id', counterId)
