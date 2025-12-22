@@ -8019,7 +8019,13 @@ async function loadBarmanCounterAssignment() {
         // Update UI
         const counterName = document.getElementById('barmanCounterName');
         const counterCode = document.getElementById('barmanCounterCode');
+        const userName = document.getElementById('barmanUserName');
         const banner = document.getElementById('barmanCounterBanner');
+        
+        // Always show user name
+        if (userName && currentUser) {
+            userName.textContent = currentUser.full_name || currentUser.username || 'Barman';
+        }
         
         if (barmanCounterAssignment && barmanCounterAssignment.bar_counters) {
             counterName.textContent = barmanCounterAssignment.bar_counters.counter_name;
@@ -8053,8 +8059,8 @@ window.loadBarmanOrders = async function() {
             .from('token_orders')
             .select(`
                 *,
-                token_wallets(guest_id, guests(guest_name, mobile_number)),
-                token_order_items(*, beverage_menu(name, emoji))
+                token_wallets!wallet_id(guest_id, guests!guest_id(guest_name, mobile_number)),
+                token_order_items(*, beverage_menu!menu_item_id(name, emoji))
             `)
             .eq('counter_id', counterId)
             .eq('status', 'pending')
@@ -8065,8 +8071,8 @@ window.loadBarmanOrders = async function() {
             .from('token_orders')
             .select(`
                 *,
-                token_wallets(guest_id, guests(guest_name, mobile_number)),
-                token_order_items(*, beverage_menu(name, emoji))
+                token_wallets!wallet_id(guest_id, guests!guest_id(guest_name, mobile_number)),
+                token_order_items(*, beverage_menu!menu_item_id(name, emoji))
             `)
             .eq('counter_id', counterId)
             .eq('status', 'accepted')
@@ -8078,8 +8084,8 @@ window.loadBarmanOrders = async function() {
             .from('token_orders')
             .select(`
                 *,
-                token_wallets(guest_id, guests(guest_name, mobile_number)),
-                token_order_items(*, beverage_menu(name, emoji))
+                token_wallets!wallet_id(guest_id, guests!guest_id(guest_name, mobile_number)),
+                token_order_items(*, beverage_menu!menu_item_id(name, emoji))
             `)
             .eq('counter_id', counterId)
             .eq('status', 'served')
