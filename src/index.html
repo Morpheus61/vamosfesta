@@ -985,54 +985,107 @@
                         </div>
                         
                         <form id="registrationForm" class="space-y-4">
+                            <!-- Guest Type Selector (Tablers vs 41'ers) -->
                             <div>
-                                <label class="block text-sm mb-1 text-gray-300">Guest Name *</label>
-                                <input type="text" id="guestName" class="vamosfesta-input" required placeholder="Full name of the guest">
+                                <label class="block text-sm mb-2 text-gray-300">Guest Type *</label>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <button type="button" id="btnTabler" onclick="selectGuestType('tabler')" 
+                                            class="guest-type-btn vamosfesta-button py-3 text-center transition-all">
+                                        <i class="fas fa-users mr-2"></i>Tabler
+                                    </button>
+                                    <button type="button" id="btn41er" onclick="selectGuestType('41er')" 
+                                            class="guest-type-btn vamosfesta-button secondary py-3 text-center transition-all">
+                                        <i class="fas fa-user-friends mr-2"></i>41'er
+                                    </button>
+                                </div>
+                                <input type="hidden" id="guestType" value="" required>
                             </div>
-                            
-                            <div>
-                                <label class="block text-sm mb-1 text-gray-300">Mobile Number *</label>
-                                <input type="tel" id="guestMobile" class="vamosfesta-input" required 
-                                       pattern="[0-9]{10}" placeholder="10-digit mobile number"
-                                       title="Please enter a valid 10-digit mobile number">
+
+                            <!-- Registration Fields Container (shown after selecting guest type) -->
+                            <div id="registrationFieldsContainer" class="hidden space-y-4">
+                                <div>
+                                    <label class="block text-sm mb-1 text-gray-300">Name *</label>
+                                    <input type="text" id="guestName" class="vamosfesta-input" required placeholder="Full name of the guest">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm mb-1 text-gray-300">Mobile Number *</label>
+                                    <input type="tel" id="guestMobile" class="vamosfesta-input" required 
+                                           pattern="[0-9]{10}" placeholder="10-digit mobile number"
+                                           title="Please enter a valid 10-digit mobile number">
+                                </div>
+                                
+                                <!-- Tabler Fields -->
+                                <div id="tablerFields" class="hidden space-y-4">
+                                    <div class="p-3 bg-blue-900/20 rounded-lg border border-blue-600/30">
+                                        <p class="text-xs text-blue-400 mb-3"><i class="fas fa-info-circle mr-1"></i>Tabler Details</p>
+                                        <div class="space-y-3">
+                                            <div>
+                                                <label class="block text-sm mb-1 text-gray-300">Table Name *</label>
+                                                <input type="text" id="tableName" class="vamosfesta-input" placeholder="e.g., RT Chennai Metro">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm mb-1 text-gray-300">Table Number *</label>
+                                                <input type="text" id="tableNumber" class="vamosfesta-input" placeholder="e.g., 123">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- 41'er Fields -->
+                                <div id="fortyonerFields" class="hidden space-y-4">
+                                    <div class="p-3 bg-purple-900/20 rounded-lg border border-purple-600/30">
+                                        <p class="text-xs text-purple-400 mb-3"><i class="fas fa-info-circle mr-1"></i>41'er Details</p>
+                                        <div class="space-y-3">
+                                            <div>
+                                                <label class="block text-sm mb-1 text-gray-300">Club Name *</label>
+                                                <input type="text" id="guestClubName" class="vamosfesta-input" placeholder="e.g., 41 Club Chennai">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm mb-1 text-gray-300">Club Number *</label>
+                                                <input type="text" id="guestClubNumber" class="vamosfesta-input" placeholder="e.g., 456">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm mb-1 text-gray-300">Registration Type *</label>
+                                    <select id="entryType" class="vamosfesta-input" required>
+                                        <option value="">Select registration type</option>
+                                        <option value="stag">Stag - ₹<span class="stag-price">2750</span></option>
+                                        <option value="couple">Couple - ₹<span class="couple-price">4750</span></option>
+                                    </select>
+                                </div>
+                                
+                                <div id="priceDisplay" class="text-center py-3 bg-yellow-900/30 rounded-lg hidden">
+                                    <p class="text-sm text-gray-400">Amount to Collect</p>
+                                    <p class="text-3xl font-bold text-yellow-400">₹<span id="ticketPrice">0</span></p>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm mb-1 text-gray-300">Payment Mode *</label>
+                                    <select id="paymentMode" class="vamosfesta-input" required>
+                                        <option value="">Select payment mode</option>
+                                        <option value="cash">💵 Cash</option>
+                                        <option value="upi">📱 UPI</option>
+                                        <option value="bank_transfer">🏦 Bank Transfer</option>
+                                    </select>
+                                </div>
+                                
+                                <div id="paymentRefSection" class="hidden">
+                                    <label class="block text-sm mb-1 text-gray-300">
+                                        <span id="refLabel">Transaction Reference</span> *
+                                    </label>
+                                    <input type="text" id="paymentReference" class="vamosfesta-input" 
+                                           placeholder="UTR Number / Transaction ID">
+                                    <p class="text-xs text-gray-500 mt-1">Enter the UTR number or transaction reference</p>
+                                </div>
+                                
+                                <button type="submit" class="vamosfesta-button w-full py-3 mt-6">
+                                    <i class="fas fa-paper-plane mr-2"></i>Submit Registration
+                                </button>
                             </div>
-                            
-                            <div>
-                                <label class="block text-sm mb-1 text-gray-300">Entry Type *</label>
-                                <select id="entryType" class="vamosfesta-input" required>
-                                    <option value="">Select entry type</option>
-                                    <option value="stag">Stag - ₹<span class="stag-price">2750</span></option>
-                                    <option value="couple">Couple - ₹<span class="couple-price">4750</span></option>
-                                </select>
-                            </div>
-                            
-                            <div id="priceDisplay" class="text-center py-3 bg-yellow-900/30 rounded-lg hidden">
-                                <p class="text-sm text-gray-400">Amount to Collect</p>
-                                <p class="text-3xl font-bold text-yellow-400">₹<span id="ticketPrice">0</span></p>
-                            </div>
-                            
-                            <div>
-                                <label class="block text-sm mb-1 text-gray-300">Payment Mode *</label>
-                                <select id="paymentMode" class="vamosfesta-input" required>
-                                    <option value="">Select payment mode</option>
-                                    <option value="cash">💵 Cash</option>
-                                    <option value="upi">📱 UPI</option>
-                                    <option value="bank_transfer">🏦 Bank Transfer</option>
-                                </select>
-                            </div>
-                            
-                            <div id="paymentRefSection" class="hidden">
-                                <label class="block text-sm mb-1 text-gray-300">
-                                    <span id="refLabel">Transaction Reference</span> *
-                                </label>
-                                <input type="text" id="paymentReference" class="vamosfesta-input" 
-                                       placeholder="UTR Number / Transaction ID">
-                                <p class="text-xs text-gray-500 mt-1">Enter the UTR number or transaction reference</p>
-                            </div>
-                            
-                            <button type="submit" class="vamosfesta-button w-full py-3 mt-6">
-                                <i class="fas fa-paper-plane mr-2"></i>Submit Registration
-                            </button>
                         </form>
                     </div>
                 </div>

@@ -706,6 +706,94 @@ function updateRegistrationForm() {
     }
 }
 
+// =====================================================
+// GUEST TYPE SELECTION (Tablers vs 41'ers)
+// =====================================================
+
+window.selectGuestType = function(type) {
+    const guestTypeInput = document.getElementById('guestType');
+    const registrationFieldsContainer = document.getElementById('registrationFieldsContainer');
+    const tablerFields = document.getElementById('tablerFields');
+    const fortyonerFields = document.getElementById('fortyonerFields');
+    const btnTabler = document.getElementById('btnTabler');
+    const btn41er = document.getElementById('btn41er');
+    
+    // Set the guest type
+    guestTypeInput.value = type;
+    
+    // Show the registration fields container
+    registrationFieldsContainer.classList.remove('hidden');
+    
+    // Update button styles
+    if (type === 'tabler') {
+        btnTabler.classList.remove('secondary');
+        btnTabler.classList.add('active');
+        btn41er.classList.add('secondary');
+        btn41er.classList.remove('active');
+        
+        // Show tabler fields, hide 41'er fields
+        tablerFields.classList.remove('hidden');
+        fortyonerFields.classList.add('hidden');
+        
+        // Set required attributes
+        document.getElementById('tableName').required = true;
+        document.getElementById('tableNumber').required = true;
+        document.getElementById('guestClubName').required = false;
+        document.getElementById('guestClubNumber').required = false;
+        
+        // Clear 41'er fields
+        document.getElementById('guestClubName').value = '';
+        document.getElementById('guestClubNumber').value = '';
+    } else {
+        btn41er.classList.remove('secondary');
+        btn41er.classList.add('active');
+        btnTabler.classList.add('secondary');
+        btnTabler.classList.remove('active');
+        
+        // Show 41'er fields, hide tabler fields
+        fortyonerFields.classList.remove('hidden');
+        tablerFields.classList.add('hidden');
+        
+        // Set required attributes
+        document.getElementById('guestClubName').required = true;
+        document.getElementById('guestClubNumber').required = true;
+        document.getElementById('tableName').required = false;
+        document.getElementById('tableNumber').required = false;
+        
+        // Clear tabler fields
+        document.getElementById('tableName').value = '';
+        document.getElementById('tableNumber').value = '';
+    }
+}
+
+// Reset guest type selection when form is reset
+window.resetGuestTypeSelection = function() {
+    const guestTypeInput = document.getElementById('guestType');
+    const registrationFieldsContainer = document.getElementById('registrationFieldsContainer');
+    const tablerFields = document.getElementById('tablerFields');
+    const fortyonerFields = document.getElementById('fortyonerFields');
+    const btnTabler = document.getElementById('btnTabler');
+    const btn41er = document.getElementById('btn41er');
+    
+    // Reset guest type
+    if (guestTypeInput) guestTypeInput.value = '';
+    
+    // Hide fields container
+    if (registrationFieldsContainer) registrationFieldsContainer.classList.add('hidden');
+    if (tablerFields) tablerFields.classList.add('hidden');
+    if (fortyonerFields) fortyonerFields.classList.add('hidden');
+    
+    // Reset button styles
+    if (btnTabler) {
+        btnTabler.classList.remove('active');
+        btnTabler.classList.add('secondary');
+    }
+    if (btn41er) {
+        btn41er.classList.add('secondary');
+        btn41er.classList.remove('active');
+    }
+}
+
 async function handleRegistration(e) {
     e.preventDefault();
     
@@ -714,21 +802,66 @@ async function handleRegistration(e) {
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Submitting...';
     
     try {
+        const guestType = document.getElementById('guestType').value;
         const entryType = document.getElementById('entryType').value;
+        
+        // Validate guest type
+        if (!guestType) {
+            showToast('Please select a guest type (Tabler or 41\'er)', 'error');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Submit Registration';
+            return;
+        }
+        
         const ticketPrice = entryType === 'stag' 
             ? parseInt(settings.stag_price || 2750) 
             : parseInt(settings.couple_price || 4750);
         
+        // Build guest data based on guest type
         const guestData = {
             guest_name: document.getElementById('guestName').value.trim(),
             mobile_number: document.getElementById('guestMobile').value.trim(),
             entry_type: entryType,
+            guest_type: guestType,
             payment_mode: document.getElementById('paymentMode').value,
             payment_reference: document.getElementById('paymentReference')?.value.trim() || null,
             ticket_price: ticketPrice,
             registered_by: currentUser.id,
             status: 'pending_verification'
         };
+        
+        // Add type-specific fields
+        if (guestType === 'tabler') {
+            const tableName = document.getElementById('tableName').value.trim();
+            const tableNumber = document.getElementById('tableNumber').value.trim();
+            
+            if (!tableName || !tableNumber) {
+                showToast('Please fill in Table Name and Table Number for Tablers', 'error');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Submit Registration';
+                return;
+            }
+            
+            guestData.table_name = tableName;
+            guestData.table_number = tableNumber;
+            guestData.club_name = null;
+            guestData.club_number = null;
+        } else {
+            const clubName = document.getElementById('guestClubName').value.trim();
+            const clubNumber = document.getElementById('guestClubNumber').value.trim();
+            
+            if (!clubName || !clubNumber) {
+                showToast('Please fill in Club Name and Club Number for 41\'ers', 'error');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Submit Registration';
+                return;
+            }
+            
+            guestData.club_name = clubName;
+            guestData.club_number = clubNumber;
+            guestData.table_name = null;
+            guestData.table_number = null;
+        }
         
         const { data, error } = await supabase
             .from('guests')
@@ -741,6 +874,9 @@ async function handleRegistration(e) {
         e.target.reset();
         document.getElementById('priceDisplay').classList.add('hidden');
         document.getElementById('paymentRefSection').classList.add('hidden');
+        
+        // Reset guest type selection
+        resetGuestTypeSelection();
         
         showToast('Registration submitted successfully!', 'success');
         
@@ -798,8 +934,17 @@ async function loadMySales() {
                  onclick="showGuestDetailModal('${g.id}', 'sales')">
                 <div class="flex items-center justify-between">
                     <div class="flex-1 min-w-0">
-                        <h4 class="font-semibold text-white truncate">${escapeHtml(g.guest_name)}</h4>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-0.5 rounded text-xs ${g.guest_type === '41er' ? 'bg-purple-900/50 text-purple-400' : 'bg-blue-900/50 text-blue-400'}">
+                                ${g.guest_type === '41er' ? "41'er" : 'Tabler'}
+                            </span>
+                            <span class="text-xs text-gray-500 capitalize">${g.entry_type}</span>
+                        </div>
+                        <h4 class="font-semibold text-white truncate mt-1">${escapeHtml(g.guest_name)}</h4>
                         <p class="text-sm text-gray-400">${g.mobile_number}</p>
+                        <p class="text-xs text-gray-500 mt-1">
+                            ${g.guest_type === 'tabler' ? `📋 ${escapeHtml(g.table_name || '')} #${escapeHtml(g.table_number || '')}` : `🏛️ ${escapeHtml(g.club_name || '')} #${escapeHtml(g.club_number || '')}`}
+                        </p>
                     </div>
                     <div class="flex items-center gap-2 ml-3">
                         ${getStatusBadgeSmall(g.status)}
@@ -863,15 +1008,23 @@ async function loadVerificationQueue(filter = 'all') {
                  onclick="showGuestDetailModal('${g.id}', 'verification')" data-payment="${g.payment_mode}">
                 <div class="flex items-center justify-between">
                     <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="px-2 py-0.5 rounded text-xs ${g.guest_type === '41er' ? 'bg-purple-900/50 text-purple-400' : 'bg-blue-900/50 text-blue-400'}">
+                                ${g.guest_type === '41er' ? "41'er" : 'Tabler'}
+                            </span>
+                            <span class="text-xs text-gray-500 capitalize">${g.entry_type}</span>
+                        </div>
                         <h4 class="font-semibold text-white truncate">${escapeHtml(g.guest_name)}</h4>
                         <p class="text-sm text-gray-400">${g.mobile_number}</p>
+                        <p class="text-xs text-gray-500 mt-1">
+                            ${g.guest_type === 'tabler' ? `📋 ${escapeHtml(g.table_name || '')} #${escapeHtml(g.table_number || '')}` : `🏛️ ${escapeHtml(g.club_name || '')} #${escapeHtml(g.club_number || '')}`}
+                        </p>
                     </div>
-                    <div class="flex items-center gap-2 ml-3">
+                    <div class="flex flex-col items-end gap-2 ml-3">
                         <span class="px-2 py-1 rounded text-xs ${g.payment_mode === 'cash' ? 'bg-green-900/50 text-green-400' : g.payment_mode === 'upi' ? 'bg-blue-900/50 text-blue-400' : 'bg-purple-900/50 text-purple-400'}">
                             ${g.payment_mode === 'cash' ? '💵' : g.payment_mode === 'upi' ? '📱' : '🏦'} ${g.payment_mode.toUpperCase()}
                         </span>
                         <span class="text-yellow-400 font-bold">₹${g.ticket_price?.toLocaleString()}</span>
-                        <i class="fas fa-chevron-right text-gray-500"></i>
                     </div>
                 </div>
             </div>
@@ -939,18 +1092,40 @@ window.showGuestDetailModal = async function(guestId, source = 'all') {
         const content = `
             <!-- Guest Info Header -->
             <div class="text-center mb-4 pb-4 border-b border-gray-700">
-                <div class="w-16 h-16 mx-auto rounded-full bg-yellow-600/20 flex items-center justify-center mb-3">
-                    <i class="fas fa-user text-yellow-400 text-2xl"></i>
+                <div class="w-16 h-16 mx-auto rounded-full ${guest.guest_type === '41er' ? 'bg-purple-600/20' : 'bg-blue-600/20'} flex items-center justify-center mb-3">
+                    <i class="fas ${guest.guest_type === '41er' ? 'fa-user-friends text-purple-400' : 'fa-users text-blue-400'} text-2xl"></i>
                 </div>
                 <h4 class="text-xl font-bold text-white">${escapeHtml(guest.guest_name)}</h4>
                 <p class="text-gray-400">${guest.mobile_number}</p>
+                <span class="inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${guest.guest_type === '41er' ? 'bg-purple-900/50 text-purple-400 border border-purple-600/30' : 'bg-blue-900/50 text-blue-400 border border-blue-600/30'}">
+                    ${guest.guest_type === '41er' ? "41'er" : 'Tabler'}
+                </span>
                 <div class="mt-2">${getStatusBadge(guest.status)}</div>
             </div>
             
             <!-- Guest Details -->
             <div class="space-y-3">
+                ${guest.guest_type === 'tabler' ? `
                 <div class="flex justify-between items-center py-2 border-b border-gray-700/50">
-                    <span class="text-gray-400">Entry Type</span>
+                    <span class="text-gray-400">Table Name</span>
+                    <span class="font-semibold text-blue-400">${escapeHtml(guest.table_name || '-')}</span>
+                </div>
+                <div class="flex justify-between items-center py-2 border-b border-gray-700/50">
+                    <span class="text-gray-400">Table Number</span>
+                    <span class="font-semibold">${escapeHtml(guest.table_number || '-')}</span>
+                </div>
+                ` : `
+                <div class="flex justify-between items-center py-2 border-b border-gray-700/50">
+                    <span class="text-gray-400">Club Name</span>
+                    <span class="font-semibold text-purple-400">${escapeHtml(guest.club_name || '-')}</span>
+                </div>
+                <div class="flex justify-between items-center py-2 border-b border-gray-700/50">
+                    <span class="text-gray-400">Club Number</span>
+                    <span class="font-semibold">${escapeHtml(guest.club_number || '-')}</span>
+                </div>
+                `}
+                <div class="flex justify-between items-center py-2 border-b border-gray-700/50">
+                    <span class="text-gray-400">Registration Type</span>
                     <span class="font-semibold capitalize">${guest.entry_type}</span>
                 </div>
                 <div class="flex justify-between items-center py-2 border-b border-gray-700/50">
@@ -1231,8 +1406,17 @@ function renderAllRegistrations(guests) {
              onclick="showGuestDetailModal('${g.id}', 'all')">
             <div class="flex items-center justify-between">
                 <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="px-2 py-0.5 rounded text-xs ${g.guest_type === '41er' ? 'bg-purple-900/50 text-purple-400' : 'bg-blue-900/50 text-blue-400'}">
+                            ${g.guest_type === '41er' ? "41'er" : 'Tabler'}
+                        </span>
+                        <span class="text-xs text-gray-500 capitalize">${g.entry_type}</span>
+                    </div>
                     <h4 class="font-semibold text-white truncate">${escapeHtml(g.guest_name)}</h4>
                     <p class="text-sm text-gray-400">${g.mobile_number}</p>
+                    <p class="text-xs text-gray-500 mt-1">
+                        ${g.guest_type === 'tabler' ? `📋 ${escapeHtml(g.table_name || '')} #${escapeHtml(g.table_number || '')}` : `🏛️ ${escapeHtml(g.club_name || '')} #${escapeHtml(g.club_number || '')}`}
+                    </p>
                 </div>
                 <div class="flex items-center gap-2 ml-3">
                     ${getStatusBadgeSmall(g.status)}
@@ -1333,7 +1517,7 @@ window.generateAndShowPass = async function(guestId) {
                         ">${eventName.toUpperCase()}</h1>
                     </div>
                     <p style="color: #d4a853; font-size: 12px; letter-spacing: 2px; margin: 5px 0 0;">${eventTagline}</p>
-                    <p style="color: #f5d76e; font-size: 18px; margin: 10px 0 0;">🎫 GUEST PASS</p>
+                    <p style="color: #f5d76e; font-size: 18px; margin: 10px 0 0;">🎫 ${guest.guest_type === '41er' ? "41'ER" : 'TABLER'} PASS</p>
                 </div>
                 
                 <div style="display: flex; gap: 20px;">
@@ -1346,8 +1530,19 @@ window.generateAndShowPass = async function(guestId) {
                             <p style="color: #d4a853; font-size: 11px; margin: 0;">MOBILE</p>
                             <p style="font-size: 16px; margin: 2px 0 0;">${guest.mobile_number}</p>
                         </div>
+                        ${guest.guest_type === 'tabler' ? `
                         <div style="margin-bottom: 12px;">
-                            <p style="color: #d4a853; font-size: 11px; margin: 0;">ENTRY TYPE</p>
+                            <p style="color: #d4a853; font-size: 11px; margin: 0;">TABLE</p>
+                            <p style="font-size: 14px; margin: 2px 0 0;">${escapeHtml(guest.table_name || '')} #${escapeHtml(guest.table_number || '')}</p>
+                        </div>
+                        ` : `
+                        <div style="margin-bottom: 12px;">
+                            <p style="color: #d4a853; font-size: 11px; margin: 0;">CLUB</p>
+                            <p style="font-size: 14px; margin: 2px 0 0;">${escapeHtml(guest.club_name || '')} #${escapeHtml(guest.club_number || '')}</p>
+                        </div>
+                        `}
+                        <div style="margin-bottom: 12px;">
+                            <p style="color: #d4a853; font-size: 11px; margin: 0;">REGISTRATION TYPE</p>
                             <p style="font-size: 16px; font-weight: bold; margin: 2px 0 0; text-transform: uppercase;">${guest.entry_type}</p>
                         </div>
                     </div>
@@ -1402,7 +1597,12 @@ window.sendWhatsApp = async function() {
         const eventDate = settings.event_date || 'TBD';
         const eventVenue = settings.event_venue || 'TBD';
         
-        const message = `🎸 *${eventName.toUpperCase()} - GUEST PASS* 🎸
+        const guestTypeLabel = currentGuestForPass.guest_type === '41er' ? "41'er" : 'Tabler';
+        const orgInfo = currentGuestForPass.guest_type === 'tabler' 
+            ? `• Table: ${currentGuestForPass.table_name || ''} #${currentGuestForPass.table_number || ''}`
+            : `• Club: ${currentGuestForPass.club_name || ''} #${currentGuestForPass.club_number || ''}`;
+        
+        const message = `🎸 *${eventName.toUpperCase()} - ${guestTypeLabel.toUpperCase()} PASS* 🎸
 
 Hello ${currentGuestForPass.guest_name}!
 
@@ -1410,7 +1610,9 @@ Your registration is confirmed! ✅
 
 📋 *Details:*
 • Name: ${currentGuestForPass.guest_name}
-• Entry: ${currentGuestForPass.entry_type.toUpperCase()}
+• Type: ${guestTypeLabel}
+${orgInfo}
+• Registration: ${currentGuestForPass.entry_type.toUpperCase()}
 • Mobile: ${currentGuestForPass.mobile_number}
 
 📅 Date: ${eventDate}
@@ -2441,7 +2643,12 @@ window.downloadRegistrationsCSV = async function() {
         const csvData = guests.map(g => ({
             'Guest Name': g.guest_name,
             'Mobile': g.mobile_number,
-            'Entry Type': g.entry_type,
+            'Guest Type': g.guest_type === '41er' ? "41'er" : 'Tabler',
+            'Table Name': g.table_name || '',
+            'Table Number': g.table_number || '',
+            'Club Name': g.club_name || '',
+            'Club Number': g.club_number || '',
+            'Registration Type': g.entry_type,
             'Amount': g.ticket_price,
             'Payment Mode': g.payment_mode,
             'Payment Ref': g.payment_reference || '',
