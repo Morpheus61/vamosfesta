@@ -10,25 +10,8 @@ import QRCode from 'qrcode';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://bruwwqxeevqnbhunrhia.supabase.co';
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJydXd3cXhlZXZxbmJodW5yaGlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MzIwMjksImV4cCI6MjA4MTEwODAyOX0.dhmkH6aUudxm3eUZblRe9Iah1RWEr5fz8PzcPNqh4tw';
 
-// Create Supabase client
-let supabase = createClient(supabaseUrl, supabaseKey);
-
-// Session token management
-let sessionToken = sessionStorage.getItem('vamosfesta_session_token');
-
-// Update Supabase client with session token if exists
-function updateSupabaseClient() {
-    sessionToken = sessionStorage.getItem('vamosfesta_session_token');
-    if (sessionToken) {
-        supabase = createClient(supabaseUrl, supabaseKey, {
-            global: {
-                headers: {
-                    'x-session-token': sessionToken
-                }
-            }
-        });
-    }
-}
+// Create Supabase client (without session token initially)
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Global State
 let currentUser = null;
@@ -75,7 +58,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     if (savedUser && savedToken) {
         currentUser = JSON.parse(savedUser);
-        updateSupabaseClient(); // Add token to all requests
         await initializeApp();
     } else {
         // Show login screen if no valid session
@@ -580,7 +562,7 @@ async function handleLogin(e) {
     if (submitBtn) submitBtn.disabled = true;
     
     try {
-        // Verify username and password
+        // Verify username and password using regular anon client (no RLS issues)
         const { data: userData, error: userError } = await supabase
             .from('users')
             .select('*')
@@ -593,33 +575,9 @@ async function handleLogin(e) {
             throw new Error('Invalid username or password');
         }
         
-        // Generate secure session token
-        const sessionToken = generateSecureToken();
-        
-        // Create session in database
-        const { data: session, error: sessionError } = await supabase
-            .from('user_sessions')
-            .insert({
-                user_id: userData.id,
-                session_token: sessionToken,
-                ip_address: await getUserIP(),
-                user_agent: navigator.userAgent
-            })
-            .select()
-            .single();
-        
-        if (sessionError) {
-            console.error('Session creation error:', sessionError);
-            throw new Error('Failed to create session');
-        }
-        
         // Store session data
         currentUser = userData;
         sessionStorage.setItem('vamosfesta_user', JSON.stringify(currentUser));
-        sessionStorage.setItem('vamosfesta_session_token', sessionToken);
-        
-        // Update Supabase client with new token
-        updateSupabaseClient();
         
         errorDiv.classList.add('hidden');
         document.getElementById('loginScreen').classList.add('hidden');
@@ -634,42 +592,7 @@ async function handleLogin(e) {
     }
 }
 
-// Generate cryptographically secure random token
-function generateSecureToken() {
-    const array = new Uint8Array(32);
-    crypto.getRandomValues(array);
-    return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-}
-
-// Get user's IP address (best effort)
-async function getUserIP() {
-    try {
-        const response = await fetch('https://api.ipify.org?format=json');
-        const data = await response.json();
-        return data.ip;
-    } catch {
-        return 'unknown';
-    }
-}
-
 async function handleLogout() {
-    try {
-        // Delete session from database
-        const sessionToken = sessionStorage.getItem('vamosfesta_session_token');
-        if (sessionToken) {
-            await supabase
-                .from('user_sessions')
-                .delete()
-                .eq('session_token', sessionToken);
-        }
-    } catch (error) {
-        console.error('Logout error:', error);
-    }
-    
-    handleLogoutCleanup();
-}
-
-function handleLogoutCleanup() {
     currentUser = null;
     sessionStorage.removeItem('vamosfesta_user');
     sessionStorage.removeItem('vamosfesta_session_token');
