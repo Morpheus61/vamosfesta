@@ -5983,7 +5983,7 @@ async function scanOrderQR(video) {
                 // Load order details
                 const { data: order, error } = await supabase
                     .from('token_orders')
-                    .select('*, token_wallets(guest_name, mobile_number, token_balance), order_items:token_order_items(*, beverage_menu(name))')
+                    .select('*, token_wallets(guest_name, guest_phone, token_balance), order_items:token_order_items(*, beverage_menu(name))')
                     .eq('id', qrData.order_id)
                     .single();
                 
@@ -7634,7 +7634,7 @@ function selectGuestForTokenSale(guest) {
     
     // Get wallet balance
     const wallet = guest.token_wallets?.[0] || guest.token_wallets;
-    const balance = wallet?.balance || 0;
+    const balance = wallet?.token_balance || 0;
     
     // Update UI
     document.getElementById('invoiceGuestName').textContent = guest.guest_name || guest.name || 'Guest';
@@ -7787,7 +7787,7 @@ window.loadPendingInvoices = async function() {
     try {
         const { data: invoices, error } = await supabase
             .from('token_purchases')
-            .select('*, token_wallets(guest_name, mobile_number)')
+            .select('*, token_wallets(guest_name, guest_phone)')
             .eq('seller_id', currentUser.id)
             .eq('transaction_status', 'pending')
             .order('created_at', { ascending: false });
@@ -7903,13 +7903,12 @@ window.confirmPayment = async function(invoiceId, paymentMethod) {
         }
         
         // Credit tokens to wallet
-        const newBalance = (wallet.balance || 0) + invoice.tokens_requested;
+        const newBalance = (wallet.token_balance || 0) + invoice.tokens_requested;
         
         const { error: creditError } = await supabase
             .from('token_wallets')
             .update({ 
-                balance: newBalance,
-                last_purchase_at: new Date().toISOString()
+                token_balance: newBalance
             })
             .eq('id', wallet.id);
         
@@ -8266,7 +8265,7 @@ window.loadBarmanOrders = async function() {
             .from('token_orders')
             .select(`
                 *,
-                token_wallets!wallet_id(guest_id, guests(guest_name, mobile_number)),
+                token_wallets!wallet_id(guest_id, guest_name, guest_phone),
                 token_order_items(*, beverage_menu!menu_item_id(name, emoji))
             `)
             .eq('counter_id', counterId)
@@ -8278,7 +8277,7 @@ window.loadBarmanOrders = async function() {
             .from('token_orders')
             .select(`
                 *,
-                token_wallets!wallet_id(guest_id, guests(guest_name, mobile_number)),
+                token_wallets!wallet_id(guest_id, guest_name, guest_phone),
                 token_order_items(*, beverage_menu!menu_item_id(name, emoji))
             `)
             .eq('counter_id', counterId)
@@ -8291,7 +8290,7 @@ window.loadBarmanOrders = async function() {
             .from('token_orders')
             .select(`
                 *,
-                token_wallets!wallet_id(guest_id, guests(guest_name, mobile_number)),
+                token_wallets!wallet_id(guest_id, guest_name, guest_phone),
                 token_order_items(*, beverage_menu!menu_item_id(name, emoji))
             `)
             .eq('counter_id', counterId)
@@ -8478,14 +8477,14 @@ window.acceptOrder = async function(orderId) {
         // Get order details for notification
         const { data: order } = await supabase
             .from('token_orders')
-            .select('*, token_wallets(guests(guest_name, mobile_number)), bar_counters(counter_name)')
+            .select('*, token_wallets(guest_name, guest_phone), bar_counters(counter_name)')
             .eq('id', orderId)
             .single();
         
         if (order) {
             // Send automated WhatsApp notification to guest
-            const guestPhone = order.token_wallets?.guests?.mobile_number;
-            const guestName = order.token_wallets?.guests?.guest_name;
+            const guestPhone = order.token_wallets?.guest_phone;
+            const guestName = order.token_wallets?.guest_name;
             const counterName = order.bar_counters?.counter_name || 'Counter';
             
             if (guestPhone && guestName) {
@@ -8527,7 +8526,7 @@ window.markOrderServed = async function(orderId) {
         // Get order details first
         const { data: order } = await supabase
             .from('token_orders')
-            .select('*, token_wallets(id, balance, guests(guest_name, mobile_number))')
+            .select('*, token_wallets(id, token_balance, guest_name, guest_phone)')
             .eq('id', orderId)
             .single();
         
@@ -8548,18 +8547,18 @@ window.markOrderServed = async function(orderId) {
         // Deduct tokens from wallet (trigger should handle this, but let's be safe)
         const wallet = order.token_wallets;
         if (wallet) {
-            const newBalance = Math.max(0, (wallet.balance || 0) - order.total_tokens);
+            const newBalance = Math.max(0, (wallet.token_balance || 0) - order.total_tokens);
             
             await supabase
                 .from('token_wallets')
-                .update({ balance: newBalance })
+                .update({ token_balance: newBalance })
                 .eq('id', wallet.id);
         }
         
         // Send automated WhatsApp notification to guest
-        const guestPhone = order.token_wallets?.guests?.mobile_number;
-        const guestName = order.token_wallets?.guests?.guest_name;
-        const newBalance = Math.max(0, (wallet?.balance || 0) - order.total_tokens);
+        const guestPhone = order.token_wallets?.guest_phone;
+        const guestName = order.token_wallets?.guest_name;
+        const newBalance = Math.max(0, (wallet?.token_balance || 0) - order.total_tokens);
         
         if (guestPhone && guestName) {
             try {
@@ -8646,13 +8645,13 @@ window.confirmRejectOrder = async function() {
         // Get order details
         const { data: order } = await supabase
             .from('token_orders')
-            .select('*, token_wallets(guests(guest_name, mobile_number))')
+            .select('*, token_wallets(guest_name, guest_phone)')
             .eq('id', orderId)
             .single();
         
         // Send automated WhatsApp notification to guest
-        const guestPhone = order.token_wallets?.guests?.mobile_number;
-        const guestName = order.token_wallets?.guests?.guest_name;
+        const guestPhone = order.token_wallets?.guest_phone;
+        const guestName = order.token_wallets?.guest_name;
         
         if (guestPhone && guestName) {
             try {
@@ -8683,8 +8682,8 @@ window.confirmRejectOrder = async function() {
         
         // Notify guest
         if (order) {
-            const guestPhone = order.token_wallets?.guests?.mobile_number;
-            const guestName = order.token_wallets?.guests?.guest_name;
+            const guestPhone = order.token_wallets?.guest_phone;
+            const guestName = order.token_wallets?.guest_name;
             
             const reasonText = {
                 'item_unavailable': 'Item(s) currently unavailable',
@@ -8729,7 +8728,7 @@ window.viewOrderDetails = async function(orderId) {
             .from('token_orders')
             .select(`
                 *,
-                token_wallets(guests(guest_name, mobile_number)),
+                token_wallets(guest_name, guest_phone),
                 token_order_items(*, beverage_menu(name, emoji, token_price, measure)),
                 bar_counters(counter_name)
             `)

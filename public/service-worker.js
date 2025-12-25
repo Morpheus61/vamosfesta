@@ -3,8 +3,8 @@
 // Enables offline functionality and caching
 // =====================================================
 
-const CACHE_NAME = 'vamosfesta-v2.0.0';
-const RUNTIME_CACHE = 'vamosfesta-runtime-v2.0.0';
+const CACHE_NAME = 'vamosfesta-v2.1.0';
+const RUNTIME_CACHE = 'vamosfesta-runtime-v2.1.0';
 
 // Assets to cache immediately on install
 const PRECACHE_ASSETS = [
