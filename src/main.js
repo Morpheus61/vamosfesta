@@ -2520,31 +2520,31 @@ window.deleteUser = async function(userId, username, fullName) {
             return;
         }
         
-        // Check for related records that might prevent deletion
-        const relatedChecks = await Promise.all([
-            supabase.from('beverage_orders').select('id').eq('barman_id', userId).limit(1),
-            supabase.from('token_orders').select('id').eq('barman_id', userId).limit(1),
-            supabase.from('token_orders').select('id').eq('accepted_by', userId).limit(1)
-        ]);
-        
-        const hasRelatedRecords = relatedChecks.some(result => result.data && result.data.length > 0);
-        
-        if (hasRelatedRecords) {
-            const forceDelete = confirm(
-                `⚠️ WARNING: This user has related order records.\n\n` +
-                `These records will be orphaned (barman reference will be removed).\n\n` +
-                `Continue with deletion?`
-            );
+        // Clear all foreign key references before deleting to avoid constraint errors
+        try {
+            // Update guests registered by this user
+            await supabase.from('guests').update({ registered_by: null }).eq('registered_by', userId);
             
-            if (!forceDelete) {
-                showToast('Deletion cancelled', 'info');
-                return;
-            }
-            
-            // Clear foreign key references before deleting
+            // Update beverage orders
             await supabase.from('beverage_orders').update({ barman_id: null }).eq('barman_id', userId);
+            
+            // Update token orders
             await supabase.from('token_orders').update({ barman_id: null }).eq('barman_id', userId);
             await supabase.from('token_orders').update({ accepted_by: null }).eq('accepted_by', userId);
+            
+            // Update gate activity logs
+            await supabase.from('gate_activity_log').update({ marshall_id: null }).eq('marshall_id', userId);
+            
+            // Update marshall duties
+            await supabase.from('marshall_duties').update({ marshall_id: null }).eq('marshall_id', userId);
+            
+            // Update token purchases
+            await supabase.from('token_purchases').update({ sold_by: null }).eq('sold_by', userId);
+            
+            console.log('Cleared all foreign key references for user:', userId);
+        } catch (fkError) {
+            console.warn('Warning while clearing foreign keys:', fkError);
+            // Continue with deletion even if some FKs fail to clear
         }
         
         // Delete user
@@ -2553,14 +2553,28 @@ window.deleteUser = async function(userId, username, fullName) {
             .delete()
             .eq('id', userId);
         
-        if (error) throw error;
+        if (error) {
+            console.error('Delete error details:', error);
+            throw new Error(`Database error: ${error.message}. Code: ${error.code}`);
+        }
         
         showToast(`User "${displayName}" deleted permanently`, 'success');
         await loadSellers();
         
     } catch (error) {
         console.error('Error deleting user:', error);
-        showToast('Failed to delete user: ' + error.message, 'error');
+        
+        // Provide more specific error messages
+        let errorMsg = error.message;
+        if (error.message.includes('violates foreign key constraint')) {
+            errorMsg = 'Cannot delete user: Still has linked records in database. Contact developer.';
+        } else if (error.code === '42501') {
+            errorMsg = 'Permission denied. Only Super Admin can delete users.';
+        } else if (error.code === '23503') {
+            errorMsg = 'Cannot delete: User has dependent records that must be removed first.';
+        }
+        
+        showToast('Failed to delete user: ' + errorMsg, 'error');
     }
 };
 
