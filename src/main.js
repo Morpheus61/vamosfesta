@@ -2520,6 +2520,33 @@ window.deleteUser = async function(userId, username, fullName) {
             return;
         }
         
+        // Check for related records that might prevent deletion
+        const relatedChecks = await Promise.all([
+            supabase.from('beverage_orders').select('id').eq('barman_id', userId).limit(1),
+            supabase.from('token_orders').select('id').eq('barman_id', userId).limit(1),
+            supabase.from('token_orders').select('id').eq('accepted_by', userId).limit(1)
+        ]);
+        
+        const hasRelatedRecords = relatedChecks.some(result => result.data && result.data.length > 0);
+        
+        if (hasRelatedRecords) {
+            const forceDelete = confirm(
+                `⚠️ WARNING: This user has related order records.\n\n` +
+                `These records will be orphaned (barman reference will be removed).\n\n` +
+                `Continue with deletion?`
+            );
+            
+            if (!forceDelete) {
+                showToast('Deletion cancelled', 'info');
+                return;
+            }
+            
+            // Clear foreign key references before deleting
+            await supabase.from('beverage_orders').update({ barman_id: null }).eq('barman_id', userId);
+            await supabase.from('token_orders').update({ barman_id: null }).eq('barman_id', userId);
+            await supabase.from('token_orders').update({ accepted_by: null }).eq('accepted_by', userId);
+        }
+        
         // Delete user
         const { error } = await supabase
             .from('users')
