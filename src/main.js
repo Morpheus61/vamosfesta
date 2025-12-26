@@ -1856,7 +1856,14 @@ async function loadSellers() {
         
         // Create clean card list - clickable to expand
         container.innerHTML = usersWithStats.map(u => {
-            const roleConfig = Object.values(ROLE_CONFIG).find(r => r.dbRole === u.role || (r.flags && Object.keys(r.flags).some(k => u[k])));
+            // Detect role by username prefix FIRST, then by flags, then by dbRole
+            let roleConfig = Object.values(ROLE_CONFIG).find(r => u.username.startsWith(r.prefix));
+            if (!roleConfig) {
+                roleConfig = Object.values(ROLE_CONFIG).find(r => r.flags && Object.keys(r.flags).some(k => u[k]));
+            }
+            if (!roleConfig) {
+                roleConfig = Object.values(ROLE_CONFIG).find(r => r.dbRole === u.role);
+            }
             const roleDisplay = roleConfig ? `${roleConfig.icon} ${roleConfig.desc}` : formatRole(u.role);
             
             const statusBadge = !u.is_active 
