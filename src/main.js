@@ -815,7 +815,12 @@ async function handleRegistration(e) {
     
     const submitBtn = e.target.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Submitting...';
+    
+    // Check if we're editing an existing guest
+    const editingGuestId = e.target.dataset.editingGuestId;
+    const isEditing = !!editingGuestId;
+    
+    submitBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>${isEditing ? 'Updating...' : 'Submitting...'}`;
     
     try {
         const guestType = document.getElementById('guestType').value;
@@ -825,7 +830,7 @@ async function handleRegistration(e) {
         if (!guestType) {
             showToast('Please select a guest type (Tabler or 41\'er)', 'error');
             submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Submit Registration';
+            submitBtn.innerHTML = `<i class="fas fa-${isEditing ? 'save' : 'paper-plane'} mr-2"></i>${isEditing ? 'Update Guest' : 'Submit Registration'}`;
             return;
         }
         
@@ -841,10 +846,14 @@ async function handleRegistration(e) {
             guest_type: guestType,
             payment_mode: document.getElementById('paymentMode').value,
             payment_reference: document.getElementById('paymentReference')?.value.trim() || null,
-            ticket_price: ticketPrice,
-            registered_by: currentUser.id,
-            status: 'pending_verification'
+            ticket_price: ticketPrice
         };
+        
+        // Only set registered_by and status for new guests
+        if (!isEditing) {
+            guestData.registered_by = currentUser.id;
+            guestData.status = 'pending_verification';
+        }
         
         // Add type-specific fields
         if (guestType === 'tabler') {
@@ -854,7 +863,7 @@ async function handleRegistration(e) {
             if (!tableName || !tableNumber) {
                 showToast('Please fill in Table Name and Table Number for Tablers', 'error');
                 submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Submit Registration';
+                submitBtn.innerHTML = `<i class="fas fa-${isEditing ? 'save' : 'paper-plane'} mr-2"></i>${isEditing ? 'Update Guest' : 'Submit Registration'}`;
                 return;
             }
             
@@ -869,7 +878,7 @@ async function handleRegistration(e) {
             if (!clubName || !clubNumber) {
                 showToast('Please fill in Club Name and Club Number for 41\'ers', 'error');
                 submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Submit Registration';
+                submitBtn.innerHTML = `<i class="fas fa-${isEditing ? 'save' : 'paper-plane'} mr-2"></i>${isEditing ? 'Update Guest' : 'Submit Registration'}`;
                 return;
             }
             
@@ -879,12 +888,38 @@ async function handleRegistration(e) {
             guestData.table_number = null;
         }
         
-        const { data, error } = await supabase
-            .from('guests')
-            .insert([guestData])
-            .select();
-        
-        if (error) throw error;
+        if (isEditing) {
+            // Update existing guest
+            const { error } = await supabase
+                .from('guests')
+                .update(guestData)
+                .eq('id', editingGuestId);
+            
+            if (error) throw error;
+            
+            showToast('Guest updated successfully!', 'success');
+            
+            // Clear editing mode
+            delete e.target.dataset.editingGuestId;
+            
+            // Refresh the view
+            if (currentUser.role === 'super_admin') {
+                await loadAllRegistrations(currentStatusFilter);
+            }
+        } else {
+            // Create new guest
+            const { data, error } = await supabase
+                .from('guests')
+                .insert([guestData])
+                .select();
+            
+            if (error) throw error;
+            
+            showToast('Registration submitted successfully!', 'success');
+            
+            // Refresh my sales
+            await loadMySales();
+        }
         
         // Reset form
         e.target.reset();
@@ -894,17 +929,14 @@ async function handleRegistration(e) {
         // Reset guest type selection
         resetGuestTypeSelection();
         
-        showToast('Registration submitted successfully!', 'success');
-        
-        // Refresh my sales
-        await loadMySales();
-        
     } catch (error) {
         console.error('Registration error:', error);
-        showToast('Failed to submit registration: ' + error.message, 'error');
+        showToast('Failed to ' + (isEditing ? 'update' : 'submit') + ' registration: ' + error.message, 'error');
     } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Submit Registration';
+        // Clear any editing mode
+        delete e.target.dataset.editingGuestId;
     }
 }
 
@@ -1101,6 +1133,20 @@ window.showGuestDetailModal = async function(guestId, source = 'all') {
                     <button onclick="closeModal('guestDetailModal'); resendPass('${guest.id}')" class="vamosfesta-button w-full py-3 mt-4">
                         <i class="fab fa-whatsapp mr-2"></i>Resend Pass
                     </button>
+                `;
+            }
+            
+            // Super Admin edit/delete options (always show for SuperAdmin)
+            if (currentUser && currentUser.role === 'super_admin') {
+                actionButtons += `
+                    <div class="flex gap-2 mt-3 pt-3 border-t border-gray-700">
+                        <button onclick="closeModal('guestDetailModal'); editGuest('${guest.id}')" class="vamosfesta-button secondary flex-1 py-2 text-sm">
+                            <i class="fas fa-edit mr-2"></i>Edit Guest
+                        </button>
+                        <button onclick="closeModal('guestDetailModal'); deleteGuest('${guest.id}', '${escapeHtml(guest.guest_name)}')" class="vamosfesta-button danger flex-1 py-2 text-sm">
+                            <i class="fas fa-trash mr-2"></i>Delete
+                        </button>
+                    </div>
                 `;
             }
         }
@@ -1360,6 +1406,81 @@ window.quickReject = async function(guestId) {
     } catch (error) {
         console.error('Error rejecting:', error);
         showToast('Failed to reject', 'error');
+    }
+};
+
+// Edit Guest Function
+window.editGuest = async function(guestId) {
+    try {
+        const { data: guest, error } = await supabase
+            .from('guests')
+            .select('*')
+            .eq('id', guestId)
+            .single();
+        
+        if (error) throw error;
+        
+        // Pre-fill the registration form with guest data
+        document.getElementById('guestName').value = guest.guest_name || '';
+        document.getElementById('mobileNumber').value = guest.mobile_number || '';
+        document.getElementById('entryType').value = guest.entry_type || '';
+        document.getElementById('ticketPrice').value = guest.ticket_price || '';
+        document.getElementById('paymentMode').value = guest.payment_mode || '';
+        
+        // Set guest type
+        if (guest.guest_type === 'tabler') {
+            selectGuestType('tabler');
+            document.getElementById('tableName').value = guest.table_name || '';
+            document.getElementById('tableNumber').value = guest.table_number || '';
+        } else {
+            selectGuestType('41er');
+            document.getElementById('clubName').value = guest.club_name || '';
+            document.getElementById('clubNumber').value = guest.club_number || '';
+        }
+        
+        // Store guest ID for update
+        document.getElementById('registrationForm').dataset.editingGuestId = guestId;
+        
+        // Update form button text
+        const submitBtn = document.querySelector('#registrationForm button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Update Guest';
+        }
+        
+        // Switch to registration tab
+        showTab('tab-registration');
+        showToast('Editing guest - update details and save', 'info');
+        
+    } catch (error) {
+        console.error('Error loading guest for edit:', error);
+        showToast('Failed to load guest details', 'error');
+    }
+};
+
+// Delete Guest Function
+window.deleteGuest = async function(guestId, guestName) {
+    if (!confirm(`⚠️ DELETE GUEST?\n\nAre you sure you want to permanently delete "${guestName}"?\n\nThis action CANNOT be undone!`)) {
+        return;
+    }
+    
+    try {
+        const { error } = await supabase
+            .from('guests')
+            .delete()
+            .eq('id', guestId);
+        
+        if (error) throw error;
+        
+        showToast(`Guest "${guestName}" deleted successfully`, 'success');
+        
+        // Refresh the current view
+        if (currentUser.role === 'super_admin') {
+            await loadAllRegistrations(currentStatusFilter);
+        }
+        
+    } catch (error) {
+        console.error('Error deleting guest:', error);
+        showToast('Failed to delete guest', 'error');
     }
 };
 
