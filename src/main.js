@@ -2960,9 +2960,203 @@ window.downloadRegistrationsCSV = async function() {
 };
 
 window.downloadStatsReport = async function() {
-    // Similar to CSV but with summary stats
-    showToast('Generating report...', 'info');
-    await downloadRegistrationsCSV();
+    try {
+        showToast('Generating report...', 'info');
+        
+        // Fetch all data
+        const { data: guests, error: guestsError } = await supabase
+            .from('guests')
+            .select(`*, seller:registered_by(username, full_name)`)
+            .order('created_at', { ascending: false });
+        
+        if (guestsError) throw guestsError;
+        
+        // Calculate statistics
+        const stats = {
+            totalRegistrations: guests.length,
+            totalPax: guests.reduce((sum, g) => sum + (g.entry_type === 'couple' ? 2 : 1), 0),
+            pendingVerification: guests.filter(g => g.status === 'pending_verification').length,
+            paymentVerified: guests.filter(g => g.status === 'payment_verified').length,
+            passGenerated: guests.filter(g => g.status === 'pass_generated').length,
+            passSent: guests.filter(g => g.status === 'pass_sent').length,
+            checkedIn: guests.filter(g => g.status === 'checked_in').length,
+            rejected: guests.filter(g => g.status === 'rejected').length,
+            stagCount: guests.filter(g => g.entry_type === 'stag').length,
+            coupleCount: guests.filter(g => g.entry_type === 'couple').length,
+            verifiedRevenue: guests
+                .filter(g => ['payment_verified', 'pass_generated', 'pass_sent', 'checked_in'].includes(g.status))
+                .reduce((sum, g) => sum + (parseFloat(g.ticket_price) || 0), 0),
+            cashRevenue: guests
+                .filter(g => ['payment_verified', 'pass_generated', 'pass_sent', 'checked_in'].includes(g.status) && g.payment_mode === 'cash')
+                .reduce((sum, g) => sum + (parseFloat(g.ticket_price) || 0), 0),
+            upiRevenue: guests
+                .filter(g => ['payment_verified', 'pass_generated', 'pass_sent', 'checked_in'].includes(g.status) && g.payment_mode === 'upi')
+                .reduce((sum, g) => sum + (parseFloat(g.ticket_price) || 0), 0),
+            bankRevenue: guests
+                .filter(g => ['payment_verified', 'pass_generated', 'pass_sent', 'checked_in'].includes(g.status) && g.payment_mode === 'bank')
+                .reduce((sum, g) => sum + (parseFloat(g.ticket_price) || 0), 0)
+        };
+        
+        // Get event details from settings
+        const eventName = settings.event_name || 'Vamos Festa';
+        const eventDate = settings.event_date || 'TBD';
+        const eventVenue = settings.event_venue || 'TBD';
+        
+        // Create workbook
+        const wb = XLSX.utils.book_new();
+        
+        // === SUMMARY SHEET ===
+        const summaryData = [
+            ['VAMOS FESTA'],
+            ['EVENT STATISTICS REPORT'],
+            [''],
+            ['Event Name:', eventName],
+            ['Event Date:', eventDate],
+            ['Venue:', eventVenue],
+            ['Report Generated:', new Date().toLocaleString()],
+            [''],
+            ['OVERVIEW STATISTICS'],
+            ['Metric', 'Value'],
+            ['Total Registrations', stats.totalRegistrations],
+            ['Total PAX', stats.totalPax],
+            ['Verified Revenue', `₹${stats.verifiedRevenue.toFixed(2)}`],
+            ['Checked In', stats.checkedIn],
+            [''],
+            ['STATUS BREAKDOWN'],
+            ['Status', 'Count'],
+            ['Pending Verification', stats.pendingVerification],
+            ['Payment Verified', stats.paymentVerified],
+            ['Pass Generated', stats.passGenerated],
+            ['Pass Sent', stats.passSent],
+            ['Checked In', stats.checkedIn],
+            ['Rejected', stats.rejected],
+            [''],
+            ['ENTRY TYPE BREAKDOWN'],
+            ['Entry Type', 'Count'],
+            ['Stag Entries', stats.stagCount],
+            ['Couple Entries', stats.coupleCount],
+            [''],
+            ['PAYMENT METHOD BREAKDOWN'],
+            ['Payment Mode', 'Amount'],
+            ['Cash', `₹${stats.cashRevenue.toFixed(2)}`],
+            ['UPI', `₹${stats.upiRevenue.toFixed(2)}`],
+            ['Bank Transfer', `₹${stats.bankRevenue.toFixed(2)}`],
+            ['Total Verified', `₹${stats.verifiedRevenue.toFixed(2)}`]
+        ];
+        
+        const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+        
+        // Set column widths for summary
+        wsSummary['!cols'] = [
+            { wch: 25 },
+            { wch: 30 }
+        ];
+        
+        // Merge cells for header
+        wsSummary['!merges'] = [
+            { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }, // VAMOS FESTA
+            { s: { r: 1, c: 0 }, e: { r: 1, c: 1 } }  // EVENT STATISTICS REPORT
+        ];
+        
+        XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+        
+        // === REGISTRATIONS SHEET ===
+        const registrationsData = [
+            ['VAMOS FESTA - REGISTRATIONS DATA'],
+            ['Event:', eventName, 'Date:', eventDate, 'Venue:', eventVenue],
+            [''],
+            [
+                'Guest Name',
+                'Mobile',
+                'Guest Type',
+                'Table Name',
+                'Table Number',
+                'Club Name',
+                'Club Number',
+                'Entry Type',
+                'Amount',
+                'Payment Mode',
+                'Payment Ref',
+                'Seller',
+                'Status',
+                'Registered At',
+                'Verified At'
+            ]
+        ];
+        
+        // Add guest data or empty row
+        if (guests.length > 0) {
+            guests.forEach(g => {
+                registrationsData.push([
+                    g.guest_name,
+                    g.mobile_number,
+                    g.guest_type === '41er' ? "41'er" : 'Tabler',
+                    g.table_name || '',
+                    g.table_number || '',
+                    g.club_name || '',
+                    g.club_number || '',
+                    g.entry_type,
+                    g.ticket_price,
+                    g.payment_mode,
+                    g.payment_reference || '',
+                    g.seller?.full_name || g.seller?.username || '',
+                    g.status,
+                    formatDate(g.created_at),
+                    g.verified_at ? formatDate(g.verified_at) : ''
+                ]);
+            });
+        } else {
+            registrationsData.push(['No registrations yet', '', '', '', '', '', '', '', '', '', '', '', '', '', '']);
+        }
+        
+        const wsRegistrations = XLSX.utils.aoa_to_sheet(registrationsData);
+        
+        // Set column widths
+        wsRegistrations['!cols'] = [
+            { wch: 20 }, // Guest Name
+            { wch: 12 }, // Mobile
+            { wch: 12 }, // Guest Type
+            { wch: 15 }, // Table Name
+            { wch: 12 }, // Table Number
+            { wch: 20 }, // Club Name
+            { wch: 12 }, // Club Number
+            { wch: 10 }, // Entry Type
+            { wch: 10 }, // Amount
+            { wch: 12 }, // Payment Mode
+            { wch: 15 }, // Payment Ref
+            { wch: 15 }, // Seller
+            { wch: 18 }, // Status
+            { wch: 18 }, // Registered At
+            { wch: 18 }  // Verified At
+        ];
+        
+        // Merge cells for header
+        wsRegistrations['!merges'] = [
+            { s: { r: 0, c: 0 }, e: { r: 0, c: 14 } } // Title
+        ];
+        
+        XLSX.utils.book_append_sheet(wb, wsRegistrations, 'Registrations');
+        
+        // Generate Excel file
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        
+        // Download
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `VamosFesta-Report-${formatDateForFile()}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showToast('Report downloaded successfully!', 'success');
+        
+    } catch (error) {
+        console.error('Error generating report:', error);
+        showToast('Failed to generate report', 'error');
+    }
 };
 
 // =====================================================
