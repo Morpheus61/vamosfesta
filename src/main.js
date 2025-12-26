@@ -1856,14 +1856,35 @@ async function loadSellers() {
         
         // Create clean card list - clickable to expand
         container.innerHTML = usersWithStats.map(u => {
-            // Detect role by username prefix FIRST, then by flags, then by dbRole
-            let roleConfig = Object.values(ROLE_CONFIG).find(r => u.username.startsWith(r.prefix));
+            // Detect role: Check database role FIRST for super_admin, then username prefix (longest first), then flags
+            let roleConfig = null;
+            
+            // Priority 1: If database role is super_admin, use that
+            if (u.role === 'super_admin') {
+                roleConfig = ROLE_CONFIG['super_admin'];
+            }
+            
+            // Priority 2: Check username prefix (longest matches first to avoid Admin matching before SuperAdmin)
+            if (!roleConfig) {
+                const prefixes = Object.values(ROLE_CONFIG).map(r => r.prefix).sort((a, b) => b.length - a.length);
+                for (const prefix of prefixes) {
+                    if (u.username.startsWith(prefix)) {
+                        roleConfig = Object.values(ROLE_CONFIG).find(r => r.prefix === prefix);
+                        break;
+                    }
+                }
+            }
+            
+            // Priority 3: Check flags (overseer, barman, etc.)
             if (!roleConfig) {
                 roleConfig = Object.values(ROLE_CONFIG).find(r => r.flags && Object.keys(r.flags).some(k => u[k]));
             }
+            
+            // Priority 4: Fallback to database role
             if (!roleConfig) {
                 roleConfig = Object.values(ROLE_CONFIG).find(r => r.dbRole === u.role);
             }
+            
             const roleDisplay = roleConfig ? `${roleConfig.icon} ${roleConfig.desc}` : formatRole(u.role);
             
             const statusBadge = !u.is_active 
