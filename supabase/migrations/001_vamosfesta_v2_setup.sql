@@ -41,7 +41,7 @@ INSERT INTO settings (setting_key, setting_value, description) VALUES
     ('stag_price', '2750', 'Ticket price for Stag entry'),
     ('couple_price', '4750', 'Ticket price for Couple entry'),
     ('event_name', 'Vamos Festa', 'Event name'),
-    ('event_tagline', '¡Viva la Fiesta!', 'Event tagline'),
+    ('event_tagline', '¡Viva La Festa!', 'Event tagline'),
     ('event_date', 'February 7, 2026', 'Event date'),
     ('event_venue', 'AREA 8 MTM', 'Event venue'),
     ('upi_id', '', 'UPI ID for payments (shown to sellers)'),

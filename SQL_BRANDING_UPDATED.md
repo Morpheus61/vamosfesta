@@ -27,7 +27,7 @@ NEW: supabase/migrations/001_vamosfesta_v2_setup.sql
 - NEW: `'Vamos Festa'`
 
 **Event Tagline:**
-- OLD: `'Harmony for Humanity'`
+- OLD: `'Viva La Festa'`
 - NEW: `'¡Viva la Fiesta!'`
 
 **Event Date:**

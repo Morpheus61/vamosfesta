@@ -476,7 +476,7 @@ window.sharePaymentInfo = function() {
     const couplePrice = settings.couple_price || '4750';
     
     let message = `🎸 *${eventName.toUpperCase()}* 🎸\n`;
-    message += `_Harmony for Humanity_\n\n`;
+    message += `_Viva La Fesa_\n\n`;
     message += `💰 *PAYMENT INFORMATION*\n\n`;
     
     message += `🎫 *Ticket Prices:*\n`;
@@ -1626,7 +1626,7 @@ window.generateAndShowPass = async function(guestId) {
         
         // Render pass preview
         const eventName = settings.event_name || 'Vamos Festa';
-        const eventTagline = settings.event_tagline || 'Harmony for Humanity';
+        const eventTagline = settings.event_tagline || 'Viva La Festa';
         const eventDate = settings.event_date || 'TBD';
         const eventVenue = settings.event_venue || 'TBD';
         
@@ -1759,7 +1759,7 @@ Please show this pass and QR code at the entrance.
 
 See you at the event! 🎵
 
-_Harmony for Humanity_`;
+_Viva La Festa_`;
         
         const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');

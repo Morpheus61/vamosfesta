@@ -1,7 +1,7 @@
 {
   "name": "Vamos Festa - Event Management",
   "short_name": "VamosFesta",
-  "description": "Complete event management system with SipToken beverage sales - ¡Viva la Fiesta!",
+  "description": "Complete event management system with SipToken beverage sales - ¡Viva la Festa!",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

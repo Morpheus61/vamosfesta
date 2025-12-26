@@ -340,7 +340,7 @@ ${portalLink}
 
 See you at the festa! 🎊
 
-_Vamos Festa - ¡Viva la Fiesta!_`;
+_Vamos Festa - ¡Viva la Festa!_`;
 
     return sendWhatsAppMessage(guestPhone, message, 'guest_welcome');
 }

@@ -27,8 +27,8 @@ NEW: supabase/migrations/001_vamosfesta_v2_setup.sql
 - NEW: `'Vamos Festa'`
 
 **Event Tagline:**
-- OLD: `'Harmony for Humanity'`
-- NEW: `'¡Viva la Fiesta!'`
+- OLD: `''`
+- NEW: `'¡Viva la Festa!'`
 
 **Event Date:**
 - OLD: `'TBD'`
@@ -112,4 +112,4 @@ All references to "Rock 4 One" have been replaced with "Vamos Festa" branding:
 
 ---
 
-🎉 **¡Viva la Fiesta!** 🌮
+🎉 **¡Viva la Festa!** 🌮
