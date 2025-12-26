@@ -1933,13 +1933,21 @@ async function loadSellers() {
                                     <i class="fas fa-edit mr-1"></i>Edit
                                 </button>
                                 <button onclick="event.stopPropagation(); deactivateUser('${u.id}', '${escapeHtml(u.username)}', '${escapeHtml(u.full_name || u.username)}')" 
-                                        class="vamosfesta-button danger text-xs ml-auto">
+                                        class="vamosfesta-button danger text-xs">
                                     <i class="fas fa-user-slash mr-1"></i>Deactivate
+                                </button>
+                                <button onclick="event.stopPropagation(); deleteUser('${u.id}', '${escapeHtml(u.username)}', '${escapeHtml(u.full_name || u.username)}')" 
+                                        class="vamosfesta-button danger text-xs ml-auto">
+                                    <i class="fas fa-trash mr-1"></i>Delete
                                 </button>
                             ` : `
                                 <button onclick="event.stopPropagation(); reactivateUser('${u.id}', '${escapeHtml(u.username)}', '${escapeHtml(u.full_name || u.username)}')" 
                                         class="vamosfesta-button success text-xs">
                                     <i class="fas fa-user-check mr-1"></i>Reactivate
+                                </button>
+                                <button onclick="event.stopPropagation(); deleteUser('${u.id}', '${escapeHtml(u.username)}', '${escapeHtml(u.full_name || u.username)}')" 
+                                        class="vamosfesta-button danger text-xs ml-auto">
+                                    <i class="fas fa-trash mr-1"></i>Delete
                                 </button>
                             `}
                         </div>
@@ -2476,6 +2484,59 @@ window.toggleUserStatus = async function(userId, newStatus) {
     }
 };
 
+// Delete user permanently
+window.deleteUser = async function(userId, username, fullName) {
+    const displayName = fullName || username;
+    
+    if (!confirm(`⚠️ PERMANENT DELETE\n\nAre you sure you want to permanently delete user "${displayName}"?\n\nThis will:\n- Remove the user account\n- Delete all associated data\n- Cannot be undone\n\nType "DELETE" to confirm.`)) {
+        return;
+    }
+    
+    // Double confirmation
+    const confirmation = prompt(`Type "DELETE" to confirm permanent deletion of ${displayName}:`);
+    if (confirmation !== 'DELETE') {
+        showToast('Deletion cancelled', 'info');
+        return;
+    }
+    
+    try {
+        // Check if user has any registrations
+        const { data: registrations, error: checkError } = await supabase
+            .from('guests')
+            .select('id')
+            .eq('registered_by', userId);
+        
+        if (checkError) throw checkError;
+        
+        if (registrations && registrations.length > 0) {
+            if (!confirm(`This user has ${registrations.length} guest registration(s). Delete anyway?`)) {
+                return;
+            }
+        }
+        
+        // Prevent deleting yourself
+        if (currentUser.id === userId) {
+            showToast('Cannot delete your own account', 'error');
+            return;
+        }
+        
+        // Delete user
+        const { error } = await supabase
+            .from('users')
+            .delete()
+            .eq('id', userId);
+        
+        if (error) throw error;
+        
+        showToast(`User "${displayName}" deleted permanently`, 'success');
+        await loadSellers();
+        
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        showToast('Failed to delete user: ' + error.message, 'error');
+    }
+};
+
 // =====================================================
 // ADMIN: READ-ONLY VIEWS
 // =====================================================
@@ -2561,6 +2622,18 @@ function renderAdminRegistrations(guests) {
                             <span class="text-gray-400">Verified:</span>
                             <p class="font-semibold">${formatDate(g.verified_at)}</p>
                         </div>` : ''}
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="flex gap-2 pt-3">
+                        <button onclick="event.stopPropagation(); editGuest('${g.id}')" 
+                                class="flex-1 btn-secondary text-sm py-2">
+                            <i class="fas fa-edit mr-1"></i> Edit Guest
+                        </button>
+                        <button onclick="event.stopPropagation(); deleteGuest('${g.id}')" 
+                                class="flex-1 btn-danger text-sm py-2">
+                            <i class="fas fa-trash mr-1"></i> Delete
+                        </button>
                     </div>
                 </div>
             </div>
