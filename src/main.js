@@ -2541,6 +2541,19 @@ window.deleteUser = async function(userId, username, fullName) {
             // Update token purchases
             await supabase.from('token_purchases').update({ sold_by: null }).eq('sold_by', userId);
             
+            // Update bar counters (created_by foreign key)
+            await supabase.from('bar_counters').update({ created_by: null }).eq('created_by', userId);
+            
+            // Update clockin_tokens
+            await supabase.from('clockin_tokens').update({ created_by: null }).eq('created_by', userId);
+            
+            // Update entry_gates
+            await supabase.from('entry_gates').update({ created_by: null }).eq('created_by', userId);
+            
+            // Update users table references (deactivated_by, created_by)
+            await supabase.from('users').update({ deactivated_by: null }).eq('deactivated_by', userId);
+            await supabase.from('users').update({ created_by: null }).eq('created_by', userId);
+            
             console.log('Cleared all foreign key references for user:', userId);
         } catch (fkError) {
             console.warn('Warning while clearing foreign keys:', fkError);
