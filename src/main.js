@@ -494,7 +494,7 @@ window.sharePaymentInfo = function() {
     }
     
     if (settings.payment_qr_code) {
-        message += `📲 *QR Code:* I'll send the payment QR code separately.\n\n`;
+        message += `📲 *QR Code:* The payment QR code is attached above.\n\n`;
     }
     
     message += `✅ After payment, please share:\n`;
