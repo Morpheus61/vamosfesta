@@ -476,7 +476,7 @@ window.sharePaymentInfo = function() {
     const couplePrice = settings.couple_price || '4750';
     
     let message = `🎸 *${eventName.toUpperCase()}* 🎸\n`;
-    message += `_Viva La Fesa_\n\n`;
+    message += `_Viva La Festa_\n\n`;
     message += `💰 *PAYMENT INFORMATION*\n\n`;
     
     message += `🎫 *Ticket Prices:*\n`;
@@ -696,19 +696,57 @@ function updateRegistrationForm() {
     const paymentMode = document.getElementById('paymentMode');
     const priceDisplay = document.getElementById('priceDisplay');
     const ticketPrice = document.getElementById('ticketPrice');
+    const basePrice = document.getElementById('basePrice');
     const paymentRefSection = document.getElementById('paymentRefSection');
     const paymentReference = document.getElementById('paymentReference');
     const refLabel = document.getElementById('refLabel');
+    
+    // Child registration elements
+    const childRegistrationSection = document.getElementById('childRegistrationSection');
+    const childCount = document.getElementById('childCount');
+    const childPricePerUnit = document.getElementById('childPricePerUnit');
+    const childPriceDisplay = document.getElementById('childPriceDisplay');
+    const childCountDisplay = document.getElementById('childCountDisplay');
+    const childTotalPrice = document.getElementById('childTotalPrice');
     
     // Update price display
     if (entryType.value) {
         const price = entryType.value === 'stag' 
             ? (settings.stag_price || '2750') 
             : (settings.couple_price || '4750');
-        ticketPrice.textContent = price;
+        
+        // Calculate child pricing
+        const childPrice = parseInt(settings.child_registration_price || '1500');
+        const childQuantity = parseInt(childCount?.value || 0);
+        const childTotal = childPrice * childQuantity;
+        const totalPrice = parseInt(price) + childTotal;
+        
+        // Update base price
+        if (basePrice) basePrice.textContent = price;
+        
+        // Update child price per unit display
+        if (childPricePerUnit) childPricePerUnit.textContent = childPrice;
+        
+        // Show/hide child registration section
+        if (childRegistrationSection) {
+            childRegistrationSection.classList.remove('hidden');
+        }
+        
+        // Update child price breakdown
+        if (childQuantity > 0 && childPriceDisplay) {
+            childPriceDisplay.classList.remove('hidden');
+            if (childCountDisplay) childCountDisplay.textContent = childQuantity;
+            if (childTotalPrice) childTotalPrice.textContent = childTotal;
+        } else if (childPriceDisplay) {
+            childPriceDisplay.classList.add('hidden');
+        }
+        
+        // Update total ticket price
+        ticketPrice.textContent = totalPrice;
         priceDisplay.classList.remove('hidden');
     } else {
         priceDisplay.classList.add('hidden');
+        if (childRegistrationSection) childRegistrationSection.classList.add('hidden');
     }
     
     // Show/hide payment reference based on mode
@@ -838,6 +876,12 @@ async function handleRegistration(e) {
             ? parseInt(settings.stag_price || 2750) 
             : parseInt(settings.couple_price || 4750);
         
+        // Get child registration data
+        const childCount = parseInt(document.getElementById('childCount')?.value || 0);
+        const childPricePerUnit = parseInt(settings.child_registration_price || 1500);
+        const childTotalPrice = childCount * childPricePerUnit;
+        const totalPrice = ticketPrice + childTotalPrice;
+        
         // Build guest data based on guest type
         const guestData = {
             guest_name: document.getElementById('guestName').value.trim(),
@@ -846,7 +890,9 @@ async function handleRegistration(e) {
             guest_type: guestType,
             payment_mode: document.getElementById('paymentMode').value,
             payment_reference: document.getElementById('paymentReference')?.value.trim() || null,
-            ticket_price: ticketPrice
+            ticket_price: totalPrice,
+            child_count: childCount,
+            child_price: childTotalPrice
         };
         
         // Only set registered_by and status for new guests
@@ -925,6 +971,11 @@ async function handleRegistration(e) {
         e.target.reset();
         document.getElementById('priceDisplay').classList.add('hidden');
         document.getElementById('paymentRefSection').classList.add('hidden');
+        document.getElementById('childRegistrationSection')?.classList.add('hidden');
+        
+        // Reset child count
+        const childCountInput = document.getElementById('childCount');
+        if (childCountInput) childCountInput.value = 0;
         
         // Reset guest type selection
         resetGuestTypeSelection();
@@ -1072,7 +1123,10 @@ async function loadVerificationQueue(filter = 'all') {
                         <span class="px-2 py-1 rounded text-xs ${g.payment_mode === 'cash' ? 'bg-green-900/50 text-green-400' : g.payment_mode === 'upi' ? 'bg-blue-900/50 text-blue-400' : 'bg-purple-900/50 text-purple-400'}">
                             ${g.payment_mode === 'cash' ? '💵' : g.payment_mode === 'upi' ? '📱' : '🏦'} ${g.payment_mode.toUpperCase()}
                         </span>
-                        <span class="text-yellow-400 font-bold">₹${g.ticket_price?.toLocaleString()}</span>
+                        <div class="text-right">
+                            ${g.child_count > 0 ? `<p class="text-xs text-purple-400"><i class="fas fa-child mr-1"></i>${g.child_count} child(ren)</p>` : ''}
+                            <span class="text-yellow-400 font-bold">₹${g.ticket_price?.toLocaleString()}</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1190,8 +1244,14 @@ window.showGuestDetailModal = async function(guestId, source = 'all') {
                     <span class="text-gray-400">Registration Type</span>
                     <span class="font-semibold capitalize">${guest.entry_type}</span>
                 </div>
+                ${guest.child_count > 0 ? `
+                <div class="flex justify-between items-center py-2 border-b border-gray-700/50 bg-purple-900/20">
+                    <span class="text-purple-400"><i class="fas fa-child mr-1"></i>Children (12+ yrs)</span>
+                    <span class="font-semibold text-purple-300">${guest.child_count} × ₹${(guest.child_price / guest.child_count).toLocaleString()} = ₹${guest.child_price.toLocaleString()}</span>
+                </div>
+                ` : ''}
                 <div class="flex justify-between items-center py-2 border-b border-gray-700/50">
-                    <span class="text-gray-400">Amount</span>
+                    <span class="text-gray-400">${guest.child_count > 0 ? 'Total Amount' : 'Amount'}</span>
                     <span class="font-bold text-yellow-400">₹${guest.ticket_price?.toLocaleString()}</span>
                 </div>
                 <div class="flex justify-between items-center py-2 border-b border-gray-700/50">
