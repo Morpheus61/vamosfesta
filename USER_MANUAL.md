@@ -466,7 +466,7 @@ Use dropdown to filter:
 1. Click **Settings** tab
 2. Update:
    - **Event Name**: Display name (e.g., "Rock 4 One")
-   - **Event Tagline**: Subtitle (e.g., "Harmony for Humanity")
+   - **Event Tagline**: Subtitle (e.g., "Viva La Festa")
    - **Event Date**: When event occurs
    - **Event Venue**: Location details
 

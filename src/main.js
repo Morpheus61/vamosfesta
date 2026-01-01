@@ -474,6 +474,7 @@ window.sharePaymentInfo = function() {
     const bankDetails = settings.bank_details || '';
     const stagPrice = settings.stag_price || '2750';
     const couplePrice = settings.couple_price || '4750';
+    const childPrice = settings.child_registration_price || '1500';
     
     let message = `🎸 *${eventName.toUpperCase()}* 🎸\n`;
     message += `_Viva La Festa_\n\n`;
@@ -481,7 +482,8 @@ window.sharePaymentInfo = function() {
     
     message += `🎫 *Ticket Prices:*\n`;
     message += `• Stag: ₹${parseInt(stagPrice).toLocaleString()}\n`;
-    message += `• Couple: ₹${parseInt(couplePrice).toLocaleString()}\n\n`;
+    message += `• Couple: ₹${parseInt(couplePrice).toLocaleString()}\n`;
+    message += `• Child Registration (12+ years): ₹${parseInt(childPrice).toLocaleString()}\n\n`;
     
     if (upiId) {
         message += `📱 *UPI ID:*\n`;
@@ -1799,6 +1801,16 @@ window.sendWhatsApp = async function() {
             ? `• Table: ${currentGuestForPass.table_name || ''} #${currentGuestForPass.table_number || ''}`
             : `• Club: ${currentGuestForPass.club_name || ''} #${currentGuestForPass.club_number || ''}`;
         
+        // Build pricing info
+        let pricingInfo = '';
+        if (currentGuestForPass.child_count > 0) {
+            const childPricePerUnit = parseInt(settings.child_registration_price || 1500);
+            pricingInfo = `\n💰 *Ticket Pricing:*
+• ${currentGuestForPass.entry_type === 'stag' ? 'Stag' : 'Couple'} Entry: ₹${currentGuestForPass.entry_type === 'stag' ? settings.stag_price : settings.couple_price}
+• Child Registration (12+ years): ${currentGuestForPass.child_count} × ₹${childPricePerUnit} = ₹${currentGuestForPass.child_price || (currentGuestForPass.child_count * childPricePerUnit)}
+• *Total Amount: ₹${currentGuestForPass.total_amount}*\n`;
+        }
+        
         const message = `🎸 *${eventName.toUpperCase()} - ${guestTypeLabel.toUpperCase()} PASS* 🎸
 
 Hello ${currentGuestForPass.guest_name}!
@@ -1810,7 +1822,7 @@ Your registration is confirmed! ✅
 • Type: ${guestTypeLabel}
 ${orgInfo}
 • Registration: ${currentGuestForPass.entry_type.toUpperCase()}
-• Mobile: ${currentGuestForPass.mobile_number}
+• Mobile: ${currentGuestForPass.mobile_number}${pricingInfo}
 
 📅 Date: ${eventDate}
 📍 Venue: ${eventVenue}

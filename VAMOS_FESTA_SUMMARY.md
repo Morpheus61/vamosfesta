@@ -5,7 +5,7 @@
 ### Event Branding
 | Rock4One | Vamos Festa |
 |----------|-------------|
-| Harmony for Humanity | ¡Viva la Fiesta! |
+| Viva La Festa | ¡Viva la Fiesta! |
 | Rock concert theme | Latin/Mexican fiesta |
 | Gold & dark colors | Orange, Turquoise, Yellow |
 | 🎸 Guitar icon | 🎉 Fiesta icon |
