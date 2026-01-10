@@ -1509,7 +1509,7 @@ window.editGuest = async function(guestId) {
         }
         
         // Switch to registration tab
-        showTab('tab-registration');
+        showTab('register');
         showToast('Editing guest - update details and save', 'info');
         
     } catch (error) {
