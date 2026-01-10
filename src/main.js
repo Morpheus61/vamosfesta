@@ -7981,7 +7981,7 @@ window.editUser = async function(userId) {
         
         document.getElementById('userFullName').value = user.full_name || '';
         document.getElementById('userPassword').value = '';  // Don't show password
-        document.getElementById('userMobile').value = user.phone || '';
+        document.getElementById('userMobile').value = user.mobile_number || '';
         document.getElementById('userClubName').value = user.club_name || '';
         document.getElementById('userClubNumber').value = user.club_number || '';
         
