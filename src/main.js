@@ -1484,9 +1484,8 @@ window.editGuest = async function(guestId) {
         
         // Pre-fill the registration form with guest data
         document.getElementById('guestName').value = guest.guest_name || '';
-        document.getElementById('mobileNumber').value = guest.mobile_number || '';
+        document.getElementById('guestMobile').value = guest.mobile_number || '';
         document.getElementById('entryType').value = guest.entry_type || '';
-        document.getElementById('ticketPrice').value = guest.ticket_price || '';
         document.getElementById('paymentMode').value = guest.payment_mode || '';
         
         // Set guest type
@@ -1496,8 +1495,8 @@ window.editGuest = async function(guestId) {
             document.getElementById('tableNumber').value = guest.table_number || '';
         } else {
             selectGuestType('41er');
-            document.getElementById('clubName').value = guest.club_name || '';
-            document.getElementById('clubNumber').value = guest.club_number || '';
+            document.getElementById('guestClubName').value = guest.club_name || '';
+            document.getElementById('guestClubNumber').value = guest.club_number || '';
         }
         
         // Store guest ID for update
