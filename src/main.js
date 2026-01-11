@@ -4350,7 +4350,13 @@ document.getElementById('gateForm')?.addEventListener('submit', async (e) => {
         
     } catch (error) {
         console.error('Error saving gate:', error);
-        showToast('Failed to save gate: ' + error.message, 'error');
+        
+        // Handle duplicate gate code error
+        if (error.code === '23505') {
+            showToast('Gate code already exists! Please use a different code.', 'error');
+        } else {
+            showToast('Failed to save gate: ' + error.message, 'error');
+        }
     }
 });
 
@@ -5701,8 +5707,30 @@ window.showAssignMarshallModal = async function(marshallId) {
         gateSelect.innerHTML = '<option value="">-- Select Gate --</option>' +
             assignments.map(a => `<option value="${a.gate_id}">${escapeHtml(a.entry_gates.gate_name)} (${a.entry_gates.gate_code})</option>`).join('');
         
-        // Store marshall ID in hidden field or data attribute
-        document.getElementById('assignMarshallForm').dataset.marshallId = marshallId;
+        const marshallSelect = document.getElementById('marshallSelect');
+        const marshallSelectDiv = marshallSelect.parentElement;
+        
+        if (marshallId) {
+            // Hide marshall dropdown when specific marshall is being assigned
+            marshallSelectDiv.style.display = 'none';
+            document.getElementById('assignMarshallForm').dataset.marshallId = marshallId;
+        } else {
+            // Load all active entry marshalls into dropdown
+            marshallSelectDiv.style.display = 'block';
+            const { data: marshalls, error: marshallError } = await supabase
+                .from('users')
+                .select('id, full_name, username')
+                .eq('role', 'entry_marshall')
+                .eq('is_active', true)
+                .order('full_name');
+            
+            if (marshallError) throw marshallError;
+            
+            marshallSelect.innerHTML = '<option value="">-- Select Marshall --</option>' +
+                marshalls.map(m => `<option value="${m.id}">${escapeHtml(m.full_name)} (${escapeHtml(m.username)})</option>`).join('');
+            
+            document.getElementById('assignMarshallForm').dataset.marshallId = '';
+        }
         
         openModal('assignMarshallModal');
         
@@ -5715,9 +5743,20 @@ window.showAssignMarshallModal = async function(marshallId) {
 document.getElementById('assignMarshallForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    const marshallId = e.target.dataset.marshallId;
+    let marshallId = e.target.dataset.marshallId;
+    
+    // If marshallId wasn't pre-selected, get it from dropdown
+    if (!marshallId) {
+        marshallId = document.getElementById('marshallSelect').value;
+    }
+    
     const gateId = document.getElementById('gateAssignSelect').value;
     const notes = document.getElementById('assignmentNotes').value.trim();
+    
+    if (!marshallId) {
+        showToast('Please select a marshall', 'error');
+        return;
+    }
     
     if (!gateId) {
         showToast('Please select a gate', 'error');
@@ -5912,7 +5951,7 @@ async function loadClockoutRequests() {
         
         const { data: requests, error } = await supabase
             .from('clockout_requests')
-            .select('*, users!user_id(full_name), entry_gates!gate_id(gate_name, gate_code)')
+            .select('*, users!marshall_id(full_name), entry_gates!gate_id(gate_name, gate_code)')
             .in('gate_id', gateIds)
             .eq('status', 'pending')
             .order('created_at', { ascending: false });
