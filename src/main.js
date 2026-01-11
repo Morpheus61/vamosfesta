@@ -5713,10 +5713,12 @@ window.showAssignMarshallModal = async function(marshallId) {
         if (marshallId) {
             // Hide marshall dropdown when specific marshall is being assigned
             marshallSelectDiv.style.display = 'none';
+            marshallSelect.removeAttribute('required');
             document.getElementById('assignMarshallForm').dataset.marshallId = marshallId;
         } else {
             // Load all active entry marshalls into dropdown
             marshallSelectDiv.style.display = 'block';
+            marshallSelect.setAttribute('required', '');
             const { data: marshalls, error: marshallError } = await supabase
                 .from('users')
                 .select('id, full_name, username')
