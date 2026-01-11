@@ -5,6 +5,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import QRCode from 'qrcode';
+import QrScanner from 'qr-scanner';
 
 // Supabase Configuration - Use environment variables or fallback to hardcoded values
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://bruwwqxeevqnbhunrhia.supabase.co';
@@ -3577,22 +3578,17 @@ window.clockIn = async function() {
         video.srcObject = stream;
         video.play();
         
-        // Use qr-scanner library if available
-        if (window.QrScanner) {
-            const qrScanner = new QrScanner(
-                video,
-                result => processClockInToken(result.data, qrScanner, stream),
-                {
-                    returnDetailedScanResult: true,
-                    highlightScanRegion: true,
-                    highlightCodeOutline: true
-                }
-            );
-            qrScanner.start();
-        } else {
-            showToast('QR Scanner not available', 'error');
-            stopClockinScanner();
-        }
+        // Use imported qr-scanner library
+        const qrScanner = new QrScanner(
+            video,
+            result => processClockInToken(result.data, qrScanner, stream),
+            {
+                returnDetailedScanResult: true,
+                highlightScanRegion: true,
+                highlightCodeOutline: true
+            }
+        );
+        qrScanner.start();
         
     } catch (error) {
         console.error('Error accessing camera:', error);
@@ -3868,13 +3864,6 @@ window.startQRScanner = async function() {
         
         video.srcObject = stream;
         video.play();
-        
-        if (!window.QrScanner) {
-            const script = document.createElement('script');
-            script.src = 'https://unpkg.com/qr-scanner@1.4.2/qr-scanner.umd.min.js';
-            document.head.appendChild(script);
-            await new Promise(resolve => script.onload = resolve);
-        }
         
         qrScanner = new QrScanner(video, result => {
             processQRCode(result.data);
