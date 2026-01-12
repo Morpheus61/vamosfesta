@@ -4007,7 +4007,7 @@ async function processEntry(guest) {
     
     try {
         // Update guest status
-        await supabase
+        const { error: updateError } = await supabase
             .from('guests')
             .update({
                 status: 'checked_in',
@@ -4019,8 +4019,12 @@ async function processEntry(guest) {
             })
             .eq('id', guest.id);
         
+        if (updateError) {
+            console.error('Error updating guest for entry:', updateError);
+        }
+        
         // Log movement
-        await supabase
+        const { error: movementError } = await supabase
             .from('guest_movements')
             .insert({
                 guest_id: guest.id,
@@ -4028,6 +4032,10 @@ async function processEntry(guest) {
                 marshall_id: currentUser.id,
                 movement_type: 'entry'
             });
+        
+        if (movementError) {
+            console.error('Error inserting entry movement:', movementError);
+        }
         
         const entryNum = (guest.entry_count || 0) + 1;
         const reentryNote = entryNum > 1 ? `<br><span class="text-sm text-yellow-400">(Re-entry #${entryNum})</span>` : '';
@@ -4054,7 +4062,7 @@ async function processExit(guest) {
     
     try {
         // Update guest status
-        await supabase
+        const { error: updateError } = await supabase
             .from('guests')
             .update({
                 is_inside_venue: false,
@@ -4062,8 +4070,12 @@ async function processExit(guest) {
             })
             .eq('id', guest.id);
         
+        if (updateError) {
+            console.error('Error updating guest status:', updateError);
+        }
+        
         // Log movement
-        await supabase
+        const { error: movementError } = await supabase
             .from('guest_movements')
             .insert({
                 guest_id: guest.id,
@@ -4071,6 +4083,10 @@ async function processExit(guest) {
                 marshall_id: currentUser.id,
                 movement_type: 'exit'
             });
+        
+        if (movementError) {
+            console.error('Error inserting exit movement:', movementError);
+        }
         
         showCheckinResult(true, 'Exit Recorded', 
             `<strong>${guest.guest_name}</strong> has exited.<br>
@@ -4439,18 +4455,26 @@ async function loadGateCards() {
                 .eq('status', 'on_duty');
             
             // Get entries at this gate
-            const { count: entryCount } = await supabase
+            const { count: entryCount, error: entryError } = await supabase
                 .from('guest_movements')
                 .select('*', { count: 'exact', head: true })
                 .eq('gate_id', gate.id)
                 .eq('movement_type', 'entry');
             
+            if (entryError) {
+                console.error('Error fetching entry count for gate', gate.gate_name, entryError);
+            }
+            
             // Get exits at this gate
-            const { count: exitCount } = await supabase
+            const { count: exitCount, error: exitError } = await supabase
                 .from('guest_movements')
                 .select('*', { count: 'exact', head: true })
                 .eq('gate_id', gate.id)
                 .eq('movement_type', 'exit');
+            
+            if (exitError) {
+                console.error('Error fetching exit count for gate', gate.gate_name, exitError);
+            }
             
             const marshallNames = marshalls?.map(m => m.marshall?.full_name).filter(Boolean).join(', ') || 'No marshalls';
             const hasMarshall = marshalls && marshalls.length > 0;
@@ -4653,18 +4677,26 @@ async function loadGateStats() {
                 .eq('status', 'on_duty');
             
             // Get entries at this gate
-            const { count: entryCount } = await supabase
+            const { count: entryCount, error: entryError } = await supabase
                 .from('guest_movements')
                 .select('*', { count: 'exact', head: true })
                 .eq('gate_id', gate.id)
                 .eq('movement_type', 'entry');
             
+            if (entryError) {
+                console.error('Error fetching entry count for gate stats', gate.gate_name, entryError);
+            }
+            
             // Get exits at this gate
-            const { count: exitCount } = await supabase
+            const { count: exitCount, error: exitError } = await supabase
                 .from('guest_movements')
                 .select('*', { count: 'exact', head: true })
                 .eq('gate_id', gate.id)
                 .eq('movement_type', 'exit');
+            
+            if (exitError) {
+                console.error('Error fetching exit count for gate stats', gate.gate_name, exitError);
+            }
             
             const marshallNames = marshalls?.map(m => m.marshall?.full_name).filter(Boolean).join(', ') || 'No marshalls';
             const hasMarshall = marshalls && marshalls.length > 0;
@@ -10314,3 +10346,51 @@ async function logBarmanAction(action, orderId, details = {}) {
 }
 
 console.log('✅ Barman Order Queue loaded');
+
+// Debug function to check guest_movements data
+window.debugGateMovements = async function() {
+    console.log('=== DEBUG: Guest Movements ===');
+    
+    // Get all movements
+    const { data: movements, error: movError } = await supabase
+        .from('guest_movements')
+        .select('*, gate:entry_gates(gate_name, gate_code)')
+        .order('created_at', { ascending: false })
+        .limit(20);
+    
+    if (movError) {
+        console.error('❌ Error fetching movements:', movError);
+        console.log('This likely means RLS is blocking the SELECT. Run migration 014!');
+    } else {
+        console.log('✅ Movements found:', movements?.length || 0);
+        console.table(movements);
+    }
+    
+    // Get all gates
+    const { data: gates, error: gateError } = await supabase
+        .from('entry_gates')
+        .select('id, gate_name, gate_code, is_active');
+    
+    if (gateError) {
+        console.error('❌ Error fetching gates:', gateError);
+    } else {
+        console.log('✅ Gates:', gates);
+    }
+    
+    // Get guests with checked_in status
+    const { data: guests, error: guestError } = await supabase
+        .from('guests')
+        .select('id, guest_name, status, is_inside_venue, entry_count, last_gate_id')
+        .in('status', ['checked_in', 'pass_sent'])
+        .limit(10);
+    
+    if (guestError) {
+        console.error('❌ Error fetching guests:', guestError);
+    } else {
+        console.log('✅ Recent guests:', guests);
+    }
+    
+    return { movements, gates, guests };
+};
+
+console.log('💡 Debug: Run debugGateMovements() in console to check data');
