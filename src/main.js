@@ -2622,33 +2622,49 @@ window.deleteUser = async function(userId, username, fullName) {
         
         // Clear all foreign key references before deleting to avoid constraint errors
         try {
-            // Update guests registered by this user
-            await supabase.from('guests').update({ registered_by: null }).eq('registered_by', userId);
+            // Note: guests.registered_by is NOT NULL - cannot nullify. Guests remain linked to deleted user.
+            // If needed, reassign guests to another user before deletion.
+            // await supabase.from('guests').update({ registered_by: null }).eq('registered_by', userId);
+            
+            // Nullify nullable guest FK references to this user
+            await supabase.from('guests').update({ verified_by: null }).eq('verified_by', userId);
+            await supabase.from('guests').update({ checked_in_by: null }).eq('checked_in_by', userId);
             
             // Update beverage orders
             await supabase.from('beverage_orders').update({ barman_id: null }).eq('barman_id', userId);
             
             // Update token orders
-            await supabase.from('token_orders').update({ barman_id: null }).eq('barman_id', userId);
+            await supabase.from('token_orders').update({ served_by: null }).eq('served_by', userId);
             await supabase.from('token_orders').update({ accepted_by: null }).eq('accepted_by', userId);
             
             // Update gate activity logs
-            await supabase.from('gate_activity_log').update({ marshall_id: null }).eq('marshall_id', userId);
+            await supabase.from('gate_activity_log').update({ user_id: null }).eq('user_id', userId);
             
-            // Update marshall duties
-            await supabase.from('marshall_duties').update({ marshall_id: null }).eq('marshall_id', userId);
+            // Note: marshall_duties.marshall_id is NOT NULL - cannot nullify.
+            // Marshall duties remain as historical records linked to the user.
+            // await supabase.from('marshall_duties').update({ marshall_id: null }).eq('marshall_id', userId);
             
             // Update token purchases
-            await supabase.from('token_purchases').update({ sold_by: null }).eq('sold_by', userId);
+            await supabase.from('token_purchases').update({ seller_id: null }).eq('seller_id', userId);
             
             // Update bar counters (created_by foreign key)
             await supabase.from('bar_counters').update({ created_by: null }).eq('created_by', userId);
             
-            // Update clockin_tokens
-            await supabase.from('clockin_tokens').update({ created_by: null }).eq('created_by', userId);
+            // Note: clockin_tokens.overseer_id is NOT NULL - cannot nullify.
+            // Clockin tokens remain as historical records.
+            // await supabase.from('clockin_tokens').update({ overseer_id: null }).eq('overseer_id', userId);
             
             // Update entry_gates
             await supabase.from('entry_gates').update({ created_by: null }).eq('created_by', userId);
+
+            // Delete gate_roster entries for this user
+            await supabase.from('gate_roster').delete().eq('marshall_id', userId);
+
+            // Update overseer_assignments
+            await supabase.from('overseer_assignments').delete().eq('overseer_id', userId);
+
+            // Update clockout_requests reviewed_by
+            await supabase.from('clockout_requests').update({ reviewed_by: null }).eq('reviewed_by', userId);
             
             // Update users table references (deactivated_by, created_by)
             await supabase.from('users').update({ deactivated_by: null }).eq('deactivated_by', userId);
@@ -3251,6 +3267,10 @@ function setupEventListeners() {
     document.getElementById('registrationForm')?.addEventListener('submit', handleRegistration);
     document.getElementById('entryType')?.addEventListener('change', updateRegistrationForm);
     document.getElementById('paymentMode')?.addEventListener('change', updateRegistrationForm);
+    document.getElementById('childCount')?.addEventListener('change', updateRegistrationForm);
+    
+    // Expose for any remaining inline handlers
+    window.updateRegistrationForm = updateRegistrationForm;
     
     // Settings form
     document.getElementById('settingsForm')?.addEventListener('submit', saveSettings);
@@ -3704,7 +3724,7 @@ async function processClockInToken(qrData, scanner, stream) {
     }
 }
 
-function stopClockinScanner() {
+window.stopClockinScanner = function() {
     const video = document.getElementById('clockinQrVideo');
     if (video && video.srcObject) {
         video.srcObject.getTracks().forEach(track => track.stop());
@@ -3999,7 +4019,7 @@ async function processEntry(guest) {
     }
     
     // Check if pass is valid
-    if (!['pass_sent', 'checked_in'].includes(guest.status)) {
+    if (!['payment_verified', 'pass_generated', 'pass_sent', 'checked_in'].includes(guest.status)) {
         showCheckinResult(false, 'Invalid Pass', 
             `This pass is not valid. Status: ${guest.status}`, 'warning');
         return;
@@ -5671,12 +5691,12 @@ async function loadMarshalls() {
                                         <i class="fas fa-times mr-1"></i>Unassign Gate
                                     </button>
                                 `}
-                                <button onclick="event.stopPropagation(); deactivateUser('${marshall.id}', '${escapeHtml(marshall.username)}', '${escapeHtml(marshall.full_name)}'))" 
+                                <button onclick="event.stopPropagation(); deactivateUser('${marshall.id}', '${escapeHtml(marshall.username)}', '${escapeHtml(marshall.full_name)}')" 
                                         class="vamosfesta-button danger text-xs ml-auto">
                                     <i class="fas fa-user-slash mr-1"></i>Deactivate
                                 </button>
                             ` : `
-                                <button onclick="event.stopPropagation(); reactivateUser('${marshall.id}', '${escapeHtml(marshall.username)}', '${escapeHtml(marshall.full_name)}')}" 
+                                <button onclick="event.stopPropagation(); reactivateUser('${marshall.id}', '${escapeHtml(marshall.username)}', '${escapeHtml(marshall.full_name)}')" 
                                         class="vamosfesta-button success text-xs">
                                     <i class="fas fa-user-check mr-1"></i>Reactivate
                                 </button>
@@ -6331,6 +6351,7 @@ window.loadGates = loadGates;
 window.loadGateManagement = loadGateManagement;
 window.loadAdmins = loadAdmins;
 window.loadOverseerGates = loadOverseerGates;
+window.loadMarshalls = loadMarshalls;
 
 // =====================================================
 // SIPTOKEN MODULE INTEGRATION
@@ -6401,7 +6422,7 @@ window.searchGuestForTokens = async function() {
         }
         
         // Check if guest is verified
-        if (!['verified', 'pass_sent', 'checked_in'].includes(guest.status)) {
+        if (!['payment_verified', 'pass_generated', 'pass_sent', 'checked_in'].includes(guest.status)) {
             showToast('Guest pass not verified yet. Cannot sell tokens.', 'error');
             return;
         }
@@ -8142,8 +8163,8 @@ window.searchGuestForTokens = async function() {
             return;
         }
         
-        // Check if guest has entry
-        if (guest.entry_status !== 'entered') {
+        // Check if guest has entered the venue
+        if (!guest.is_inside_venue) {
             showToast('Guest has not entered the venue yet', 'warning');
         }
         
