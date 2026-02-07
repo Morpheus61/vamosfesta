@@ -63,6 +63,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
         // Show login screen if no valid session
         document.getElementById('loginScreen')?.classList.remove('hidden');
+        // Check if biometric login is available and show button
+        updateBiometricButtonVisibility();
     }
     
     // Setup event listeners
@@ -550,6 +552,219 @@ function fileToBase64(file) {
 }
 
 // =====================================================
+// BIOMETRIC / FINGERPRINT LOGIN (WebAuthn)
+// =====================================================
+
+// Check if WebAuthn / biometric is available on this device
+async function isBiometricAvailable() {
+    if (!window.PublicKeyCredential) return false;
+    try {
+        return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+    } catch {
+        return false;
+    }
+}
+
+// Check if we already have a stored biometric credential for this device
+function getStoredBiometricCredential() {
+    try {
+        const data = localStorage.getItem('vamosfesta_biometric');
+        return data ? JSON.parse(data) : null;
+    } catch {
+        return null;
+    }
+}
+
+// Generate a random challenge buffer
+function generateChallenge() {
+    const arr = new Uint8Array(32);
+    crypto.getRandomValues(arr);
+    return arr;
+}
+
+// Convert ArrayBuffer to Base64 string for storage
+function bufferToBase64(buffer) {
+    return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+}
+
+// Convert Base64 string back to ArrayBuffer
+function base64ToBuffer(base64) {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes.buffer;
+}
+
+// Register biometric credential after first successful login
+async function registerBiometric(user) {
+    try {
+        const challenge = generateChallenge();
+        const userId = new TextEncoder().encode(String(user.id));
+
+        const credential = await navigator.credentials.create({
+            publicKey: {
+                challenge: challenge,
+                rp: { name: 'Vamos Festa', id: window.location.hostname },
+                user: {
+                    id: userId,
+                    name: user.username,
+                    displayName: user.full_name || user.username
+                },
+                pubKeyCredParams: [
+                    { alg: -7, type: 'public-key' },   // ES256
+                    { alg: -257, type: 'public-key' }   // RS256
+                ],
+                authenticatorSelection: {
+                    authenticatorAttachment: 'platform',  // Built-in (fingerprint/face)
+                    userVerification: 'required',
+                    residentKey: 'preferred'
+                },
+                timeout: 60000,
+                attestation: 'none'
+            }
+        });
+
+        if (credential) {
+            // Store credential ID + user info in localStorage (persists across sessions)
+            const biometricData = {
+                credentialId: bufferToBase64(credential.rawId),
+                username: user.username,
+                userId: user.id,
+                fullName: user.full_name || user.username,
+                role: user.role,
+                registeredAt: new Date().toISOString()
+            };
+            localStorage.setItem('vamosfesta_biometric', JSON.stringify(biometricData));
+            console.log('✅ Biometric credential registered for', user.username);
+            return true;
+        }
+    } catch (error) {
+        console.error('❌ Biometric registration failed:', error);
+        return false;
+    }
+}
+
+// Authenticate using stored biometric credential
+async function authenticateWithBiometric() {
+    const stored = getStoredBiometricCredential();
+    if (!stored) throw new Error('No biometric credential found');
+
+    const challenge = generateChallenge();
+
+    const assertion = await navigator.credentials.get({
+        publicKey: {
+            challenge: challenge,
+            allowCredentials: [{
+                id: base64ToBuffer(stored.credentialId),
+                type: 'public-key',
+                transports: ['internal']
+            }],
+            userVerification: 'required',
+            timeout: 60000
+        }
+    });
+
+    if (!assertion) throw new Error('Biometric authentication failed');
+
+    // Biometric verified — now fetch fresh user data from DB
+    const { data: userData, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', stored.userId)
+        .eq('is_active', true)
+        .single();
+
+    if (error || !userData) {
+        // User deactivated or deleted — clear biometric
+        localStorage.removeItem('vamosfesta_biometric');
+        throw new Error('Account is no longer active. Please login with username and password.');
+    }
+
+    return userData;
+}
+
+// Handle biometric login button click
+async function loginWithBiometric() {
+    const errorDiv = document.getElementById('loginError');
+    const bioBtn = document.getElementById('biometricLoginBtn');
+    if (bioBtn) bioBtn.disabled = true;
+
+    try {
+        errorDiv.style.display = 'none';
+        const userData = await authenticateWithBiometric();
+
+        // Set session
+        currentUser = userData;
+        sessionStorage.setItem('vamosfesta_user', JSON.stringify(currentUser));
+        sessionStorage.setItem('vamosfesta_session_token', 'biometric_' + Date.now());
+
+        document.getElementById('loginScreen').classList.add('hidden');
+        await initializeApp();
+
+    } catch (error) {
+        console.error('Biometric login error:', error);
+        errorDiv.textContent = error.message || 'Biometric login failed. Use username & password.';
+        errorDiv.style.display = 'block';
+    } finally {
+        if (bioBtn) bioBtn.disabled = false;
+    }
+}
+window.loginWithBiometric = loginWithBiometric;
+
+// Prompt user to enable biometric after successful password login
+async function promptBiometricSetup(user) {
+    const available = await isBiometricAvailable();
+    if (!available) return; // Device doesn't support it
+
+    const existing = getStoredBiometricCredential();
+    if (existing && existing.userId === user.id) return; // Already registered for this user
+
+    // Small delay so the app loads first
+    setTimeout(async () => {
+        const enable = confirm(
+            '🔐 Fingerprint / Face Login\n\n' +
+            'Would you like to enable biometric login on this device?\n\n' +
+            'Next time you can log in with just your fingerprint or face — no password needed!'
+        );
+        if (enable) {
+            const success = await registerBiometric(user);
+            if (success) {
+                alert('✅ Biometric login enabled!\n\nNext time, tap the fingerprint button to log in.');
+            } else {
+                alert('⚠️ Could not set up biometric login.\nYou can try again next time you log in.');
+            }
+        }
+    }, 1500);
+}
+
+// Remove biometric credential (for settings / logout option)
+function removeBiometricCredential() {
+    localStorage.removeItem('vamosfesta_biometric');
+    const bioBtn = document.getElementById('biometricLoginBtn');
+    if (bioBtn) bioBtn.style.display = 'none';
+    console.log('🗑️ Biometric credential removed');
+}
+window.removeBiometricCredential = removeBiometricCredential;
+
+// Show/hide the biometric login button on the login screen
+async function updateBiometricButtonVisibility() {
+    const bioBtn = document.getElementById('biometricLoginBtn');
+    if (!bioBtn) return;
+
+    const available = await isBiometricAvailable();
+    const stored = getStoredBiometricCredential();
+
+    if (available && stored) {
+        bioBtn.style.display = 'block';
+        // Show which user the biometric is registered for
+        const nameSpan = document.getElementById('biometricUserName');
+        if (nameSpan) nameSpan.textContent = stored.fullName || stored.username;
+    } else {
+        bioBtn.style.display = 'none';
+    }
+}
+
+// =====================================================
 // AUTHENTICATION
 // =====================================================
 
@@ -581,10 +796,14 @@ async function handleLogin(e) {
         // Store session data
         currentUser = userData;
         sessionStorage.setItem('vamosfesta_user', JSON.stringify(currentUser));
+        sessionStorage.setItem('vamosfesta_session_token', 'login_' + Date.now());
         
         errorDiv.classList.add('hidden');
         document.getElementById('loginScreen').classList.add('hidden');
         await initializeApp();
+        
+        // After successful password login, offer biometric setup
+        promptBiometricSetup(userData);
         
     } catch (error) {
         console.error('Login error:', error);
@@ -603,6 +822,8 @@ async function handleLogout() {
     document.getElementById('mainApp').classList.add('hidden');
     document.getElementById('loginScreen').classList.remove('hidden');
     document.getElementById('loginForm').reset();
+    // Show biometric button if credential exists (don't clear biometric on logout)
+    updateBiometricButtonVisibility();
 }
 
 // =====================================================

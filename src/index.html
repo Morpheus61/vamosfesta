@@ -737,6 +737,30 @@
             onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 32px rgba(255,215,0,0.5)'">
                 <i class="fas fa-sign-in-alt mr-2"></i> LOGIN
             </button>
+
+            <!-- Biometric / Fingerprint Login Button (hidden by default, shown when credential exists) -->
+            <button type="button" id="biometricLoginBtn" onclick="loginWithBiometric()" style="
+                display: none;
+                width: 100%;
+                padding: 0.875rem;
+                background: linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05));
+                border: 2px solid rgba(255, 215, 0, 0.7);
+                border-radius: 12px;
+                color: #FFD700;
+                font-size: 1rem;
+                font-weight: 600;
+                cursor: pointer;
+                backdrop-filter: blur(10px);
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+                transition: all 0.3s ease;
+                margin-top: 0.25rem;
+            "
+            onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 30px rgba(255,215,0,0.3)'"
+            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 20px rgba(0,0,0,0.3)'">
+                <i class="fas fa-fingerprint" style="font-size: 1.3rem; margin-right: 0.5rem;"></i>
+                Login with Fingerprint
+                <div id="biometricUserName" style="font-size: 0.75rem; opacity: 0.8; margin-top: 2px;"></div>
+            </button>
             
             <!-- Error Message -->
             <div id="loginError" style="
